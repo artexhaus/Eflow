@@ -55,6 +55,9 @@ export type Database = {
           has_attachment: boolean;
           is_archived: boolean;
           is_deleted: boolean;
+          list_unsubscribe: string | null;
+          list_unsubscribe_post: boolean;
+          is_protected: boolean;
           created_at: string;
         };
         Insert: {
@@ -73,6 +76,8 @@ export type Database = {
           has_attachment?: boolean;
           is_archived?: boolean;
           is_deleted?: boolean;
+          list_unsubscribe?: string | null;
+          list_unsubscribe_post?: boolean;
           created_at?: string;
         };
         Update: {
@@ -91,6 +96,35 @@ export type Database = {
           has_attachment?: boolean;
           is_archived?: boolean;
           is_deleted?: boolean;
+          list_unsubscribe?: string | null;
+          list_unsubscribe_post?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      sender_actions: {
+        Row: {
+          id: string;
+          user_id: string;
+          sender: string;
+          unsubscribe_status: 'unsubscribed' | 'link_opened' | null;
+          unsubscribed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          sender: string;
+          unsubscribe_status?: 'unsubscribed' | 'link_opened' | null;
+          unsubscribed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          sender?: string;
+          unsubscribe_status?: 'unsubscribed' | 'link_opened' | null;
+          unsubscribed_at?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -132,3 +166,4 @@ export type Database = {
 export type User = Database['public']['Tables']['users']['Row'];
 export type Email = Database['public']['Tables']['emails']['Row'];
 export type Bundle = Database['public']['Tables']['bundles']['Row'];
+export type SenderAction = Database['public']['Tables']['sender_actions']['Row'];

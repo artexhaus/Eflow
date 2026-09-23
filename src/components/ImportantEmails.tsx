@@ -1,21 +1,25 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, Mail, Paperclip, Clock, Eye, EyeOff, Receipt, ShoppingBag, CalendarClock, ShieldCheck, User, Tag } from 'lucide-react';
+import { ChevronLeft, Mail, Paperclip, Clock, Eye, EyeOff, Receipt, ShoppingBag, CalendarClock, ShieldCheck, User, Tag, KeyRound } from 'lucide-react';
 import type { Email } from '../lib/types';
 
 interface ImportantEmailsProps {
   emails: Email[];
+  // Every protected bill/receipt, whatever category the scan gave it - a
+  // receipt filed under "clutter" still belongs in Paid & Verified.
+  verifiedEmails: Email[];
+  initialTab?: 'all' | 'verified';
   onBack: () => void;
   onRefresh: () => void;
 }
 
-type CategoryKey = 'all' | 'bills' | 'purchases' | 'dates' | 'security' | 'personal' | 'other';
+type CategoryKey = 'all' | 'verified' | 'orders' | 'dates' | 'security' | 'personal' | 'other';
 
 const CATEGORY_TABS: { key: CategoryKey; label: string; icon: typeof Tag }[] = [
   { key: 'all', label: 'All', icon: Tag },
-  { key: 'bills', label: 'Bills & Payments', icon: Receipt },
-  { key: 'purchases', label: 'Purchases & Receipts', icon: ShoppingBag },
+  { key: 'verified', label: 'Paid & Verified', icon: ShieldCheck },
+  { key: 'orders', label: 'Orders & Deliveries', icon: ShoppingBag },
   { key: 'dates', label: 'Upcoming Dates', icon: CalendarClock },
-  { key: 'security', label: 'Security & Accounts', icon: ShieldCheck },
+  { key: 'security', label: 'Security & Accounts', icon: KeyRound },
   { key: 'personal', label: 'Personal', icon: User },
   { key: 'other', label: 'Other', icon: Mail },
 ];
@@ -25,18 +29,20 @@ const CATEGORY_TABS: { key: CategoryKey; label: string; icon: typeof Tag }[] = [
 // backend classifier's importance_reason values, plus subject-line keywords
 // for finer-grained grouping than the single "important" category stores.
 function getEmailCategory(email: Email): CategoryKey {
+  // Paid & Verified comes straight from the database's is_protected flag - the
+  // same flag the server uses to refuse clean-ups - so this tab always shows
+  // exactly the emails that are safe from deletion.
+  if (email.is_protected) return 'verified';
+
   const reason = (email.importance_reason || '').toLowerCase();
   const subject = (email.subject || '').toLowerCase();
   const sender = (email.sender || '').toLowerCase();
   const text = `${subject} ${reason} ${sender}`;
 
-  const billsKeywords = ['bill', 'payment', 'invoice', 'statement', 'due', 'mortgage', 'rent', 'lease', 'utility', 'electric', 'water bill', 'gas bill', 'loan', 'balance due', 'autopay'];
-  if (billsKeywords.some((kw) => text.includes(kw))) return 'bills';
+  const orderKeywords = ['order', 'purchase', 'shipped', 'delivery', 'delivered', 'tracking', 'package'];
+  if (orderKeywords.some((kw) => text.includes(kw))) return 'orders';
 
-  const purchaseKeywords = ['receipt', 'order', 'purchase', 'shipped', 'delivery', 'tracking', 'package', 'refund', 'invoice #', 'your order'];
-  if (purchaseKeywords.some((kw) => text.includes(kw))) return 'purchases';
-
-  const dateKeywords = ['appointment', 'reminder', 'confirmation', 'booking', 'reservation', 'flight', 'ticket', 'boarding', 'check-in', 'checkin', 'event', 'meeting', 'interview', 'deadline', 'renewal', 'expires', 'expiring', 'rsvp', 'schedule'];
+  const dateKeywords = ['appointment', 'reminder', 'confirmation', 'booking', 'reservation', 'flight', 'ticket', 'boarding', 'check-in', 'checkin', 'event', 'meeting', 'interview', 'deadline', 'renewal', 'expires', 'expiring', 'rsvp', 'schedule', 'due', 'mortgage', 'rent', 'lease', 'autopay'];
   if (dateKeywords.some((kw) => text.includes(kw))) return 'dates';
 
   const securityKeywords = ['security', 'verification', 'password', 'login', 'sign in', 'verify', 'confirm your', 'reset', 'account alert', 'two-factor', '2fa', 'suspicious'];
@@ -47,10 +53,17 @@ function getEmailCategory(email: Email): CategoryKey {
   return 'other';
 }
 
-export default function ImportantEmails({ emails, onBack }: ImportantEmailsProps) {
+// Display-only split inside Paid & Verified: money already sent vs bills.
+function getVerifiedKind(email: Email): 'Paid' | 'Bill' {
+  return /receipt|paid|confirm|refund|successful|processed|complete|transaction/i.test(email.subject || '')
+    ? 'Paid'
+    : 'Bill';
+}
+
+export default function ImportantEmails({ emails, verifiedEmails, initialTab = 'all', onBack }: ImportantEmailsProps) {
   const [showAll, setShowAll] = useState(false);
   const [filterUnread, setFilterUnread] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<CategoryKey>('all');
+  const [activeCategory, setActiveCategory] = useState<CategoryKey>(initialTab);
 
   const categorized = useMemo(
     () => emails.map((email) => ({ email, category: getEmailCategory(email) })),
@@ -60,23 +73,27 @@ export default function ImportantEmails({ emails, onBack }: ImportantEmailsProps
   const categoryCounts = useMemo(() => {
     const counts: Record<CategoryKey, number> = {
       all: emails.length,
-      bills: 0,
-      purchases: 0,
+      verified: 0,
+      orders: 0,
       dates: 0,
       security: 0,
       personal: 0,
       other: 0,
     };
     for (const { category } of categorized) {
-      counts[category]++;
+      if (category !== 'verified') counts[category]++;
     }
+    counts.verified = verifiedEmails.length;
     return counts;
-  }, [categorized, emails.length]);
+  }, [categorized, emails.length, verifiedEmails.length]);
 
+  const isVerifiedTab = activeCategory === 'verified';
   const byCategory =
     activeCategory === 'all'
       ? emails
-      : categorized.filter((c) => c.category === activeCategory).map((c) => c.email);
+      : isVerifiedTab
+        ? verifiedEmails
+        : categorized.filter((c) => c.category === activeCategory).map((c) => c.email);
 
   const filtered = filterUnread ? byCategory.filter((e) => !e.is_read) : byCategory;
   const visibleEmails = showAll ? filtered : filtered.slice(0, 50);
@@ -148,16 +165,22 @@ export default function ImportantEmails({ emails, onBack }: ImportantEmailsProps
               setShowAll(false);
             }}
             className={`flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap transition border ${
-              activeCategory === key
-                ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:text-blue-700'
+              key === 'verified'
+                ? activeCategory === key
+                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-300'
+                  : 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm shadow-emerald-200 hover:bg-emerald-100'
+                : activeCategory === key
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                  : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:text-blue-700'
             }`}
           >
             <Icon className="w-4 h-4 flex-shrink-0" />
             <span className="font-medium text-sm">{label}</span>
             <span
               className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                activeCategory === key ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+                activeCategory === key
+                  ? key === 'verified' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                  : key === 'verified' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
               }`}
             >
               {categoryCounts[key]}
@@ -166,13 +189,31 @@ export default function ImportantEmails({ emails, onBack }: ImportantEmailsProps
         ))}
       </div>
 
+      {isVerifiedTab && (
+        <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-start space-x-4">
+          <div className="w-11 h-11 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <ShieldCheck className="w-6 h-6 text-emerald-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-emerald-900 text-lg">Your bills and receipts are safely filed</p>
+            <p className="text-emerald-800">
+              Everything here is protected. Clean-ups, Archive All and Delete buttons always skip these emails.
+            </p>
+          </div>
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
           <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            {filterUnread ? 'No unread important emails' : 'No important emails'}
+            {isVerifiedTab
+              ? 'No bills or receipts yet'
+              : filterUnread ? 'No unread important emails' : 'No important emails'}
           </h3>
-          <p className="text-gray-600">You're all caught up!</p>
+          <p className="text-gray-600">
+            {isVerifiedTab ? "When a bill or receipt arrives, it'll be filed here automatically." : "You're all caught up!"}
+          </p>
         </div>
       ) : (
         <>
@@ -181,9 +222,11 @@ export default function ImportantEmails({ emails, onBack }: ImportantEmailsProps
               <div
                 key={email.id}
                 className={`bg-white rounded-xl p-6 hover:shadow-lg transition border ${
-                  !email.is_read
-                    ? 'border-blue-200 bg-blue-50/30'
-                    : 'border-gray-100 hover:border-blue-300'
+                  email.is_protected
+                    ? 'border-emerald-300 ring-1 ring-emerald-200 shadow-md shadow-emerald-100'
+                    : !email.is_read
+                      ? 'border-blue-200 bg-blue-50/30'
+                      : 'border-gray-100 hover:border-blue-300'
                 }`}
               >
                 <div className="flex items-start justify-between mb-3">
@@ -192,7 +235,13 @@ export default function ImportantEmails({ emails, onBack }: ImportantEmailsProps
                       <h3 className="font-semibold text-gray-900 truncate">
                         {email.sender_name || email.sender}
                       </h3>
-                      {email.importance_reason && (
+                      {email.is_protected && (
+                        <span className="flex items-center space-x-1 text-xs px-2 py-1 rounded-full font-semibold flex-shrink-0 bg-emerald-100 text-emerald-800">
+                          <Receipt className="w-3.5 h-3.5" />
+                          <span>{getVerifiedKind(email) === 'Paid' ? 'Paid · Safe' : 'Bill · Safe'}</span>
+                        </span>
+                      )}
+                      {email.importance_reason && !email.is_protected && (
                         <span
                           className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${getReasonBadgeColor(
                             email.importance_reason

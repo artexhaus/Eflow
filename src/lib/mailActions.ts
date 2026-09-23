@@ -5,12 +5,14 @@ export type MailAction = 'delete' | 'archive' | 'mark_read';
 export type MailActionTarget =
   | { emailIds: string[] }
   | { category: string | string[] }
-  | { bundleId: string };
+  | { bundleId: string }
+  | { sender: string };
 
 export interface MailActionResult {
   processed: number;
   failed: number;
   total: number;
+  protectedSkipped: number;
 }
 
 // Applies an action on the user's real mail server via imap-apply-actions.
@@ -42,6 +44,7 @@ export async function applyMailAction(
     processed: body.processed ?? 0,
     failed: body.failed ?? 0,
     total: body.total ?? 0,
+    protectedSkipped: body.protected_skipped ?? 0,
   };
   if (result.failed > 0 && result.processed === 0) {
     throw new Error('Your mail server rejected the request. Nothing was changed - please try again.');

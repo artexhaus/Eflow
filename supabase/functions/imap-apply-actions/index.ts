@@ -24,13 +24,17 @@ const DB_UPDATE_FOR_ACTION: Record<Action, Record<string, boolean>> = {
   mark_read: { is_read: true },
 };
 
-// Looks up the IMAP UIDs of every still-visible email matching a category or
-// bundle. Paginated because PostgREST caps a single select at 1000 rows, and a
+// Escapes LIKE wildcards so an address like "first_last@x.com" matches only
+// itself when compared case-insensitively with ilike.
+const escapeLike = (value: string) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+// Looks up the IMAP UIDs of every still-visible email matching a category,
+// bundle or sender. Paginated because PostgREST caps a single select at 1000 rows, and a
 // cleanup of a large inbox routinely targets several thousand emails.
 async function selectTargetIds(
   supabase: ReturnType<typeof createClient>,
   userId: string,
-  filter: { categories?: string[]; bundleId?: string },
+  filter: { categories?: string[]; bundleId?: string; sender?: string; excludeProtected?: boolean },
 ): Promise<string[]> {
   const PAGE = 1000;
   const ids: string[] = [];
@@ -45,6 +49,8 @@ async function selectTargetIds(
       .eq("is_archived", false);
     if (filter.categories) query = query.in("category", filter.categories);
     if (filter.bundleId) query = query.eq("bundle_id", filter.bundleId);
+    if (filter.sender) query = query.ilike("sender", escapeLike(filter.sender));
+    if (filter.excludeProtected) query = query.eq("is_protected", false);
 
     const { data, error } = await query.order("id").range(from, from + PAGE - 1);
     if (error) throw new Error(`Failed to look up emails: ${error.message}`);
@@ -56,6 +62,27 @@ async function selectTargetIds(
   }
 
   return ids;
+}
+
+// Returns which of the given UIDs belong to protected (Paid & Verified) emails.
+async function selectProtectedIds(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  emailIds: string[],
+): Promise<Set<string>> {
+  const protectedIds = new Set<string>();
+  const CHUNK = 500;
+  for (let i = 0; i < emailIds.length; i += CHUNK) {
+    const { data, error } = await supabase
+      .from("emails")
+      .select("email_id")
+      .eq("user_id", userId)
+      .eq("is_protected", true)
+      .in("email_id", emailIds.slice(i, i + CHUNK));
+    if (error) throw new Error(`Failed to check protected emails: ${error.message}`);
+    for (const row of data ?? []) protectedIds.add(row.email_id);
+  }
+  return protectedIds;
 }
 
 // Finds where "archive" should move mail for this provider: the server's
@@ -95,33 +122,48 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) throw new Error("Invalid user");
 
-    const { action, emailIds, category, bundleId } = (await req.json()) as {
+    const { action, emailIds, category, bundleId, sender } = (await req.json()) as {
       action: Action;
       emailIds?: string[];
       category?: string | string[];
       bundleId?: string;
+      sender?: string;
     };
 
     if (!DB_UPDATE_FOR_ACTION[action]) {
       throw new Error("A valid action (delete, archive, mark_read) is required");
     }
 
+    // Bills and receipts ("Paid & Verified") are never archived or deleted,
+    // whichever screen sent the request. Enforced here rather than in the UI
+    // so no bulk action can sweep them up by accident.
+    const excludeProtected = action !== "mark_read";
+
     let targetIds: string[];
+    let protectedSkipped = 0;
     if (Array.isArray(emailIds)) {
       targetIds = emailIds.map(String);
+      if (excludeProtected && targetIds.length > 0) {
+        const protectedIds = await selectProtectedIds(supabase, user.id, targetIds);
+        targetIds = targetIds.filter((id) => !protectedIds.has(id));
+        protectedSkipped = emailIds.length - targetIds.length;
+      }
     } else if (bundleId) {
-      targetIds = await selectTargetIds(supabase, user.id, { bundleId });
+      targetIds = await selectTargetIds(supabase, user.id, { bundleId, excludeProtected });
+    } else if (sender) {
+      targetIds = await selectTargetIds(supabase, user.id, { sender, excludeProtected });
     } else if (category) {
       targetIds = await selectTargetIds(supabase, user.id, {
         categories: Array.isArray(category) ? category : [category],
+        excludeProtected,
       });
     } else {
-      throw new Error("Specify emailIds, bundleId or category");
+      throw new Error("Specify emailIds, bundleId, sender or category");
     }
 
     if (targetIds.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, action, processed: 0, failed: 0, total: 0 }),
+        JSON.stringify({ success: true, action, processed: 0, failed: 0, total: 0, protected_skipped: protectedSkipped }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -206,7 +248,7 @@ Deno.serve(async (req) => {
     await client.logout();
 
     return new Response(
-      JSON.stringify({ success: true, action, processed, failed, total: targetIds.length }),
+      JSON.stringify({ success: true, action, processed, failed, total: targetIds.length, protected_skipped: protectedSkipped }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

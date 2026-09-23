@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Mail, Sparkles, Trash2, Package, LogOut, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Mail, Sparkles, Trash2, Package, LogOut, RefreshCw, CheckCircle, AlertCircle, Users, ChevronRight, LayoutGrid, Smile } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { Email, Bundle } from '../lib/types';
@@ -8,8 +8,11 @@ import ClutterEmails from './ClutterEmails';
 import BundlesList from './BundlesList';
 import InboxReset from './InboxReset';
 import UnreadEmails from './UnreadEmails';
+import SendersList from './SendersList';
+import SimpleHome from './SimpleHome';
+import { groupBySender } from '../lib/senders';
 
-type Screen = 'dashboard' | 'important' | 'clutter' | 'bundles' | 'reset' | 'unread';
+type Screen = 'dashboard' | 'important' | 'clutter' | 'bundles' | 'reset' | 'unread' | 'senders';
 
 interface ScanResult {
   fetched: number;
@@ -31,6 +34,18 @@ interface ScanChunkResponse {
   bundle_groups: number;
 }
 
+const SIMPLE_MODE_KEY = 'eflow:simpleMode';
+
+// Simple mode is the default: one big clean-up button and two cards. People
+// who want every tool can switch; the choice is remembered per browser.
+function readSimpleMode(): boolean {
+  try {
+    return localStorage.getItem(SIMPLE_MODE_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
 interface ScanProgress {
   scannedSoFar: number;
   totalInInbox: number;
@@ -46,6 +61,24 @@ export default function Dashboard() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [scanError, setScanError] = useState('');
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+  const [simpleMode, setSimpleMode] = useState(readSimpleMode);
+  const [importantStartTab, setImportantStartTab] = useState<'all' | 'verified'>('all');
+
+  const toggleSimpleMode = () => {
+    const next = !simpleMode;
+    setSimpleMode(next);
+    setCurrentScreen('dashboard');
+    try {
+      localStorage.setItem(SIMPLE_MODE_KEY, String(next));
+    } catch {
+      // Storage unavailable (private mode etc.) - the toggle still works for this visit.
+    }
+  };
+
+  const openImportant = (tab: 'all' | 'verified') => {
+    setImportantStartTab(tab);
+    setCurrentScreen('important');
+  };
 
   useEffect(() => {
     loadData();
@@ -216,6 +249,9 @@ export default function Dashboard() {
   const bundleEmailCount = emails.filter((e) => e.category === 'bundle').length;
   const unreadCount = emails.filter((e) => !e.is_read).length;
 
+  const topSenders = useMemo(() => groupBySender(emails).slice(0, 10), [emails]);
+  const topSendersEmailCount = topSenders.reduce((sum, g) => sum + g.count, 0);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -238,6 +274,14 @@ export default function Dashboard() {
               </div>
               <h1 className="text-xl font-bold text-gray-900">Eflow</h1>
             </div>
+            <div className="flex items-center space-x-5">
+            <button
+              onClick={toggleSimpleMode}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition"
+            >
+              {simpleMode ? <LayoutGrid className="w-5 h-5" /> : <Smile className="w-5 h-5" />}
+              <span className="text-sm font-medium">{simpleMode ? 'All tools' : 'Simple view'}</span>
+            </button>
             <button
               onClick={async () => {
                 try {
@@ -252,16 +296,19 @@ export default function Dashboard() {
               <LogOut className="w-5 h-5" />
               <span className="text-sm font-medium">Sign Out</span>
             </button>
+            </div>
           </div>
         </div>
       </nav>
 
       {currentScreen === 'dashboard' && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back!</h2>
-            <p className="text-gray-600">Here's your inbox overview</p>
-          </div>
+          {!simpleMode && (
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back!</h2>
+              <p className="text-gray-600">Here's your inbox overview</p>
+            </div>
+          )}
 
           {scanError && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start space-x-3">
@@ -324,6 +371,18 @@ export default function Dashboard() {
             </div>
           )}
 
+          {simpleMode ? (
+            <SimpleHome
+              emails={emails}
+              scanning={scanning}
+              onScan={simulateScan}
+              onOpenVerified={() => openImportant('verified')}
+              onOpenSenders={() => setCurrentScreen('senders')}
+              onRefresh={loadData}
+              onShowAllTools={toggleSimpleMode}
+            />
+          ) : (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition">
               <Mail className="w-8 h-8 mb-4 opacity-90" />
@@ -369,6 +428,26 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-4">
+              {topSendersEmailCount > 0 && (
+                <button
+                  onClick={() => setCurrentScreen('senders')}
+                  className="w-full bg-white rounded-2xl p-6 shadow-sm border-2 border-emerald-100 hover:border-emerald-400 transition text-left flex items-center gap-5"
+                >
+                  <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Users className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-lg font-semibold text-gray-900">
+                      Your top {topSenders.length} senders sent {topSendersEmailCount.toLocaleString()} emails
+                    </div>
+                    <div className="text-sm text-gray-600 truncate">
+                      {topSenders.slice(0, 3).map((g) => g.name).join(', ')} and more. Unsubscribe and clear them out in one click.
+                    </div>
+                  </div>
+                  <ChevronRight className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+                </button>
+              )}
+
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold text-gray-900">
                   {emails.length.toLocaleString()} total emails loaded
@@ -385,7 +464,7 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <button
-                  onClick={() => setCurrentScreen('important')}
+                  onClick={() => openImportant('all')}
                   className="bg-white rounded-xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-blue-500"
                 >
                   <Mail className="w-6 h-6 text-blue-500 mb-3" />
@@ -422,12 +501,16 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+          </>
+          )}
         </div>
       )}
 
       {currentScreen === 'important' && (
         <ImportantEmails
           emails={emails.filter((e) => e.category === 'important')}
+          verifiedEmails={emails.filter((e) => e.is_protected)}
+          initialTab={importantStartTab}
           onBack={() => setCurrentScreen('dashboard')}
           onRefresh={loadData}
         />
@@ -457,6 +540,15 @@ export default function Dashboard() {
           bundleCount={bundleEmailCount}
           onBack={() => setCurrentScreen('dashboard')}
           onComplete={loadData}
+        />
+      )}
+
+      {currentScreen === 'senders' && (
+        <SendersList
+          emails={emails}
+          simple={simpleMode}
+          onBack={() => setCurrentScreen('dashboard')}
+          onRefresh={loadData}
         />
       )}
 

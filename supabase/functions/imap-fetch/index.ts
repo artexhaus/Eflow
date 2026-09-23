@@ -125,6 +125,19 @@ interface FetchedMessage {
   snippet: string;
   hasAttachment: boolean;
   isRead: boolean;
+  listUnsubscribe: string | null;
+  listUnsubscribePost: boolean;
+}
+
+// Pulls List-Unsubscribe / List-Unsubscribe-Post out of the raw header block
+// ImapFlow returns for `headers: [...]`. Header values may be folded across
+// several lines, so unfold continuation lines before matching.
+function parseUnsubscribeHeaders(raw: Uint8Array | undefined): { listUnsubscribe: string | null; listUnsubscribePost: boolean } {
+  if (!raw) return { listUnsubscribe: null, listUnsubscribePost: false };
+  const text = new TextDecoder().decode(raw).replace(/\r?\n[ \t]+/g, " ");
+  const value = text.match(/^list-unsubscribe:[ \t]*(.+)$/im)?.[1]?.trim() || null;
+  const post = /^list-unsubscribe-post:.*one-click/im.test(text);
+  return { listUnsubscribe: value ? value.slice(0, 2000) : null, listUnsubscribePost: Boolean(value) && post };
 }
 
 function parseSender(envelope: any): { email: string; name: string } {
@@ -362,6 +375,7 @@ Deno.serve(async (req) => {
         internalDate: true,
         bodyStructure: true,
         flags: true,
+        headers: ["list-unsubscribe", "list-unsubscribe-post"],
       }, { uid: true })) {
         const { email: senderEmail, name: senderName } = parseSender(msg.envelope);
         const subject = msg.envelope?.subject || "(no subject)";
@@ -393,6 +407,7 @@ Deno.serve(async (req) => {
         snippet: subject.slice(0, 120),
         hasAttachment,
         isRead,
+        ...parseUnsubscribeHeaders(msg.headers),
       });
     }
     }
@@ -430,6 +445,8 @@ Deno.serve(async (req) => {
         timestamp: m.date,
         has_attachment: m.hasAttachment,
         is_read: m.isRead,
+        list_unsubscribe: m.listUnsubscribe,
+        list_unsubscribe_post: m.listUnsubscribePost,
       };
     });
 
