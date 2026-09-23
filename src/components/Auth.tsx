@@ -23,31 +23,23 @@ export default function Auth() {
   };
 
   const handleImapComplete = async () => {
+    // Show a brief "fetching" transition screen. The actual (potentially
+    // multi-chunk) inbox scan is kicked off automatically by Dashboard's
+    // auto-scan effect once the auth session updates and the user lands
+    // there (connected_account_id is set but last_scan is still null).
+    // Doing the scan here too would race with that effect and, since a
+    // large mailbox needs many chunked imap-fetch calls to finish, a single
+    // call here would only ever fetch the first chunk anyway.
     setStep('fetching');
     setFetchError('');
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session found');
-
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imap-fetch`;
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch emails');
-      }
-
-      // The auth state change will trigger the dashboard to load
-      // with the user's real emails already in the database
+      // The auth state change will trigger the dashboard to load and begin
+      // scanning automatically.
     } catch (err) {
-      console.error('Fetch error:', err);
+      console.error('Post-connect error:', err);
       setFetchError((err as Error).message);
       setStep('imap');
     }

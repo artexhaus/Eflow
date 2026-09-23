@@ -7,8 +7,9 @@ import ImportantEmails from './ImportantEmails';
 import ClutterEmails from './ClutterEmails';
 import BundlesList from './BundlesList';
 import InboxReset from './InboxReset';
+import UnreadEmails from './UnreadEmails';
 
-type Screen = 'dashboard' | 'important' | 'clutter' | 'bundles' | 'reset';
+type Screen = 'dashboard' | 'important' | 'clutter' | 'bundles' | 'reset' | 'unread';
 
 interface ScanResult {
   fetched: number;
@@ -16,6 +17,23 @@ interface ScanResult {
   clutter: number;
   bundles: number;
   bundle_groups: number;
+}
+
+interface ScanChunkResponse {
+  success: boolean;
+  done: boolean;
+  fetched: number;
+  total_in_inbox: number;
+  scanned_so_far: number;
+  important: number;
+  clutter: number;
+  bundles: number;
+  bundle_groups: number;
+}
+
+interface ScanProgress {
+  scannedSoFar: number;
+  totalInInbox: number;
 }
 
 export default function Dashboard() {
@@ -27,6 +45,7 @@ export default function Dashboard() {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [scanError, setScanError] = useState('');
+  const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
 
   useEffect(() => {
     loadData();
@@ -90,6 +109,7 @@ export default function Dashboard() {
     setScanning(true);
     setScanError('');
     setScanResult(null);
+    setScanProgress(null);
 
     try {
       const { data: userData } = await supabase
@@ -99,10 +119,44 @@ export default function Dashboard() {
         .maybeSingle();
 
       if (userData?.email_provider && userData?.connected_account_id) {
-        const result = await fetchProviderEmails();
+        // The inbox may contain thousands of messages, which cannot be fetched
+        // in a single Edge Function call without hitting Supabase's resource
+        // limits. Keep calling imap-fetch until it reports the scan is done,
+        // fetching one bounded chunk each time and showing live progress.
+        // Since a scan can take dozens of calls over several minutes, a single
+        // transient IMAP hiccup (timeouts, brief server errors) shouldn't abort
+        // the whole scan - retry a few times with backoff before giving up.
+        const MAX_CONSECUTIVE_FAILURES = 5;
+        let result: ScanChunkResponse | null = null;
+        let done = false;
+        let consecutiveFailures = 0;
+
+        while (!done) {
+          try {
+            result = await fetchProviderEmailsChunk();
+            consecutiveFailures = 0;
+          } catch (chunkError) {
+            consecutiveFailures++;
+            console.error(`Scan chunk failed (attempt ${consecutiveFailures}):`, chunkError);
+            if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+              throw chunkError;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1000 * consecutiveFailures));
+            continue;
+          }
+
+          if (!result) break;
+
+          done = result.done;
+          setScanProgress({
+            scannedSoFar: result.scanned_so_far,
+            totalInInbox: result.total_in_inbox,
+          });
+        }
+
         if (result) {
           setScanResult({
-            fetched: result.fetched || 0,
+            fetched: result.scanned_so_far || 0,
             important: result.important || 0,
             clutter: result.clutter || 0,
             bundles: result.bundles || 0,
@@ -117,12 +171,13 @@ export default function Dashboard() {
       setScanError((error as Error).message);
     } finally {
       setScanning(false);
+      setScanProgress(null);
     }
   };
 
-  const fetchProviderEmails = async () => {
+  const fetchProviderEmailsChunk = async (): Promise<ScanChunkResponse | null> => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!session) return null;
 
     const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imap-fetch`;
 
@@ -233,9 +288,25 @@ export default function Dashboard() {
                 <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
                 <p className="font-medium text-blue-900">Scanning your entire inbox...</p>
               </div>
-              <p className="text-sm text-blue-700">
-                Fetching all emails from the very beginning. This may take a minute if you have thousands of emails.
-              </p>
+              {scanProgress && scanProgress.totalInInbox > 0 ? (
+                <>
+                  <div className="w-full bg-blue-100 rounded-full h-2 mb-2 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(100, Math.round((scanProgress.scannedSoFar / scanProgress.totalInInbox) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-sm text-blue-700">
+                    {scanProgress.scannedSoFar.toLocaleString()} of {scanProgress.totalInInbox.toLocaleString()} emails scanned
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-blue-700">
+                  Fetching all emails from the very beginning. This may take a while if you have thousands of emails.
+                </p>
+              )}
             </div>
           )}
 
@@ -258,11 +329,14 @@ export default function Dashboard() {
               <div className="text-emerald-100">Email Bundles</div>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition">
+            <button
+              onClick={() => setCurrentScreen('unread')}
+              className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition text-left"
+            >
               <Mail className="w-8 h-8 mb-4 opacity-90" />
               <div className="text-3xl font-bold mb-1">{unreadCount.toLocaleString()}</div>
               <div className="text-purple-100">Unread Emails</div>
-            </div>
+            </button>
           </div>
 
           {emails.length === 0 ? (
@@ -369,6 +443,14 @@ export default function Dashboard() {
           bundleCount={bundleEmailCount}
           onBack={() => setCurrentScreen('dashboard')}
           onComplete={loadData}
+        />
+      )}
+
+      {currentScreen === 'unread' && (
+        <UnreadEmails
+          emails={emails.filter((e) => !e.is_read)}
+          onBack={() => setCurrentScreen('dashboard')}
+          onRefresh={loadData}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronLeft, Mail, Paperclip, Clock, Eye, EyeOff } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronLeft, Mail, Paperclip, Clock, Eye, EyeOff, Receipt, ShoppingBag, CalendarClock, ShieldCheck, User, Tag } from 'lucide-react';
 import type { Email } from '../lib/types';
 
 interface ImportantEmailsProps {
@@ -8,11 +8,77 @@ interface ImportantEmailsProps {
   onRefresh: () => void;
 }
 
+type CategoryKey = 'all' | 'bills' | 'purchases' | 'dates' | 'security' | 'personal' | 'other';
+
+const CATEGORY_TABS: { key: CategoryKey; label: string; icon: typeof Tag }[] = [
+  { key: 'all', label: 'All', icon: Tag },
+  { key: 'bills', label: 'Bills & Payments', icon: Receipt },
+  { key: 'purchases', label: 'Purchases & Receipts', icon: ShoppingBag },
+  { key: 'dates', label: 'Upcoming Dates', icon: CalendarClock },
+  { key: 'security', label: 'Security & Accounts', icon: ShieldCheck },
+  { key: 'personal', label: 'Personal', icon: User },
+  { key: 'other', label: 'Other', icon: Mail },
+];
+
+// Buckets important emails into user-facing topics so a large "Important"
+// list stays scannable. Keyword rules mirror (and reuse the intent of) the
+// backend classifier's importance_reason values, plus subject-line keywords
+// for finer-grained grouping than the single "important" category stores.
+function getEmailCategory(email: Email): CategoryKey {
+  const reason = (email.importance_reason || '').toLowerCase();
+  const subject = (email.subject || '').toLowerCase();
+  const sender = (email.sender || '').toLowerCase();
+  const text = `${subject} ${reason} ${sender}`;
+
+  const billsKeywords = ['bill', 'payment', 'invoice', 'statement', 'due', 'mortgage', 'rent', 'lease', 'utility', 'electric', 'water bill', 'gas bill', 'loan', 'balance due', 'autopay'];
+  if (billsKeywords.some((kw) => text.includes(kw))) return 'bills';
+
+  const purchaseKeywords = ['receipt', 'order', 'purchase', 'shipped', 'delivery', 'tracking', 'package', 'refund', 'invoice #', 'your order'];
+  if (purchaseKeywords.some((kw) => text.includes(kw))) return 'purchases';
+
+  const dateKeywords = ['appointment', 'reminder', 'confirmation', 'booking', 'reservation', 'flight', 'ticket', 'boarding', 'check-in', 'checkin', 'event', 'meeting', 'interview', 'deadline', 'renewal', 'expires', 'expiring', 'rsvp', 'schedule'];
+  if (dateKeywords.some((kw) => text.includes(kw))) return 'dates';
+
+  const securityKeywords = ['security', 'verification', 'password', 'login', 'sign in', 'verify', 'confirm your', 'reset', 'account alert', 'two-factor', '2fa', 'suspicious'];
+  if (securityKeywords.some((kw) => text.includes(kw))) return 'security';
+
+  if (reason.includes('personal')) return 'personal';
+
+  return 'other';
+}
+
 export default function ImportantEmails({ emails, onBack }: ImportantEmailsProps) {
   const [showAll, setShowAll] = useState(false);
   const [filterUnread, setFilterUnread] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<CategoryKey>('all');
 
-  const filtered = filterUnread ? emails.filter((e) => !e.is_read) : emails;
+  const categorized = useMemo(
+    () => emails.map((email) => ({ email, category: getEmailCategory(email) })),
+    [emails]
+  );
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<CategoryKey, number> = {
+      all: emails.length,
+      bills: 0,
+      purchases: 0,
+      dates: 0,
+      security: 0,
+      personal: 0,
+      other: 0,
+    };
+    for (const { category } of categorized) {
+      counts[category]++;
+    }
+    return counts;
+  }, [categorized, emails.length]);
+
+  const byCategory =
+    activeCategory === 'all'
+      ? emails
+      : categorized.filter((c) => c.category === activeCategory).map((c) => c.email);
+
+  const filtered = filterUnread ? byCategory.filter((e) => !e.is_read) : byCategory;
   const visibleEmails = showAll ? filtered : filtered.slice(0, 50);
 
   const formatTime = (timestamp: string) => {
@@ -71,6 +137,33 @@ export default function ImportantEmails({ emails, onBack }: ImportantEmailsProps
             {filterUnread ? 'Unread only' : 'All emails'}
           </span>
         </button>
+      </div>
+
+      <div className="flex items-center space-x-2 overflow-x-auto pb-2 mb-6 -mx-1 px-1">
+        {CATEGORY_TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => {
+              setActiveCategory(key);
+              setShowAll(false);
+            }}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap transition border ${
+              activeCategory === key
+                ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:text-blue-700'
+            }`}
+          >
+            <Icon className="w-4 h-4 flex-shrink-0" />
+            <span className="font-medium text-sm">{label}</span>
+            <span
+              className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                activeCategory === key ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {categoryCounts[key]}
+            </span>
+          </button>
+        ))}
       </div>
 
       {filtered.length === 0 ? (

@@ -15,7 +15,46 @@ const imapHosts: Record<string, { host: string; port: number }> = {
   icloud: { host: "imap.mail.me.com", port: 993 },
 };
 
-const BATCH_SIZE = 500;
+// Each invocation only fetches/classifies/inserts a bounded chunk of messages.
+// Supabase Edge Functions have hard limits (256MB memory, 2s CPU time, 150s wall
+// clock on the free plan) and trying to pull an entire multi-thousand message
+// mailbox in one call throws WORKER_RESOURCE_LIMIT and aborts with nothing saved.
+// Progress (scan_cursor / scan_total / scan_sender_counts) is persisted on the
+// users row so the frontend can call this function repeatedly until `done: true`.
+const FETCH_CHUNK_SIZE = 150;
+
+async function selectAllRows<T>(
+  supabase: ReturnType<typeof createClient>,
+  table: string,
+  columns: string,
+  userId: string,
+  category: string,
+): Promise<T[]> {
+  const PAGE = 1000;
+  const rows: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(columns)
+      .eq("user_id", userId)
+      .eq("category", category)
+      .range(from, from + PAGE - 1);
+
+    if (error) {
+      console.error(`Error paginating ${table}:`, error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+
+    rows.push(...(data as T[]));
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+
+  return rows;
+}
 
 const importantDomains = [
   "bank", "chase", "wellsfargo", "bofa", "bankofamerica", "capitalone",
@@ -218,7 +257,7 @@ Deno.serve(async (req) => {
 
     const { data: userData } = await supabase
       .from("users")
-      .select("email_provider, connected_account_id, encrypted_password")
+      .select("email_provider, connected_account_id, encrypted_password, scan_remaining_uids, scan_total, scan_uid_validity, scan_sender_counts")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -234,6 +273,13 @@ Deno.serve(async (req) => {
     const { host, port } = imapHosts[provider];
     const password = atob(userData.encrypted_password);
 
+    // A scan is "in progress" (resuming) when scan_remaining_uids is set from a
+    // previous chunked call. UIDs (not sequence numbers) are used because
+    // sequence numbers renumber as the mailbox changes mid-scan (new mail
+    // arrives / gets expunged), which silently skips messages when a large
+    // mailbox needs dozens of chunked calls spread over several minutes.
+    const isResuming = userData.scan_remaining_uids != null && userData.scan_total != null;
+
     const client = new ImapFlow({
       host,
       port,
@@ -247,39 +293,75 @@ Deno.serve(async (req) => {
 
     const lock = await client.getMailboxLock("INBOX");
 
-    const status = await client.status("INBOX", { messages: true });
-    const totalMessages = status.messages || 0;
+    let totalMessages: number;
+    let remainingUids: number[];
+    let uidValidity: bigint;
 
-    if (totalMessages === 0) {
-      lock.release();
-      await client.logout();
+    const currentStatus = await client.status("INBOX", { messages: true, uidNext: true, uidValidity: true });
+    uidValidity = (currentStatus.uidValidity as unknown as bigint) ?? 0n;
 
+    if (isResuming && userData.scan_uid_validity != null && BigInt(userData.scan_uid_validity) === uidValidity) {
+      totalMessages = userData.scan_total!;
+      remainingUids = (userData.scan_remaining_uids as number[]) || [];
+    } else {
+      totalMessages = currentStatus.messages || 0;
+
+      if (totalMessages === 0) {
+        lock.release();
+        await client.logout();
+
+        await supabase.from("emails").delete().eq("user_id", user.id);
+        await supabase.from("bundles").delete().eq("user_id", user.id);
+        await supabase.from("users").update({
+          last_scan: new Date().toISOString(),
+          scan_uid_low: null,
+          scan_total: null,
+          scan_uid_validity: null,
+          scan_sender_counts: null,
+          scan_remaining_uids: null,
+        }).eq("id", user.id);
+
+        return new Response(
+          JSON.stringify({ success: true, done: true, fetched: 0, total_in_inbox: 0, emails: 0, important: 0, clutter: 0, bundles: 0, bundle_groups: 0 }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Starting a brand-new scan (or UIDVALIDITY changed): resolve the exact
+      // set of UIDs currently in the mailbox with a single SEARCH ALL, rather
+      // than walking every UID number from the highest ever assigned down to
+      // 1. Mailboxes with a long history of deletions can have huge gaps of
+      // unused UIDs below the real messages - walking raw UID ranges would
+      // waste thousands of empty round trips paging through those gaps
+      // (observed: a 10,000-message inbox needed 3,000+ extra empty chunk
+      // calls to walk down through ~490,000 unused historical UIDs). Sorting
+      // descending means newest mail is processed first, matching prior
+      // behavior.
+      const allUids = (await client.search({ all: true }, { uid: true })) as number[];
+      remainingUids = [...allUids].sort((a, b) => b - a);
+
+      // Starting a brand-new scan (or UIDVALIDITY changed): wipe previous results
       await supabase.from("emails").delete().eq("user_id", user.id);
       await supabase.from("bundles").delete().eq("user_id", user.id);
-      await supabase.from("users").update({ last_scan: new Date().toISOString() }).eq("id", user.id);
-
-      return new Response(
-        JSON.stringify({ success: true, fetched: 0, emails: 0, bundles: 0 }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
-    // Fetch ALL messages in batches
-    const allMessages: FetchedMessage[] = [];
-    const totalBatches = Math.ceil(totalMessages / BATCH_SIZE);
+    const senderCounts: Record<string, number> = (userData.scan_sender_counts as Record<string, number>) || {};
 
-    for (let batch = 0; batch < totalBatches; batch++) {
-      const start = batch * BATCH_SIZE + 1;
-      const end = Math.min(start + BATCH_SIZE - 1, totalMessages);
-      const range = `${start}:${end}`;
+    // Fetch one bounded chunk from the front of the remaining-UID list (already
+    // real, existing UIDs - no wasted round trips on gaps).
+    const chunkUids = remainingUids.slice(0, FETCH_CHUNK_SIZE);
+    const nextRemainingUids = remainingUids.slice(FETCH_CHUNK_SIZE);
 
-      for await (const msg of client.fetch(range, {
+    const chunkMessages: FetchedMessage[] = [];
+
+    if (chunkUids.length > 0) {
+    for await (const msg of client.fetch(chunkUids, {
         envelope: true,
         uid: true,
         internalDate: true,
         bodyStructure: true,
         flags: true,
-      })) {
+      }, { uid: true })) {
         const { email: senderEmail, name: senderName } = parseSender(msg.envelope);
         const subject = msg.envelope?.subject || "(no subject)";
         const internalDate = msg.internalDate || new Date().toISOString();
@@ -301,128 +383,165 @@ Deno.serve(async (req) => {
           }
         }
 
-        allMessages.push({
-          uid: msg.uid,
-          subject,
-          from: senderEmail,
-          fromName: senderName || senderEmail,
-          date: internalDate,
-          snippet: subject.slice(0, 120),
-          hasAttachment,
-          isRead,
-        });
-      }
+        chunkMessages.push({
+        uid: msg.uid,
+        subject,
+        from: senderEmail,
+        fromName: senderName || senderEmail,
+        date: internalDate,
+        snippet: subject.slice(0, 120),
+        hasAttachment,
+        isRead,
+      });
+    }
     }
 
     lock.release();
     await client.logout();
 
-    // Calculate sender frequency for smarter classification
-    const senderCounts: Record<string, number> = {};
-    for (const m of allMessages) {
+    // Update running sender-frequency counts (used to bias classification
+    // towards "bundle" for senders who mail frequently)
+    for (const m of chunkMessages) {
       const key = m.from.toLowerCase();
       senderCounts[key] = (senderCounts[key] || 0) + 1;
     }
 
-    // Clear old emails and insert new ones
-    await supabase.from("emails").delete().eq("user_id", user.id);
-    await supabase.from("bundles").delete().eq("user_id", user.id);
+    let importantAdded = 0;
+    let clutterAdded = 0;
+    let bundleAdded = 0;
 
-    // Insert in chunks of 200 to avoid payload limits
-    const CHUNK = 200;
-    for (let i = 0; i < allMessages.length; i += CHUNK) {
-      const chunk = allMessages.slice(i, i + CHUNK);
-      const emailsToInsert = chunk.map((m) => {
-        const freq = senderCounts[m.from.toLowerCase()] || 1;
-        const classification = classifyEmail(m.from, m.fromName, m.subject, m.snippet, m.hasAttachment, m.isRead, freq);
-        return {
-          user_id: user.id,
-          email_id: String(m.uid),
-          sender: m.from,
-          sender_name: m.fromName,
-          subject: m.subject,
-          snippet: m.snippet,
-          category: classification.category,
-          importance_reason: classification.importance_reason,
-          timestamp: m.date,
-          has_attachment: m.hasAttachment,
-          is_read: m.isRead,
-        };
-      });
+    const emailsToInsert = chunkMessages.map((m) => {
+      const freq = senderCounts[m.from.toLowerCase()] || 1;
+      const classification = classifyEmail(m.from, m.fromName, m.subject, m.snippet, m.hasAttachment, m.isRead, freq);
+      if (classification.category === "important") importantAdded++;
+      else if (classification.category === "clutter") clutterAdded++;
+      else bundleAdded++;
 
-      const { error: insertError } = await supabase.from("emails").insert(emailsToInsert);
+      return {
+        user_id: user.id,
+        email_id: String(m.uid),
+        sender: m.from,
+        sender_name: m.fromName,
+        subject: m.subject,
+        snippet: m.snippet,
+        category: classification.category,
+        importance_reason: classification.importance_reason,
+        timestamp: m.date,
+        has_attachment: m.hasAttachment,
+        is_read: m.isRead,
+      };
+    });
+
+    if (emailsToInsert.length > 0) {
+      const { error: insertError } = await supabase
+        .from("emails")
+        .upsert(emailsToInsert, { onConflict: "user_id,email_id" });
       if (insertError) {
         console.error("Error inserting emails chunk:", insertError);
       }
     }
 
-    // Create bundles from bundled emails
-    const { data: allEmails } = await supabase
+    const done = nextRemainingUids.length === 0;
+
+    // Track progress by counting rows actually persisted so far (accurate even
+    // though UID space isn't perfectly contiguous with message count when mail
+    // has been deleted in the past), rather than doing UID arithmetic.
+    const { count: scannedSoFarCount } = await supabase
       .from("emails")
-      .select("sender, subject, snippet, has_attachment, is_read, category")
-      .eq("user_id", user.id)
-      .eq("category", "bundle");
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    const scannedSoFar = scannedSoFarCount ?? chunkMessages.length;
 
-    const bundleGroups: Record<string, { sender: string; bundle_type: string; count: number; example_subjects: string[]; unread_count: number }> = {};
+    if (done) {
+      // Final chunk: rebuild bundles from all bundled emails now in the DB
+      const allBundleEmails = await selectAllRows<{ sender: string; subject: string }>(
+        supabase,
+        "emails",
+        "sender, subject",
+        user.id,
+        "bundle",
+      );
 
-    if (allEmails) {
-      for (const email of allEmails) {
+      const bundleGroups: Record<string, { sender: string; bundle_type: string; count: number; example_subjects: string[] }> = {};
+
+      for (const email of allBundleEmails) {
         const key = email.sender;
         if (!bundleGroups[key]) {
-          bundleGroups[key] = {
-            sender: email.sender,
-            bundle_type: "General",
-            count: 0,
-            example_subjects: [],
-            unread_count: 0,
-          };
+          bundleGroups[key] = { sender: email.sender, bundle_type: "General", count: 0, example_subjects: [] };
         }
         bundleGroups[key].count++;
-        if (!email.is_read) bundleGroups[key].unread_count!++;
         if (bundleGroups[key].example_subjects.length < 3) {
           bundleGroups[key].example_subjects.push(email.subject);
         }
       }
-    }
 
-    const bundlesToInsert = Object.values(bundleGroups).map((b) => ({
-      user_id: user.id,
-      sender: b.sender,
-      bundle_type: b.bundle_type,
-      count: b.count,
-      example_subjects: b.example_subjects,
-    }));
+      const bundlesToInsert = Object.values(bundleGroups).map((b) => ({
+        user_id: user.id,
+        sender: b.sender,
+        bundle_type: b.bundle_type,
+        count: b.count,
+        example_subjects: b.example_subjects,
+      }));
 
-    if (bundlesToInsert.length > 0) {
-      const { error: bundleError } = await supabase.from("bundles").insert(bundlesToInsert);
-      if (bundleError) {
-        console.error("Error inserting bundles:", bundleError);
+      await supabase.from("bundles").delete().eq("user_id", user.id);
+      if (bundlesToInsert.length > 0) {
+        const { error: bundleError } = await supabase.from("bundles").insert(bundlesToInsert);
+        if (bundleError) {
+          console.error("Error inserting bundles:", bundleError);
+        }
       }
+
+      await supabase.from("users").update({
+        last_scan: new Date().toISOString(),
+        scan_uid_low: null,
+        scan_total: null,
+        scan_uid_validity: null,
+        scan_sender_counts: null,
+        scan_remaining_uids: null,
+      }).eq("id", user.id);
+
+      const [importantRes, clutterRes, bundleRes] = await Promise.all([
+        supabase.from("emails").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("category", "important"),
+        supabase.from("emails").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("category", "clutter"),
+        supabase.from("emails").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("category", "bundle"),
+      ]);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          done: true,
+          fetched: chunkMessages.length,
+          total_in_inbox: totalMessages,
+          scanned_so_far: scannedSoFar,
+          important: importantRes.count ?? importantAdded,
+          clutter: clutterRes.count ?? clutterAdded,
+          bundles: bundleRes.count ?? bundleAdded,
+          bundle_groups: bundlesToInsert.length,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Update last_scan timestamp
-    await supabase.from("users").update({ last_scan: new Date().toISOString() }).eq("id", user.id);
-
-    const importantCount = allMessages.filter((m) => {
-      const freq = senderCounts[m.from.toLowerCase()] || 1;
-      return classifyEmail(m.from, m.fromName, m.subject, m.snippet, m.hasAttachment, m.isRead, freq).category === "important";
-    }).length;
-    const clutterCount = allMessages.filter((m) => {
-      const freq = senderCounts[m.from.toLowerCase()] || 1;
-      return classifyEmail(m.from, m.fromName, m.subject, m.snippet, m.hasAttachment, m.isRead, freq).category === "clutter";
-    }).length;
-    const bundleCount = allMessages.length - importantCount - clutterCount;
+    // Not done yet: persist progress so the client can call again to continue
+    await supabase.from("users").update({
+      scan_uid_low: null,
+      scan_total: totalMessages,
+      scan_uid_validity: uidValidity.toString(),
+      scan_sender_counts: senderCounts,
+      scan_remaining_uids: nextRemainingUids,
+    }).eq("id", user.id);
 
     return new Response(
       JSON.stringify({
         success: true,
-        fetched: allMessages.length,
+        done: false,
+        fetched: chunkMessages.length,
         total_in_inbox: totalMessages,
-        emails: allMessages.length,
-        important: importantCount,
-        clutter: clutterCount,
-        bundles: bundleCount,
-        bundle_groups: bundlesToInsert.length,
+        scanned_so_far: scannedSoFar,
+        important: importantAdded,
+        clutter: clutterAdded,
+        bundles: bundleAdded,
+        bundle_groups: 0,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
