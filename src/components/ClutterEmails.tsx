@@ -96,7 +96,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <button
         onClick={onBack}
-        className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-6 transition"
+        className="flex items-center space-x-2 text-ink/75 hover:text-ink mb-6 transition"
       >
         <ChevronLeft className="w-5 h-5" />
         <span className="font-medium">Back to Dashboard</span>
@@ -104,8 +104,8 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
 
       <div className="mb-8 flex items-start justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Clutter Emails</h2>
-          <p className="text-gray-600">
+          <h2 className="font-display text-3xl font-bold text-ink mb-2">Clutter Emails</h2>
+          <p className="text-ink/75">
             {emails.length.toLocaleString()} low-value emails you can safely remove
           </p>
         </div>
@@ -113,7 +113,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
           <button
             onClick={handleArchiveAll}
             disabled={processing}
-            className="flex items-center space-x-2 px-4 py-2 bg-mint-600 hover:bg-mint-700 text-white rounded-lg transition disabled:opacity-50 shadow-sm"
+            className="flex items-center space-x-2 px-4 py-2 bg-mint-200 hover:bg-mint-300 text-ink rounded-xl transition disabled:opacity-50 shadow-sm"
           >
             {activeAction === 'archive_all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
             <span className="font-medium">{activeAction === 'archive_all' ? 'Archiving...' : 'Archive All'}</span>
@@ -122,21 +122,21 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
       </div>
 
       {error && (
-        <div className="mb-4 bg-berry-50 border border-berry-200 rounded-xl p-4 flex items-start space-x-3">
+        <div className="mb-4 bg-berry-50 border border-berry-200 rounded-2xl p-4 flex items-start space-x-3">
           <AlertCircle className="w-5 h-5 text-berry-600 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-berry-700">{error}</p>
         </div>
       )}
 
       {emails.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+        <div className="bg-white rounded-2xl shadow-sm p-12 text-center border-2 border-ink/10">
           <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No clutter emails</h3>
-          <p className="text-gray-600">Your inbox is clean!</p>
+          <h3 className="text-xl font-semibold text-ink mb-2">No clutter emails</h3>
+          <p className="text-ink/75">Your inbox is clean!</p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl p-4 mb-4 flex items-center justify-between shadow-sm">
+          <div className="bg-white rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm border-2 border-ink/10">
             <div className="flex items-center space-x-4">
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -145,7 +145,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                   onChange={toggleAll}
                   className="w-5 h-5 rounded border-gray-300 text-mint-600 focus:ring-mint-500"
                 />
-                <span className="font-medium text-gray-700">
+                <span className="font-medium text-ink/85">
                   {selectedEmails.size > 0 ? `${selectedEmails.size} selected` : 'Select All'}
                 </span>
               </label>
@@ -155,7 +155,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                 <button
                   onClick={() => applyAction('archive')}
                   disabled={processing}
-                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition disabled:opacity-50"
+                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-ink/85 rounded-xl transition disabled:opacity-50"
                 >
                   {activeAction === 'archive' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
                   <span className="font-medium">{activeAction === 'archive' ? 'Archiving...' : 'Archive'}</span>
@@ -163,7 +163,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                 <button
                   onClick={() => applyAction('delete')}
                   disabled={processing}
-                  className="flex items-center space-x-2 px-4 py-2 bg-berry-500 hover:bg-berry-600 text-white rounded-lg transition disabled:opacity-50"
+                  className="flex items-center space-x-2 px-4 py-2 bg-berry-200 hover:bg-berry-300 text-ink rounded-xl transition disabled:opacity-50"
                 >
                   {activeAction === 'delete' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   <span className="font-medium">{activeAction === 'delete' ? 'Deleting...' : 'Delete'}</span>
@@ -176,7 +176,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
             {visibleEmails.map((email) => (
               <div
                 key={email.id}
-                className={`bg-white rounded-xl p-6 transition border ${
+                className={`bg-white rounded-2xl p-6 transition border ${
                   selectedEmails.has(email.id)
                     ? 'border-mint-500 shadow-md'
                     : 'border-gray-100 hover:border-gray-300'
@@ -192,18 +192,18 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 mb-1 truncate">
+                        <h3 className="font-semibold text-ink mb-1 truncate">
                           {email.sender_name || email.sender}
                         </h3>
-                        <div className="text-sm text-gray-600 truncate">{email.sender}</div>
+                        <div className="text-sm text-ink/75 truncate">{email.sender}</div>
                       </div>
-                      <div className="flex items-center space-x-2 text-sm text-gray-500 flex-shrink-0 ml-4">
+                      <div className="flex items-center space-x-2 text-sm text-ink/70 flex-shrink-0 ml-4">
                         <Clock className="w-4 h-4" />
                         <span>{formatTime(email.timestamp)}</span>
                       </div>
                     </div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2 truncate">{email.subject}</h4>
-                    <p className="text-gray-600 line-clamp-2">{email.snippet}</p>
+                    <h4 className="text-lg font-medium text-ink mb-2 truncate">{email.subject}</h4>
+                    <p className="text-ink/75 line-clamp-2">{email.snippet}</p>
                     {!email.is_read && (
                       <span className="inline-block mt-2 text-xs bg-ocean-100 text-ocean-700 px-2 py-1 rounded-full font-medium">
                         Unread
@@ -229,7 +229,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
             <div className="text-center mt-6">
               <button
                 onClick={() => setShowAll(false)}
-                className="text-gray-600 hover:text-gray-800 font-medium"
+                className="text-ink/75 hover:text-ink font-medium"
               >
                 Show fewer
               </button>

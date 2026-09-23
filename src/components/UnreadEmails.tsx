@@ -83,7 +83,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <button
         onClick={onBack}
-        className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-6 transition"
+        className="flex items-center space-x-2 text-ink/75 hover:text-ink mb-6 transition"
       >
         <ChevronLeft className="w-5 h-5" />
         <span className="font-medium">Back to Dashboard</span>
@@ -91,8 +91,8 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
 
       <div className="mb-8 flex items-start justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Unread Emails</h2>
-          <p className="text-gray-600">
+          <h2 className="font-display text-3xl font-bold text-ink mb-2">Unread Emails</h2>
+          <p className="text-ink/75">
             {emails.length.toLocaleString()} emails you haven't opened yet
           </p>
         </div>
@@ -100,7 +100,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
           <button
             onClick={handleMarkAllRead}
             disabled={processing}
-            className="flex items-center space-x-2 px-4 py-2 bg-sunny-300 hover:bg-sunny-400 text-sunny-900 rounded-lg transition disabled:opacity-50 shadow-sm"
+            className="flex items-center space-x-2 px-4 py-2 bg-sunny-300 hover:bg-sunny-400 text-sunny-900 rounded-xl transition disabled:opacity-50 shadow-sm"
           >
             {activeAction === 'all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
             <span className="font-medium">{activeAction === 'all' ? 'Marking...' : 'Mark All Read'}</span>
@@ -109,21 +109,21 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
       </div>
 
       {error && (
-        <div className="mb-4 bg-berry-50 border border-berry-200 rounded-xl p-4 flex items-start space-x-3">
+        <div className="mb-4 bg-berry-50 border border-berry-200 rounded-2xl p-4 flex items-start space-x-3">
           <AlertCircle className="w-5 h-5 text-berry-600 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-berry-700">{error}</p>
         </div>
       )}
 
       {emails.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+        <div className="bg-white rounded-2xl shadow-sm p-12 text-center border-2 border-ink/10">
           <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No unread emails</h3>
-          <p className="text-gray-600">You're all caught up!</p>
+          <h3 className="text-xl font-semibold text-ink mb-2">No unread emails</h3>
+          <p className="text-ink/75">You're all caught up!</p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl p-4 mb-4 flex items-center justify-between shadow-sm">
+          <div className="bg-white rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm border-2 border-ink/10">
             <div className="flex items-center space-x-4">
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -132,7 +132,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                   onChange={toggleAll}
                   className="w-5 h-5 rounded border-gray-300 text-sunny-600 focus:ring-sunny-500"
                 />
-                <span className="font-medium text-gray-700">
+                <span className="font-medium text-ink/85">
                   {selectedEmails.size > 0 ? `${selectedEmails.size} selected` : 'Select All'}
                 </span>
               </label>
@@ -141,7 +141,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
               <button
                 onClick={handleMarkSelectedRead}
                 disabled={processing}
-                className="flex items-center space-x-2 px-4 py-2 bg-sunny-300 hover:bg-sunny-400 text-sunny-900 rounded-lg transition disabled:opacity-50"
+                className="flex items-center space-x-2 px-4 py-2 bg-sunny-300 hover:bg-sunny-400 text-sunny-900 rounded-xl transition disabled:opacity-50"
               >
                 {activeAction === 'selected' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
                 <span className="font-medium">{activeAction === 'selected' ? 'Marking...' : 'Mark as Read'}</span>
@@ -153,7 +153,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
             {visibleEmails.map((email) => (
               <div
                 key={email.id}
-                className={`bg-white rounded-xl p-6 transition border ${
+                className={`bg-white rounded-2xl p-6 transition border ${
                   selectedEmails.has(email.id)
                     ? 'border-sunny-500 shadow-md'
                     : 'border-ocean-200 bg-ocean-50/30 hover:border-sunny-300'
@@ -169,21 +169,21 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 mb-1 truncate">
+                        <h3 className="font-semibold text-ink mb-1 truncate">
                           {email.sender_name || email.sender}
                         </h3>
-                        <div className="text-sm text-gray-600 truncate">{email.sender}</div>
+                        <div className="text-sm text-ink/75 truncate">{email.sender}</div>
                       </div>
-                      <div className="flex items-center space-x-2 text-sm text-gray-500 flex-shrink-0 ml-4">
+                      <div className="flex items-center space-x-2 text-sm text-ink/70 flex-shrink-0 ml-4">
                         <Clock className="w-4 h-4" />
                         <span>{formatTime(email.timestamp)}</span>
                       </div>
                     </div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2 truncate">{email.subject}</h4>
-                    <p className="text-gray-600 line-clamp-2">{email.snippet}</p>
+                    <h4 className="text-lg font-medium text-ink mb-2 truncate">{email.subject}</h4>
+                    <p className="text-ink/75 line-clamp-2">{email.snippet}</p>
                     <div className="flex items-center space-x-3 mt-2">
                       {email.has_attachment && (
-                        <div className="flex items-center space-x-1 text-sm text-gray-500">
+                        <div className="flex items-center space-x-1 text-sm text-ink/70">
                           <Paperclip className="w-4 h-4" />
                           <span>Attachment</span>
                         </div>
@@ -212,7 +212,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
             <div className="text-center mt-6">
               <button
                 onClick={() => setShowAll(false)}
-                className="text-gray-600 hover:text-gray-800 font-medium"
+                className="text-ink/75 hover:text-ink font-medium"
               >
                 Show fewer
               </button>

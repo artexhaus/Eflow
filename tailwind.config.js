@@ -1,9 +1,14 @@
 /** @type {import('tailwindcss').Config} */
 
 // Eflow's four playful brand colours. The 100-300 steps are the soft pastel
-// palette the design is based on; the 500+ steps are deepened versions of
-// the same hues so white button text stays readable (>= 4.5:1 on 500).
-// Sunny yellow is the exception: it is only ever used with dark text.
+// palette the design is based on and are what buttons and cards are filled
+// with, always with dark "ink" text (>= 5.4:1 on every 200/300 step). The
+// deeper 500+ steps are for icons, borders and small accent text on white.
+//
+// The "toy block" look comes from the shadow scale below: every shadow is a
+// solid offset edge instead of a blur, so cards and buttons read as chunky
+// blocks sitting on the page.
+const edge = 'rgb(59 51 85 / 0.16)';
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
@@ -58,9 +63,19 @@ export default {
           900: '#453509',
         },
         cream: '#FFFCF4',
+        ink: '#3B3355',
       },
       fontFamily: {
         sans: ['Nunito', 'ui-rounded', 'system-ui', 'sans-serif'],
+        display: ['Fredoka', 'Nunito', 'ui-rounded', 'system-ui', 'sans-serif'],
+      },
+      boxShadow: {
+        sm: `0 2px 0 0 ${edge}`,
+        DEFAULT: `0 3px 0 0 ${edge}`,
+        md: `0 4px 0 0 ${edge}`,
+        lg: `0 5px 0 0 ${edge}`,
+        xl: `0 6px 0 0 ${edge}`,
+        '2xl': `0 8px 0 0 ${edge}`,
       },
     },
   },

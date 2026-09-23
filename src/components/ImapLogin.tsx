@@ -166,39 +166,39 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
 
   const accentColor = provider === 'gmail' ? 'red' : provider === 'outlook' ? 'blue' : provider === 'yahoo' ? 'green' : 'cyan';
   const accentClasses: Record<string, { bg: string; ring: string; gradient: string }> = {
-    red: { bg: 'bg-berry-50', ring: 'focus:ring-berry-500', gradient: 'from-berry-500 to-berry-500' },
-    blue: { bg: 'bg-ocean-50', ring: 'focus:ring-ocean-500', gradient: 'from-ocean-500 to-ocean-600' },
-    green: { bg: 'bg-mint-50', ring: 'focus:ring-mint-500', gradient: 'from-mint-500 to-mint-600' },
-    cyan: { bg: 'bg-ocean-50', ring: 'focus:ring-ocean-500', gradient: 'from-ocean-500 to-ocean-500' },
+    red: { bg: 'bg-berry-50', ring: 'focus:ring-berry-500', gradient: 'from-berry-200 to-berry-200' },
+    blue: { bg: 'bg-ocean-50', ring: 'focus:ring-ocean-500', gradient: 'from-ocean-200 to-ocean-200' },
+    green: { bg: 'bg-mint-50', ring: 'focus:ring-mint-500', gradient: 'from-mint-200 to-mint-200' },
+    cyan: { bg: 'bg-ocean-50', ring: 'focus:ring-ocean-500', gradient: 'from-ocean-200 to-ocean-200' },
   };
   const accent = accentClasses[accentColor];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-mint-50 via-sunny-50 to-berry-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-mint-100 via-sunny-100 to-berry-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <button
           onClick={onBack}
-          className="mb-6 text-gray-600 hover:text-gray-900 font-medium transition flex items-center space-x-1"
+          className="mb-6 text-ink/75 hover:text-ink font-medium transition flex items-center space-x-1"
         >
           <ChevronLeft className="w-4 h-4" />
           <span>Back to providers</span>
         </button>
 
-        <div className="bg-white rounded-3xl shadow-2xl p-8">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 border-2 border-ink/10">
           <div className="text-center mb-8">
             <div className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br ${accent.gradient} rounded-2xl mb-4 shadow-lg`}>
-              <Mail className="w-8 h-8 text-white" />
+              <Mail className="w-8 h-8 text-ink" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <h2 className="font-display text-2xl font-bold text-ink mb-2">
               Connect {providerName}
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-ink/75 mb-4">
               Sign in with an app-specific password (IMAP)
             </p>
-            <div className={`${accent.bg} border border-gray-200 rounded-lg p-4 text-left`}>
+            <div className={`${accent.bg} border-2 border-ink/10 rounded-xl p-4 text-left`}>
               <div className="flex items-start space-x-2">
-                <AlertCircle className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-gray-700">
+                <AlertCircle className="w-5 h-5 text-ink/75 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-ink/85">
                   <p className="font-semibold mb-1">Create an app password:</p>
                   <ol className="list-decimal list-inside space-y-1 text-xs">
                     {instructions.steps.map((step, i) => (
@@ -220,7 +220,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
 
           <form onSubmit={handleConnect} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-ink/85 mb-2">
                 {providerName} Email
               </label>
               <input
@@ -229,12 +229,12 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={`your-email@${provider === 'gmail' ? 'gmail' : provider === 'outlook' ? 'outlook' : provider === 'yahoo' ? 'yahoo' : 'icloud'}.com`}
                 required
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 ${accent.ring} focus:border-transparent transition`}
+                className={`w-full px-4 py-3 border-2 border-ink/10 rounded-xl focus:ring-2 ${accent.ring} focus:border-transparent transition`}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-ink/85 mb-2">
                 App Password
               </label>
               <div className="relative">
@@ -245,13 +245,13 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
                   onChange={(e) => setAppPassword(e.target.value)}
                   placeholder="Enter your app password"
                   required
-                  className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 ${accent.ring} focus:border-transparent transition`}
+                  className={`w-full pl-10 pr-4 py-3 border-2 border-ink/10 rounded-xl focus:ring-2 ${accent.ring} focus:border-transparent transition`}
                 />
               </div>
             </div>
 
             {error && (
-              <div className="bg-berry-50 border border-berry-200 rounded-lg p-4">
+              <div className="bg-berry-50 border border-berry-200 rounded-xl p-4">
                 <div className="flex items-start space-x-2">
                   <AlertCircle className="w-5 h-5 text-berry-600 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-berry-800">{error}</p>
@@ -262,7 +262,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
             <button
               type="submit"
               disabled={loading}
-              className={`w-full bg-gradient-to-r ${accent.gradient} text-white py-4 rounded-xl font-semibold hover:opacity-90 transition disabled:opacity-50 shadow-lg hover:shadow-xl`}
+              className={`w-full bg-gradient-to-r ${accent.gradient} text-ink py-4 rounded-2xl font-semibold hover:opacity-90 transition disabled:opacity-50 shadow-lg hover:shadow-xl`}
             >
               <span className="inline-flex items-center justify-center space-x-2">
                 {loading && <Loader2 className="w-5 h-5 animate-spin" />}
@@ -272,7 +272,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
           </form>
 
           <div className="mt-4 text-center">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-ink/70">
               Your password is used to connect via IMAP and stored securely. We never use your regular password.
             </p>
           </div>

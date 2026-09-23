@@ -254,30 +254,30 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 animate-spin text-mint-500 mx-auto mb-4" />
-          <p className="text-gray-600">Loading your inbox...</p>
+          <p className="text-ink/75">Loading your inbox...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-mint-500 to-ocean-600 rounded-xl flex items-center justify-center">
-                <Mail className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 bg-mint-200 rounded-2xl flex items-center justify-center">
+                <Mail className="w-6 h-6 text-ink" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">Eflow</h1>
+              <h1 className="text-xl font-bold text-ink">Eflow</h1>
             </div>
             <div className="flex items-center space-x-5">
             <button
               onClick={toggleSimpleMode}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition"
+              className="flex items-center space-x-2 text-ink/75 hover:text-ink transition"
             >
               {simpleMode ? <LayoutGrid className="w-5 h-5" /> : <Smile className="w-5 h-5" />}
               <span className="text-sm font-medium">{simpleMode ? 'All tools' : 'Simple view'}</span>
@@ -291,7 +291,7 @@ export default function Dashboard() {
                   alert('Failed to sign out. Please try again.');
                 }
               }}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition"
+              className="flex items-center space-x-2 text-ink/75 hover:text-ink transition"
             >
               <LogOut className="w-5 h-5" />
               <span className="text-sm font-medium">Sign Out</span>
@@ -312,13 +312,13 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {!simpleMode && (
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back!</h2>
-              <p className="text-gray-600">Here's your inbox overview</p>
+              <h2 className="font-display text-3xl font-bold text-ink mb-2">Welcome back!</h2>
+              <p className="text-ink/75">Here's your inbox overview</p>
             </div>
           )}
 
           {scanError && (
-            <div className="mb-6 bg-berry-50 border border-berry-200 rounded-xl p-4 flex items-start space-x-3">
+            <div className="mb-6 bg-berry-50 border border-berry-200 rounded-2xl p-4 flex items-start space-x-3">
               <AlertCircle className="w-5 h-5 text-berry-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-berry-900">Scan failed</p>
@@ -328,7 +328,7 @@ export default function Dashboard() {
           )}
 
           {scanResult && !scanning && (
-            <div className="mb-6 bg-mint-50 border border-mint-200 rounded-xl p-5 flex items-start space-x-3">
+            <div className="mb-6 bg-mint-50 border border-mint-200 rounded-2xl p-5 flex items-start space-x-3">
               <CheckCircle className="w-5 h-5 text-mint-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="font-medium text-mint-900">
@@ -351,7 +351,7 @@ export default function Dashboard() {
           )}
 
           {scanning && (
-            <div className="mb-6 bg-ocean-50 border border-ocean-200 rounded-xl p-6">
+            <div className="mb-6 bg-ocean-50 border border-ocean-200 rounded-2xl p-6">
               <div className="flex items-center space-x-3 mb-3">
                 <RefreshCw className="w-5 h-5 text-ocean-600 animate-spin" />
                 <p className="font-medium text-ocean-900">Scanning your entire inbox...</p>
@@ -360,7 +360,7 @@ export default function Dashboard() {
                 <>
                   <div className="w-full bg-ocean-100 rounded-full h-2 mb-2 overflow-hidden">
                     <div
-                      className="bg-ocean-600 h-2 rounded-full transition-all"
+                      className="bg-ocean-400 h-2 rounded-full transition-all"
                       style={{
                         width: `${Math.min(100, Math.round((scanProgress.scannedSoFar / scanProgress.totalInInbox) * 100))}%`,
                       }}
@@ -391,43 +391,43 @@ export default function Dashboard() {
           ) : (
           <>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-ocean-500 to-ocean-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition">
+            <div className="bg-ocean-200 rounded-2xl p-6 text-ink shadow-lg hover:shadow-xl transition">
               <Mail className="w-8 h-8 mb-4 opacity-90" />
-              <div className="text-3xl font-bold mb-1">{importantCount.toLocaleString()}</div>
-              <div className="text-ocean-100">Important Emails</div>
+              <div className="font-display text-3xl font-bold mb-1">{importantCount.toLocaleString()}</div>
+              <div className="text-ocean-800">Important Emails</div>
             </div>
 
-            <div className="bg-gradient-to-br from-berry-500 to-berry-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition">
+            <div className="bg-berry-200 rounded-2xl p-6 text-ink shadow-lg hover:shadow-xl transition">
               <Trash2 className="w-8 h-8 mb-4 opacity-90" />
-              <div className="text-3xl font-bold mb-1">{clutterCount.toLocaleString()}</div>
-              <div className="text-berry-100">Clutter Emails</div>
+              <div className="font-display text-3xl font-bold mb-1">{clutterCount.toLocaleString()}</div>
+              <div className="text-berry-800">Clutter Emails</div>
             </div>
 
-            <div className="bg-gradient-to-br from-mint-500 to-ocean-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition">
+            <div className="bg-mint-200 rounded-2xl p-6 text-ink shadow-lg hover:shadow-xl transition">
               <Package className="w-8 h-8 mb-4 opacity-90" />
-              <div className="text-3xl font-bold mb-1">{bundles.length}</div>
-              <div className="text-mint-100">Email Bundles</div>
+              <div className="font-display text-3xl font-bold mb-1">{bundles.length}</div>
+              <div className="text-mint-800">Email Bundles</div>
             </div>
 
             <button
               onClick={() => setCurrentScreen('unread')}
-              className="bg-gradient-to-br from-sunny-200 to-sunny-300 rounded-2xl p-6 text-sunny-900 shadow-lg hover:shadow-xl transition text-left"
+              className="bg-sunny-200 rounded-2xl p-6 text-sunny-900 shadow-lg hover:shadow-xl transition text-left"
             >
               <Mail className="w-8 h-8 mb-4 opacity-90" />
-              <div className="text-3xl font-bold mb-1">{unreadCount.toLocaleString()}</div>
+              <div className="font-display text-3xl font-bold mb-1">{unreadCount.toLocaleString()}</div>
               <div className="text-sunny-800 font-semibold">Unread Emails</div>
             </button>
           </div>
 
           {emails.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+            <div className="bg-white rounded-2xl shadow-sm p-12 text-center border-2 border-ink/10">
               <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No emails yet</h3>
-              <p className="text-gray-600 mb-6">Start by scanning your entire inbox to see all your emails organized</p>
+              <h3 className="text-xl font-semibold text-ink mb-2">No emails yet</h3>
+              <p className="text-ink/75 mb-6">Start by scanning your entire inbox to see all your emails organized</p>
               <button
                 onClick={simulateScan}
                 disabled={scanning}
-                className="inline-flex items-center space-x-2 bg-gradient-to-r from-mint-500 to-ocean-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-mint-600 hover:to-ocean-700 transition disabled:opacity-50 shadow-lg"
+                className="inline-flex items-center space-x-2 bg-mint-200 text-ink px-6 py-3 rounded-xl font-semibold hover:bg-mint-300 transition disabled:opacity-50 shadow-lg"
               >
                 <RefreshCw className={scanning ? 'w-5 h-5 animate-spin' : 'w-5 h-5'} />
                 <span>{scanning ? 'Scanning Entire Inbox...' : 'Scan Entire Inbox'}</span>
@@ -440,14 +440,14 @@ export default function Dashboard() {
                   onClick={() => setCurrentScreen('senders')}
                   className="w-full bg-white rounded-2xl p-6 shadow-sm border-2 border-mint-100 hover:border-mint-400 transition text-left flex items-center gap-5"
                 >
-                  <div className="w-12 h-12 bg-mint-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-mint-100 rounded-2xl flex items-center justify-center flex-shrink-0">
                     <Users className="w-6 h-6 text-mint-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-lg font-semibold text-gray-900">
+                    <div className="text-lg font-semibold text-ink">
                       Your top {topSenders.length} senders sent {topSendersEmailCount.toLocaleString()} emails
                     </div>
-                    <div className="text-sm text-gray-600 truncate">
+                    <div className="text-sm text-ink/75 truncate">
                       {topSenders.slice(0, 3).map((g) => g.name).join(', ')} and more. Unsubscribe and clear them out in one click.
                     </div>
                   </div>
@@ -456,7 +456,7 @@ export default function Dashboard() {
               )}
 
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold text-gray-900">
+                <h3 className="text-xl font-semibold text-ink">
                   {emails.length.toLocaleString()} total emails loaded
                 </h3>
                 <button
@@ -472,38 +472,38 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <button
                   onClick={() => openImportant('all')}
-                  className="bg-white rounded-xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-ocean-500"
+                  className="bg-white rounded-2xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-ocean-500"
                 >
                   <Mail className="w-6 h-6 text-ocean-500 mb-3" />
-                  <div className="text-lg font-semibold text-gray-900 mb-1">Important</div>
-                  <div className="text-sm text-gray-600">{importantCount.toLocaleString()} emails</div>
+                  <div className="text-lg font-semibold text-ink mb-1">Important</div>
+                  <div className="text-sm text-ink/75">{importantCount.toLocaleString()} emails</div>
                 </button>
 
                 <button
                   onClick={() => setCurrentScreen('clutter')}
-                  className="bg-white rounded-xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-berry-500"
+                  className="bg-white rounded-2xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-berry-500"
                 >
                   <Trash2 className="w-6 h-6 text-berry-500 mb-3" />
-                  <div className="text-lg font-semibold text-gray-900 mb-1">Clutter</div>
-                  <div className="text-sm text-gray-600">{clutterCount.toLocaleString()} emails</div>
+                  <div className="text-lg font-semibold text-ink mb-1">Clutter</div>
+                  <div className="text-sm text-ink/75">{clutterCount.toLocaleString()} emails</div>
                 </button>
 
                 <button
                   onClick={() => setCurrentScreen('bundles')}
-                  className="bg-white rounded-xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-mint-500"
+                  className="bg-white rounded-2xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-mint-500"
                 >
                   <Package className="w-6 h-6 text-mint-500 mb-3" />
-                  <div className="text-lg font-semibold text-gray-900 mb-1">Bundles</div>
-                  <div className="text-sm text-gray-600">{bundles.length} groups ({bundleEmailCount.toLocaleString()} emails)</div>
+                  <div className="text-lg font-semibold text-ink mb-1">Bundles</div>
+                  <div className="text-sm text-ink/75">{bundles.length} groups ({bundleEmailCount.toLocaleString()} emails)</div>
                 </button>
 
                 <button
                   onClick={() => setCurrentScreen('reset')}
-                  className="bg-gradient-to-br from-mint-500 to-ocean-600 rounded-xl p-6 hover:shadow-lg transition text-left"
+                  className="bg-mint-200 rounded-2xl p-6 hover:shadow-lg transition text-left"
                 >
-                  <Sparkles className="w-6 h-6 text-white mb-3" />
-                  <div className="text-lg font-semibold text-white mb-1">Inbox Reset</div>
-                  <div className="text-sm text-mint-100">Delete all clutter & bundles</div>
+                  <Sparkles className="w-6 h-6 text-ink mb-3" />
+                  <div className="text-lg font-semibold text-ink mb-1">Inbox Reset</div>
+                  <div className="text-sm text-mint-800">Delete all clutter & bundles</div>
                 </button>
               </div>
             </div>

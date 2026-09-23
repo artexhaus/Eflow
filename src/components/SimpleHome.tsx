@@ -65,14 +65,14 @@ export default function SimpleHome({
 
   if (emails.length === 0) {
     return (
-      <div className="bg-white rounded-3xl shadow-sm p-10 text-center">
+      <div className="bg-white rounded-3xl shadow-sm p-10 text-center border-2 border-ink/10">
         <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Let's look at your inbox</h2>
-        <p className="text-lg text-gray-600 mb-8">We'll sort everything so you only see what matters.</p>
+        <h2 className="font-display text-2xl font-bold text-ink mb-2">Let's look at your inbox</h2>
+        <p className="text-lg text-ink/75 mb-8">We'll sort everything so you only see what matters.</p>
         <button
           onClick={onScan}
           disabled={scanning}
-          className="inline-flex items-center space-x-3 bg-gradient-to-r from-mint-500 to-ocean-600 text-white px-8 py-5 rounded-2xl text-xl font-bold shadow-lg disabled:opacity-60"
+          className="inline-flex items-center space-x-3 bg-mint-200 text-ink px-8 py-5 rounded-2xl text-xl font-bold shadow-lg disabled:opacity-60"
         >
           <RefreshCw className={scanning ? 'w-6 h-6 animate-spin' : 'w-6 h-6'} />
           <span>{scanning ? 'Looking...' : 'Look at my inbox'}</span>
@@ -84,8 +84,8 @@ export default function SimpleHome({
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-1">Let's tidy your inbox</h2>
-        <p className="text-lg text-gray-600">{emails.length.toLocaleString()} emails in your inbox right now</p>
+        <h2 className="font-display text-3xl font-bold text-ink mb-1">Let's tidy your inbox</h2>
+        <p className="text-lg text-ink/75">{emails.length.toLocaleString()} emails in your inbox right now</p>
       </div>
 
       {error && (
@@ -100,22 +100,24 @@ export default function SimpleHome({
         (junk.length > 0 ? (
           <button
             onClick={() => setStep('confirm')}
-            className="w-full text-left bg-gradient-to-br from-mint-500 to-ocean-600 hover:from-mint-600 hover:to-ocean-700 text-white rounded-3xl p-8 shadow-xl hover:shadow-2xl transition active:scale-[0.99]"
+            className="w-full text-left bg-ocean-200 hover:bg-ocean-300 text-ink rounded-3xl p-8 border-2 border-ink/10 shadow-2xl transition"
           >
-            <Sparkles className="w-12 h-12 mb-4" />
-            <div className="text-3xl font-bold mb-2">Clean Up Unopened Junk</div>
-            <div className="text-lg text-mint-50 mb-5">
+            <div className="w-16 h-16 bg-white/80 rounded-2xl flex items-center justify-center mb-4 shadow-sm -rotate-6">
+              <Sparkles className="w-9 h-9 text-ocean-700" />
+            </div>
+            <div className="font-display text-3xl font-bold mb-2">Clean Up Unopened Junk</div>
+            <div className="text-lg text-ink/80 mb-5">
               Removes promotional emails and repetitive alerts you haven't looked at in {JUNK_AGE_DAYS} days
             </div>
-            <span className="inline-block bg-white/20 rounded-full px-4 py-2 text-lg font-semibold">
+            <span className="inline-block bg-white/70 rounded-full px-4 py-2 text-lg font-semibold">
               {junk.length.toLocaleString()} emails ready to clear
             </span>
           </button>
         ) : (
-          <div className="w-full bg-white rounded-3xl p-8 shadow-sm border-2 border-gray-100">
+          <div className="w-full bg-white rounded-3xl p-8 shadow-sm border-2 border-ink/10">
             <CheckCircle className="w-12 h-12 text-mint-500 mb-4" />
-            <div className="text-2xl font-bold text-gray-900 mb-2">Nothing to clean up right now</div>
-            <div className="text-lg text-gray-600">
+            <div className="font-display text-2xl font-bold text-ink mb-2">Nothing to clean up right now</div>
+            <div className="text-lg text-ink/75">
               No unopened promos or alerts older than {JUNK_AGE_DAYS} days. Nice work!
             </div>
           </div>
@@ -123,10 +125,10 @@ export default function SimpleHome({
 
       {step === 'confirm' && (
         <div className="bg-white rounded-3xl p-8 shadow-xl border-2 border-mint-200">
-          <div className="text-2xl font-bold text-gray-900 mb-3">
+          <div className="font-display text-2xl font-bold text-ink mb-3">
             Clear {junk.length.toLocaleString()} emails?
           </div>
-          <p className="text-lg text-gray-600 mb-2">
+          <p className="text-lg text-ink/75 mb-2">
             They'll move to your Archive folder, so nothing is lost for good.
           </p>
           <p className="text-lg text-mint-700 font-medium mb-8 flex items-center space-x-2">
@@ -136,13 +138,13 @@ export default function SimpleHome({
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={runCleanUp}
-              className="flex-1 bg-gradient-to-r from-mint-500 to-ocean-600 text-white py-5 rounded-2xl text-xl font-bold shadow-lg"
+              className="flex-1 bg-mint-200 hover:bg-mint-300 text-ink py-5 rounded-2xl text-xl font-bold border-2 border-ink/10 shadow-lg"
             >
               Yes, clean up
             </button>
             <button
               onClick={() => setStep('idle')}
-              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-5 rounded-2xl text-xl font-semibold"
+              className="flex-1 bg-gray-100 hover:bg-gray-200 text-ink py-5 rounded-2xl text-xl font-semibold"
             >
               Not now
             </button>
@@ -151,20 +153,20 @@ export default function SimpleHome({
       )}
 
       {step === 'working' && (
-        <div className="bg-white rounded-3xl p-10 shadow-xl text-center">
+        <div className="bg-white rounded-3xl p-10 shadow-xl text-center border-2 border-ink/10">
           <RefreshCw className="w-12 h-12 text-mint-500 animate-spin mx-auto mb-4" />
-          <div className="text-2xl font-bold text-gray-900 mb-2">Cleaning up...</div>
-          <p className="text-lg text-gray-600">This can take a minute for big inboxes.</p>
+          <div className="font-display text-2xl font-bold text-ink mb-2">Cleaning up...</div>
+          <p className="text-lg text-ink/75">This can take a minute for big inboxes.</p>
         </div>
       )}
 
       {step === 'done' && result && (
         <div className="bg-white rounded-3xl p-8 shadow-xl text-center border-2 border-mint-200">
           <CheckCircle className="w-16 h-16 text-mint-500 mx-auto mb-4" />
-          <div className="text-3xl font-bold text-gray-900 mb-2">
+          <div className="font-display text-3xl font-bold text-ink mb-2">
             {result.processed > 0 ? 'All clean!' : 'Nothing was moved'}
           </div>
-          <p className="text-lg text-gray-600 mb-2">
+          <p className="text-lg text-ink/75 mb-2">
             {result.processed.toLocaleString()} emails cleared from your inbox.
           </p>
           <p className="text-lg text-mint-700 font-medium mb-2">
@@ -173,7 +175,7 @@ export default function SimpleHome({
           {result.failed > 0 && <p className="text-sunny-700 mb-2">{describePartialFailure(result)}</p>}
           <button
             onClick={() => setStep('idle')}
-            className="mt-6 bg-gray-100 hover:bg-gray-200 text-gray-800 px-10 py-4 rounded-2xl text-lg font-semibold"
+            className="mt-6 bg-gray-100 hover:bg-gray-200 text-ink px-10 py-4 rounded-2xl text-lg font-semibold"
           >
             Done
           </button>
@@ -184,13 +186,13 @@ export default function SimpleHome({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <button
           onClick={onOpenVerified}
-          className="text-left bg-white rounded-3xl p-7 ring-2 ring-mint-300 shadow-lg shadow-mint-200/70 hover:shadow-mint-300/80 hover:ring-mint-400 transition active:scale-[0.99]"
+          className="text-left bg-mint-200 hover:bg-mint-300 rounded-3xl p-7 border-2 border-ink/10 ring-4 ring-mint-100 shadow-xl transition"
         >
-          <div className="w-14 h-14 bg-mint-100 rounded-2xl flex items-center justify-center mb-4">
+          <div className="w-14 h-14 bg-white/80 rounded-2xl flex items-center justify-center mb-4 shadow-sm rotate-6">
             <ShieldCheck className="w-8 h-8 text-mint-600" />
           </div>
-          <div className="text-2xl font-bold text-gray-900 mb-1">Paid & Verified</div>
-          <div className="text-lg text-gray-600 mb-3">
+          <div className="font-display text-2xl font-bold text-ink mb-1">Paid & Verified</div>
+          <div className="text-lg text-ink/75 mb-3">
             {verifiedCount.toLocaleString()} bills & receipts safely filed
           </div>
           <div className="flex items-center text-mint-700 font-semibold">
@@ -201,18 +203,18 @@ export default function SimpleHome({
 
         <button
           onClick={onOpenSenders}
-          className="text-left bg-white rounded-3xl p-7 border-2 border-gray-100 shadow-sm hover:border-mint-300 hover:shadow-lg transition active:scale-[0.99]"
+          className="text-left bg-berry-200 hover:bg-berry-300 rounded-3xl p-7 border-2 border-ink/10 shadow-xl transition"
         >
-          <div className="w-14 h-14 bg-ocean-100 rounded-2xl flex items-center justify-center mb-4">
-            <Users className="w-8 h-8 text-ocean-600" />
+          <div className="w-14 h-14 bg-white/80 rounded-2xl flex items-center justify-center mb-4 shadow-sm -rotate-6">
+            <Users className="w-8 h-8 text-berry-700" />
           </div>
-          <div className="text-2xl font-bold text-gray-900 mb-1">Who emails you most</div>
-          <div className="text-lg text-gray-600 mb-3 truncate">
+          <div className="font-display text-2xl font-bold text-ink mb-1">Who emails you most</div>
+          <div className="text-lg text-ink/75 mb-3 truncate">
             {topSender
               ? `${topSender.name} sent ${topSender.count.toLocaleString()}`
               : 'See everyone who writes to you'}
           </div>
-          <div className="flex items-center text-ocean-700 font-semibold">
+          <div className="flex items-center text-berry-800 font-semibold">
             <span>Stop the ones you don't want</span>
             <ChevronRight className="w-5 h-5" />
           </div>
@@ -220,7 +222,7 @@ export default function SimpleHome({
       </div>
 
       <div className="text-center pt-2">
-        <button onClick={onShowAllTools} className="text-gray-500 hover:text-gray-800 underline underline-offset-4">
+        <button onClick={onShowAllTools} className="text-ink/70 hover:text-ink underline underline-offset-4">
           Show all tools
         </button>
       </div>

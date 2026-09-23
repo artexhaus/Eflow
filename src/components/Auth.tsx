@@ -58,7 +58,7 @@ export default function Auth() {
     return (
       <>
         {fetchError && (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-berry-50 border border-berry-200 rounded-lg px-4 py-2 text-sm text-berry-800 shadow-lg">
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-berry-50 border border-berry-200 rounded-xl px-4 py-2 text-sm text-berry-800 shadow-lg">
             {fetchError}
           </div>
         )}
@@ -74,16 +74,16 @@ export default function Auth() {
 
   if (step === 'fetching') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-mint-50 via-sunny-50 to-berry-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-mint-100 via-sunny-100 to-berry-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-mint-500 to-ocean-600 rounded-full mb-6 shadow-lg animate-pulse">
-            <svg className="w-10 h-10 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-mint-200 rounded-full mb-6 shadow-lg animate-pulse">
+            <svg className="w-10 h-10 text-ink animate-spin" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">Fetching your emails...</h3>
-          <p className="text-gray-600">Reading your inbox and categorizing messages</p>
+          <h3 className="font-display text-2xl font-bold text-ink mb-2">Fetching your emails...</h3>
+          <p className="text-ink/75">Reading your inbox and categorizing messages</p>
         </div>
       </div>
     );

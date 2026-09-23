@@ -1,3 +1,27 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /* Game-board background: soft cream with a faint dot grid. */
+  body {
+    @apply bg-cream text-ink font-sans;
+    background-image: radial-gradient(rgb(59 51 85 / 0.07) 1.5px, transparent 1.5px);
+    background-size: 22px 22px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-wide;
+  }
+
+  /* Toy-block press: buttons sink onto their edge when tapped. */
+  button:not(:disabled),
+  a[role='button'] {
+    @apply transition-transform;
+  }
+  button:not(:disabled):active {
+    transform: translateY(2px);
+  }
+}

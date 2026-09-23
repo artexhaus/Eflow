@@ -226,7 +226,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
     const status = senderActions[group.key];
     if (status === 'unsubscribed') {
       return (
-        <span className="flex items-center space-x-1 text-sm font-medium text-mint-700 bg-mint-50 px-3 py-2 rounded-lg">
+        <span className="flex items-center space-x-1 text-sm font-medium text-mint-700 bg-mint-50 px-3 py-2 rounded-xl">
           <CheckCircle className="w-4 h-4" />
           <span>Unsubscribed</span>
         </span>
@@ -234,7 +234,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
     }
     if (status === 'link_opened') {
       return (
-        <span className="flex items-center space-x-1 text-sm font-medium text-gray-600 bg-gray-100 px-3 py-2 rounded-lg">
+        <span className="flex items-center space-x-1 text-sm font-medium text-ink/75 bg-gray-100 px-3 py-2 rounded-xl">
           <CheckCircle className="w-4 h-4" />
           <span>Unsubscribe page opened</span>
         </span>
@@ -249,7 +249,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => handleLinkOpened(group)}
-          className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg font-medium text-sm transition"
+          className="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-ink/10 text-ink/85 hover:bg-gray-50 rounded-xl font-medium text-sm transition"
         >
           <ExternalLink className="w-4 h-4" />
           <span>{link.startsWith('mailto:') ? 'Unsubscribe by email' : 'Open unsubscribe page'}</span>
@@ -265,7 +265,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
       <button
         onClick={() => handleUnsubscribe(group)}
         disabled={busy !== null}
-        className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg font-medium text-sm transition disabled:opacity-50"
+        className="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-ink/10 text-ink/85 hover:bg-gray-50 rounded-xl font-medium text-sm transition disabled:opacity-50"
       >
         {busy?.key === group.key && busy.action === 'unsubscribe' ? (
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -281,21 +281,21 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <button
         onClick={onBack}
-        className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-6 transition"
+        className="flex items-center space-x-2 text-ink/75 hover:text-ink mb-6 transition"
       >
         <ChevronLeft className="w-5 h-5" />
         <span className="font-medium">Back to Dashboard</span>
       </button>
 
       <div className="mb-6">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Senders</h2>
-        <p className="text-gray-600">
+        <h2 className="font-display text-3xl font-bold text-ink mb-2">Senders</h2>
+        <p className="text-ink/75">
           Everyone who emails you, biggest first. Unsubscribe, then clear out everything they already sent in one click.
         </p>
       </div>
 
       {emails.length > 0 && !hasUnsubscribeData && (
-        <div className="mb-6 bg-sunny-50 border border-sunny-200 rounded-xl p-4 flex items-start space-x-3">
+        <div className="mb-6 bg-sunny-50 border border-sunny-200 rounded-2xl p-4 flex items-start space-x-3">
           <AlertCircle className="w-5 h-5 text-sunny-600 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-sunny-800">
             Unsubscribe buttons appear after your next scan. Go back and choose <strong>Rescan Entire Inbox</strong> to turn them on.
@@ -303,7 +303,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
         </div>
       )}
 
-      <div className="bg-white rounded-xl p-4 mb-4 shadow-sm space-y-3">
+      <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm space-y-3 border-2 border-ink/10">
         <div className="relative">
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -314,7 +314,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
               setVisibleCount(PAGE_SIZE);
             }}
             placeholder="Search by name or email address"
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mint-500"
+            className="w-full pl-9 pr-3 py-2 border-2 border-ink/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-mint-500"
           />
         </div>
         {!simple && (
@@ -331,14 +331,14 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
               }}
               className={`px-3 py-1.5 rounded-full text-sm font-medium border transition ${
                 filter === key
-                  ? 'bg-mint-600 border-mint-600 text-white'
-                  : 'bg-white border-gray-200 text-gray-700 hover:border-mint-300'
+                  ? 'bg-mint-200 border-mint-600 text-ink'
+                  : 'bg-white border-gray-200 text-ink/85 hover:border-mint-300'
               }`}
             >
               {label}
             </button>
           ))}
-          <label className="flex items-center space-x-2 text-sm text-gray-600 ml-auto cursor-pointer">
+          <label className="flex items-center space-x-2 text-sm text-ink/75 ml-auto cursor-pointer">
             <input
               type="checkbox"
               checked={includeOneOffs}
@@ -352,10 +352,10 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+        <div className="bg-white rounded-2xl shadow-sm p-12 text-center border-2 border-ink/10">
           <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No senders to show</h3>
-          <p className="text-gray-600">
+          <h3 className="text-xl font-semibold text-ink mb-2">No senders to show</h3>
+          <p className="text-ink/75">
             {query ? 'Nobody matches that search.' : 'Nothing here - your inbox is looking tidy.'}
           </p>
         </div>
@@ -363,7 +363,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
         <>
           {bulkMessage && (
             <div
-              className={`mb-4 text-sm rounded-xl p-4 flex items-start justify-between gap-3 ${
+              className={`mb-4 text-sm rounded-2xl p-4 flex items-start justify-between gap-3 ${
                 bulkMessage.tone === 'error' ? 'bg-berry-50 text-berry-700' : 'bg-mint-50 text-mint-800'
               }`}
             >
@@ -383,9 +383,9 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                 disabled={busy !== null}
                 className="w-5 h-5 rounded border-gray-300 text-berry-600 focus:ring-berry-500"
               />
-              <span className="text-sm font-medium text-gray-700">Select all shown</span>
+              <span className="text-sm font-medium text-ink/85">Select all shown</span>
             </label>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-ink/70">
               {filtered.length.toLocaleString()} senders ·{' '}
               {filtered.reduce((sum, g) => sum + g.count, 0).toLocaleString()} emails
             </p>
@@ -399,7 +399,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
               return (
                 <div
                   key={group.key}
-                  className={`bg-white rounded-xl p-5 border transition ${
+                  className={`bg-white rounded-2xl p-5 border transition ${
                     selected.has(group.key) ? 'border-berry-400 ring-1 ring-berry-200' : 'border-gray-100 hover:border-gray-300'
                   }`}
                 >
@@ -413,23 +413,23 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                         aria-label={`Select ${group.name}`}
                         className="w-6 h-6 mt-2.5 rounded border-gray-300 text-berry-600 focus:ring-berry-500 flex-shrink-0"
                       />
-                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-mint-500 to-ocean-600 text-white flex items-center justify-center font-semibold flex-shrink-0">
+                      <div className="w-11 h-11 rounded-full bg-mint-200 text-ink flex items-center justify-center font-semibold flex-shrink-0">
                         {group.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline space-x-2">
-                          <h3 className="font-semibold text-gray-900 truncate">{group.name}</h3>
-                          <span className="text-sm text-gray-500 truncate">{group.sender}</span>
+                          <h3 className="font-semibold text-ink truncate">{group.name}</h3>
+                          <span className="text-sm text-ink/70 truncate">{group.sender}</span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-gray-600">
-                          <span className="font-semibold text-gray-900">{group.count.toLocaleString()} emails</span>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-ink/75">
+                          <span className="font-semibold text-ink">{group.count.toLocaleString()} emails</span>
                           {group.unreadCount > 0 && <span>{group.unreadCount.toLocaleString()} unread</span>}
                           <span className="flex items-center space-x-1">
                             <Clock className="w-3.5 h-3.5" />
                             <span>Latest {formatTime(group.latest)}</span>
                           </span>
                         </div>
-                        <p className="text-sm text-gray-500 truncate mt-1">{group.exampleSubjects.join(' · ')}</p>
+                        <p className="text-sm text-ink/70 truncate mt-1">{group.exampleSubjects.join(' · ')}</p>
                         {group.protectedCount > 0 && (
                           <p className="flex items-center space-x-1 text-xs text-mint-700 mt-2">
                             <ShieldCheck className="w-3.5 h-3.5" />
@@ -454,7 +454,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                       <button
                         onClick={() => handleMailAction(group, 'archive')}
                         disabled={busy !== null}
-                        className="flex items-center space-x-2 px-4 py-2 bg-mint-600 hover:bg-mint-700 text-white rounded-lg font-medium text-sm transition disabled:opacity-50"
+                        className="flex items-center space-x-2 px-4 py-2 bg-mint-200 hover:bg-mint-300 text-ink rounded-xl font-medium text-sm transition disabled:opacity-50"
                       >
                         {isBusy && busy?.action === 'archive' ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -468,7 +468,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                         disabled={busy !== null}
                         title="Delete all permanently"
                         aria-label={`Delete all emails from ${group.name}`}
-                        className="p-2 border border-berry-200 text-berry-600 hover:bg-berry-50 rounded-lg transition disabled:opacity-50"
+                        className="p-2 border border-berry-200 text-berry-600 hover:bg-berry-50 rounded-xl transition disabled:opacity-50"
                       >
                         {isBusy && busy?.action === 'delete' ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -481,7 +481,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
 
                   {message && (
                     <div
-                      className={`mt-3 text-sm rounded-lg p-3 ${
+                      className={`mt-3 text-sm rounded-xl p-3 ${
                         message.tone === 'error' ? 'bg-berry-50 text-berry-700' : 'bg-ocean-50 text-ocean-800'
                       }`}
                     >
@@ -490,7 +490,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                   )}
 
                   {showArchivePrompt && !message && !isBusy && (
-                    <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-mint-50 rounded-lg p-3">
+                    <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-mint-50 rounded-xl p-3">
                       <p className="text-sm text-mint-800">
                         {senderActions[group.key] === 'unsubscribed'
                           ? "You won't get new mail from them."
@@ -531,7 +531,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
           <div className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1">
-                <p className="font-semibold text-gray-900">
+                <p className="font-semibold text-ink">
                   {selectedGroups.length.toLocaleString()} sender{selectedGroups.length === 1 ? '' : 's'} selected ·{' '}
                   {selectedEmailCount.toLocaleString()} emails
                 </p>
@@ -546,14 +546,14 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                 <button
                   onClick={() => setSelected(new Set())}
                   disabled={busy !== null}
-                  className="px-4 py-3 text-gray-600 hover:text-gray-900 font-medium disabled:opacity-50"
+                  className="px-4 py-3 text-ink/75 hover:text-ink font-medium disabled:opacity-50"
                 >
                   Clear
                 </button>
                 <button
                   onClick={() => handleBulkAction('archive')}
                   disabled={busy !== null}
-                  className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 rounded-xl font-semibold disabled:opacity-50"
+                  className="flex items-center space-x-2 px-5 py-3 bg-white border-2 border-ink/10 text-ink hover:bg-gray-50 rounded-2xl font-semibold disabled:opacity-50"
                 >
                   {busy?.key === '__bulk__' && busy.action === 'archive' ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -565,7 +565,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                 <button
                   onClick={() => handleBulkAction('delete')}
                   disabled={busy !== null}
-                  className="flex items-center space-x-2 px-5 py-3 bg-berry-600 hover:bg-berry-700 text-white rounded-xl font-semibold shadow-sm disabled:opacity-50"
+                  className="flex items-center space-x-2 px-5 py-3 bg-berry-200 hover:bg-berry-300 text-ink rounded-2xl font-semibold shadow-sm disabled:opacity-50"
                 >
                   {busy?.key === '__bulk__' && busy.action === 'delete' ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
