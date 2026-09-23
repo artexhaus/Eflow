@@ -113,7 +113,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
           <button
             onClick={handleArchiveAll}
             disabled={processing}
-            className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition disabled:opacity-50 shadow-sm"
+            className="flex items-center space-x-2 px-4 py-2 bg-mint-600 hover:bg-mint-700 text-white rounded-lg transition disabled:opacity-50 shadow-sm"
           >
             {activeAction === 'archive_all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
             <span className="font-medium">{activeAction === 'archive_all' ? 'Archiving...' : 'Archive All'}</span>
@@ -122,9 +122,9 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
       </div>
 
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start space-x-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="mb-4 bg-berry-50 border border-berry-200 rounded-xl p-4 flex items-start space-x-3">
+          <AlertCircle className="w-5 h-5 text-berry-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-berry-700">{error}</p>
         </div>
       )}
 
@@ -143,7 +143,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                   type="checkbox"
                   checked={selectedEmails.size === visibleEmails.length && visibleEmails.length > 0}
                   onChange={toggleAll}
-                  className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  className="w-5 h-5 rounded border-gray-300 text-mint-600 focus:ring-mint-500"
                 />
                 <span className="font-medium text-gray-700">
                   {selectedEmails.size > 0 ? `${selectedEmails.size} selected` : 'Select All'}
@@ -163,7 +163,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                 <button
                   onClick={() => applyAction('delete')}
                   disabled={processing}
-                  className="flex items-center space-x-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-50"
+                  className="flex items-center space-x-2 px-4 py-2 bg-berry-500 hover:bg-berry-600 text-white rounded-lg transition disabled:opacity-50"
                 >
                   {activeAction === 'delete' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   <span className="font-medium">{activeAction === 'delete' ? 'Deleting...' : 'Delete'}</span>
@@ -178,7 +178,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                 key={email.id}
                 className={`bg-white rounded-xl p-6 transition border ${
                   selectedEmails.has(email.id)
-                    ? 'border-emerald-500 shadow-md'
+                    ? 'border-mint-500 shadow-md'
                     : 'border-gray-100 hover:border-gray-300'
                 }`}
               >
@@ -187,7 +187,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                     type="checkbox"
                     checked={selectedEmails.has(email.id)}
                     onChange={() => toggleEmail(email.id)}
-                    className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 mt-1"
+                    className="w-5 h-5 rounded border-gray-300 text-mint-600 focus:ring-mint-500 mt-1"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-3">
@@ -205,7 +205,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                     <h4 className="text-lg font-medium text-gray-900 mb-2 truncate">{email.subject}</h4>
                     <p className="text-gray-600 line-clamp-2">{email.snippet}</p>
                     {!email.is_read && (
-                      <span className="inline-block mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+                      <span className="inline-block mt-2 text-xs bg-ocean-100 text-ocean-700 px-2 py-1 rounded-full font-medium">
                         Unread
                       </span>
                     )}
@@ -219,7 +219,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
             <div className="text-center mt-6">
               <button
                 onClick={() => setShowAll(true)}
-                className="text-emerald-600 hover:text-emerald-700 font-medium"
+                className="text-mint-600 hover:text-mint-700 font-medium"
               >
                 Show all {emails.length.toLocaleString()} emails
               </button>

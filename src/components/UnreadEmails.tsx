@@ -100,7 +100,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
           <button
             onClick={handleMarkAllRead}
             disabled={processing}
-            className="flex items-center space-x-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition disabled:opacity-50 shadow-sm"
+            className="flex items-center space-x-2 px-4 py-2 bg-sunny-300 hover:bg-sunny-400 text-sunny-900 rounded-lg transition disabled:opacity-50 shadow-sm"
           >
             {activeAction === 'all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
             <span className="font-medium">{activeAction === 'all' ? 'Marking...' : 'Mark All Read'}</span>
@@ -109,9 +109,9 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
       </div>
 
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start space-x-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="mb-4 bg-berry-50 border border-berry-200 rounded-xl p-4 flex items-start space-x-3">
+          <AlertCircle className="w-5 h-5 text-berry-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-berry-700">{error}</p>
         </div>
       )}
 
@@ -130,7 +130,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                   type="checkbox"
                   checked={selectedEmails.size === visibleEmails.length && visibleEmails.length > 0}
                   onChange={toggleAll}
-                  className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  className="w-5 h-5 rounded border-gray-300 text-sunny-600 focus:ring-sunny-500"
                 />
                 <span className="font-medium text-gray-700">
                   {selectedEmails.size > 0 ? `${selectedEmails.size} selected` : 'Select All'}
@@ -141,7 +141,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
               <button
                 onClick={handleMarkSelectedRead}
                 disabled={processing}
-                className="flex items-center space-x-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition disabled:opacity-50"
+                className="flex items-center space-x-2 px-4 py-2 bg-sunny-300 hover:bg-sunny-400 text-sunny-900 rounded-lg transition disabled:opacity-50"
               >
                 {activeAction === 'selected' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
                 <span className="font-medium">{activeAction === 'selected' ? 'Marking...' : 'Mark as Read'}</span>
@@ -155,8 +155,8 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                 key={email.id}
                 className={`bg-white rounded-xl p-6 transition border ${
                   selectedEmails.has(email.id)
-                    ? 'border-purple-500 shadow-md'
-                    : 'border-blue-200 bg-blue-50/30 hover:border-purple-300'
+                    ? 'border-sunny-500 shadow-md'
+                    : 'border-ocean-200 bg-ocean-50/30 hover:border-sunny-300'
                 }`}
               >
                 <div className="flex items-start space-x-4">
@@ -164,7 +164,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                     type="checkbox"
                     checked={selectedEmails.has(email.id)}
                     onChange={() => toggleEmail(email.id)}
-                    className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 mt-1"
+                    className="w-5 h-5 rounded border-gray-300 text-sunny-600 focus:ring-sunny-500 mt-1"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-3">
@@ -188,7 +188,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                           <span>Attachment</span>
                         </div>
                       )}
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium capitalize">
+                      <span className="text-xs bg-ocean-100 text-ocean-700 px-2 py-1 rounded-full font-medium capitalize">
                         {email.category}
                       </span>
                     </div>
@@ -202,7 +202,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
             <div className="text-center mt-6">
               <button
                 onClick={() => setShowAll(true)}
-                className="text-purple-600 hover:text-purple-700 font-medium"
+                className="text-sunny-600 hover:text-sunny-700 font-medium"
               >
                 Show all {emails.length.toLocaleString()} emails
               </button>

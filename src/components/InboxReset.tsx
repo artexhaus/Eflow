@@ -62,7 +62,7 @@ export default function InboxReset({
           </button>
 
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-lg">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-mint-500 to-ocean-600 rounded-2xl mb-4 shadow-lg">
               <Sparkles className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Clean Up Inbox</h2>
@@ -70,11 +70,11 @@ export default function InboxReset({
           </div>
 
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="mb-6 bg-berry-50 border border-berry-200 rounded-xl p-4 flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-berry-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-red-900">Something went wrong</p>
-                <p className="text-sm text-red-700">{error}</p>
+                <p className="font-medium text-berry-900">Something went wrong</p>
+                <p className="text-sm text-berry-700">{error}</p>
               </div>
             </div>
           )}
@@ -83,33 +83,33 @@ export default function InboxReset({
             <h3 className="text-lg font-semibold text-gray-900 mb-6">What will be cleaned up?</h3>
 
             <div className="space-y-4 mb-8">
-              <div className="flex items-center justify-between p-4 bg-orange-50 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-berry-50 rounded-xl">
                 <div className="flex items-center space-x-3">
-                  <Trash2 className="w-5 h-5 text-orange-500" />
+                  <Trash2 className="w-5 h-5 text-berry-500" />
                   <span className="font-medium text-gray-900">Clutter Emails</span>
                 </div>
-                <span className="text-2xl font-bold text-orange-600">{clutterCount.toLocaleString()}</span>
+                <span className="text-2xl font-bold text-berry-600">{clutterCount.toLocaleString()}</span>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-mint-50 rounded-xl">
                 <div className="flex items-center space-x-3">
-                  <Archive className="w-5 h-5 text-emerald-500" />
+                  <Archive className="w-5 h-5 text-mint-500" />
                   <span className="font-medium text-gray-900">Email Bundles</span>
                 </div>
-                <span className="text-2xl font-bold text-emerald-600">{bundleCount.toLocaleString()}</span>
+                <span className="text-2xl font-bold text-mint-600">{bundleCount.toLocaleString()}</span>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-ocean-50 rounded-xl">
                 <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-blue-500" />
+                  <CheckCircle className="w-5 h-5 text-ocean-500" />
                   <span className="font-medium text-gray-900">Important Emails (kept safe)</span>
                 </div>
-                <span className="text-2xl font-bold text-blue-600">{importantCount.toLocaleString()}</span>
+                <span className="text-2xl font-bold text-ocean-600">{importantCount.toLocaleString()}</span>
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-              <p className="text-sm text-amber-800">
+            <div className="bg-sunny-50 border border-sunny-200 rounded-xl p-4 mb-6">
+              <p className="text-sm text-sunny-800">
                 <strong>{totalToRemove.toLocaleString()} emails</strong> will be {action === 'delete' ? 'permanently deleted' : 'archived'} from your mail server.
                 {action === 'delete' && ' This cannot be undone.'}
                 {' '}Important emails will be kept safe.
@@ -123,14 +123,14 @@ export default function InboxReset({
                 onClick={() => setAction('archive')}
                 className={`w-full p-4 rounded-xl border-2 transition text-left ${
                   action === 'archive'
-                    ? 'border-emerald-500 bg-emerald-50'
+                    ? 'border-mint-500 bg-mint-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
                 <div className="flex items-center space-x-3">
                   <div
                     className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      action === 'archive' ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'
+                      action === 'archive' ? 'border-mint-500 bg-mint-500' : 'border-gray-300'
                     }`}
                   >
                     {action === 'archive' && <div className="w-2 h-2 bg-white rounded-full" />}
@@ -138,7 +138,7 @@ export default function InboxReset({
                   <div>
                     <div className="font-semibold text-gray-900">
                       Archive All Clutter & Bundles
-                      <span className="ml-2 text-xs font-medium bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Recommended</span>
+                      <span className="ml-2 text-xs font-medium bg-mint-100 text-mint-700 px-2 py-0.5 rounded-full">Recommended</span>
                     </div>
                     <div className="text-sm text-gray-600">
                       Moves {totalToRemove.toLocaleString()} emails to Archive folder (restorable later)
@@ -151,14 +151,14 @@ export default function InboxReset({
                 onClick={() => setAction('delete')}
                 className={`w-full p-4 rounded-xl border-2 transition text-left ${
                   action === 'delete'
-                    ? 'border-red-500 bg-red-50'
+                    ? 'border-berry-500 bg-berry-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
                 <div className="flex items-center space-x-3">
                   <div
                     className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      action === 'delete' ? 'border-red-500 bg-red-500' : 'border-gray-300'
+                      action === 'delete' ? 'border-berry-500 bg-berry-500' : 'border-gray-300'
                     }`}
                   >
                     {action === 'delete' && <div className="w-2 h-2 bg-white rounded-full" />}
@@ -179,8 +179,8 @@ export default function InboxReset({
             disabled={totalToRemove === 0}
             className={`w-full text-white py-4 rounded-xl font-semibold transition shadow-lg hover:shadow-xl disabled:opacity-50 ${
               action === 'delete'
-                ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
-                : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700'
+                ? 'bg-gradient-to-r from-berry-500 to-berry-600 hover:from-berry-600 hover:to-berry-700'
+                : 'bg-gradient-to-r from-mint-500 to-ocean-600 hover:from-mint-600 hover:to-ocean-700'
             }`}
           >
             {action === 'delete' ? `Delete ${totalToRemove.toLocaleString()} Emails` : `Archive ${totalToRemove.toLocaleString()} Emails`}
@@ -190,7 +190,7 @@ export default function InboxReset({
 
       {step === 'processing' && (
         <div className="text-center py-16">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full mb-6 shadow-lg">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-mint-500 to-ocean-600 rounded-full mb-6 shadow-lg">
             <Loader2 className="w-10 h-10 text-white animate-spin" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-2">Cleaning up your inbox...</h3>
@@ -201,7 +201,7 @@ export default function InboxReset({
 
       {step === 'complete' && (
         <div className="text-center py-16">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full mb-6 shadow-lg">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-mint-500 to-ocean-600 rounded-full mb-6 shadow-lg">
             <CheckCircle className="w-10 h-10 text-white" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
@@ -212,10 +212,10 @@ export default function InboxReset({
           </p>
           {partialFailure && (
             <>
-              <p className="text-sm text-amber-700 mt-3 max-w-md mx-auto">{partialFailure}</p>
+              <p className="text-sm text-sunny-700 mt-3 max-w-md mx-auto">{partialFailure}</p>
               <button
                 onClick={onBack}
-                className="mt-6 inline-flex items-center space-x-2 text-emerald-600 hover:text-emerald-700 font-medium"
+                className="mt-6 inline-flex items-center space-x-2 text-mint-600 hover:text-mint-700 font-medium"
               >
                 <ChevronLeft className="w-5 h-5" />
                 <span>Back to Dashboard</span>

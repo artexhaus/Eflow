@@ -166,15 +166,15 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
 
   const accentColor = provider === 'gmail' ? 'red' : provider === 'outlook' ? 'blue' : provider === 'yahoo' ? 'green' : 'cyan';
   const accentClasses: Record<string, { bg: string; ring: string; gradient: string }> = {
-    red: { bg: 'bg-red-50', ring: 'focus:ring-red-500', gradient: 'from-red-500 to-orange-500' },
-    blue: { bg: 'bg-blue-50', ring: 'focus:ring-blue-500', gradient: 'from-blue-500 to-blue-600' },
-    green: { bg: 'bg-green-50', ring: 'focus:ring-green-500', gradient: 'from-green-500 to-green-600' },
-    cyan: { bg: 'bg-cyan-50', ring: 'focus:ring-cyan-500', gradient: 'from-cyan-500 to-blue-500' },
+    red: { bg: 'bg-berry-50', ring: 'focus:ring-berry-500', gradient: 'from-berry-500 to-berry-500' },
+    blue: { bg: 'bg-ocean-50', ring: 'focus:ring-ocean-500', gradient: 'from-ocean-500 to-ocean-600' },
+    green: { bg: 'bg-mint-50', ring: 'focus:ring-mint-500', gradient: 'from-mint-500 to-mint-600' },
+    cyan: { bg: 'bg-ocean-50', ring: 'focus:ring-ocean-500', gradient: 'from-ocean-500 to-ocean-500' },
   };
   const accent = accentClasses[accentColor];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-mint-50 via-sunny-50 to-berry-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <button
           onClick={onBack}
@@ -209,7 +209,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
                     href={instructions.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block mt-2 text-xs font-medium text-emerald-600 hover:text-emerald-700 underline"
+                    className="inline-block mt-2 text-xs font-medium text-mint-600 hover:text-mint-700 underline"
                   >
                     {instructions.linkText} →
                   </a>
@@ -251,10 +251,10 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-berry-50 border border-berry-200 rounded-lg p-4">
                 <div className="flex items-start space-x-2">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-800">{error}</p>
+                  <AlertCircle className="w-5 h-5 text-berry-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-berry-800">{error}</p>
                 </div>
               </div>
             )}

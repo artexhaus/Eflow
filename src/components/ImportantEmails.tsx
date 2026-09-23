@@ -116,12 +116,12 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
   const getReasonBadgeColor = (reason: string | null) => {
     if (!reason) return 'bg-gray-100 text-gray-700';
     const r = reason.toLowerCase();
-    if (r.includes('bank') || r.includes('financial') || r.includes('legal')) return 'bg-red-100 text-red-700';
-    if (r.includes('security') || r.includes('account')) return 'bg-orange-100 text-orange-700';
-    if (r.includes('time-sensitive') || r.includes('delivery')) return 'bg-green-100 text-green-700';
-    if (r.includes('personal')) return 'bg-blue-100 text-blue-700';
-    if (r.includes('attachment')) return 'bg-purple-100 text-purple-700';
-    return 'bg-emerald-100 text-emerald-700';
+    if (r.includes('bank') || r.includes('financial') || r.includes('legal')) return 'bg-berry-100 text-berry-700';
+    if (r.includes('security') || r.includes('account')) return 'bg-berry-100 text-berry-700';
+    if (r.includes('time-sensitive') || r.includes('delivery')) return 'bg-mint-100 text-mint-700';
+    if (r.includes('personal')) return 'bg-ocean-100 text-ocean-700';
+    if (r.includes('attachment')) return 'bg-sunny-100 text-sunny-700';
+    return 'bg-mint-100 text-mint-700';
   };
 
   return (
@@ -145,7 +145,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
           onClick={() => setFilterUnread(!filterUnread)}
           className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition ${
             filterUnread
-              ? 'bg-blue-100 text-blue-700'
+              ? 'bg-ocean-100 text-ocean-700'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
@@ -167,11 +167,11 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
             className={`flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap transition border ${
               key === 'verified'
                 ? activeCategory === key
-                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-300'
-                  : 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm shadow-emerald-200 hover:bg-emerald-100'
+                  ? 'bg-mint-600 border-mint-600 text-white shadow-md shadow-mint-300'
+                  : 'bg-mint-50 border-mint-300 text-mint-800 shadow-sm shadow-mint-200 hover:bg-mint-100'
                 : activeCategory === key
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                  : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:text-blue-700'
+                  ? 'bg-ocean-600 border-ocean-600 text-white shadow-sm'
+                  : 'bg-white border-gray-200 text-gray-700 hover:border-ocean-300 hover:text-ocean-700'
             }`}
           >
             <Icon className="w-4 h-4 flex-shrink-0" />
@@ -179,8 +179,8 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
             <span
               className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
                 activeCategory === key
-                  ? key === 'verified' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
-                  : key === 'verified' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                  ? key === 'verified' ? 'bg-mint-500 text-white' : 'bg-ocean-500 text-white'
+                  : key === 'verified' ? 'bg-mint-100 text-mint-700' : 'bg-gray-100 text-gray-600'
               }`}
             >
               {categoryCounts[key]}
@@ -190,13 +190,13 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
       </div>
 
       {isVerifiedTab && (
-        <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-start space-x-4">
-          <div className="w-11 h-11 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-            <ShieldCheck className="w-6 h-6 text-emerald-600" />
+        <div className="mb-6 bg-mint-50 border border-mint-200 rounded-2xl p-5 flex items-start space-x-4">
+          <div className="w-11 h-11 bg-mint-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <ShieldCheck className="w-6 h-6 text-mint-600" />
           </div>
           <div>
-            <p className="font-semibold text-emerald-900 text-lg">Your bills and receipts are safely filed</p>
-            <p className="text-emerald-800">
+            <p className="font-semibold text-mint-900 text-lg">Your bills and receipts are safely filed</p>
+            <p className="text-mint-800">
               Everything here is protected. Clean-ups, Archive All and Delete buttons always skip these emails.
             </p>
           </div>
@@ -223,10 +223,10 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                 key={email.id}
                 className={`bg-white rounded-xl p-6 hover:shadow-lg transition border ${
                   email.is_protected
-                    ? 'border-emerald-300 ring-1 ring-emerald-200 shadow-md shadow-emerald-100'
+                    ? 'border-mint-300 ring-1 ring-mint-200 shadow-md shadow-mint-100'
                     : !email.is_read
-                      ? 'border-blue-200 bg-blue-50/30'
-                      : 'border-gray-100 hover:border-blue-300'
+                      ? 'border-ocean-200 bg-ocean-50/30'
+                      : 'border-gray-100 hover:border-ocean-300'
                 }`}
               >
                 <div className="flex items-start justify-between mb-3">
@@ -236,7 +236,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                         {email.sender_name || email.sender}
                       </h3>
                       {email.is_protected && (
-                        <span className="flex items-center space-x-1 text-xs px-2 py-1 rounded-full font-semibold flex-shrink-0 bg-emerald-100 text-emerald-800">
+                        <span className="flex items-center space-x-1 text-xs px-2 py-1 rounded-full font-semibold flex-shrink-0 bg-mint-100 text-mint-800">
                           <Receipt className="w-3.5 h-3.5" />
                           <span>{getVerifiedKind(email) === 'Paid' ? 'Paid · Safe' : 'Bill · Safe'}</span>
                         </span>
@@ -271,7 +271,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                       </div>
                     )}
                     {!email.is_read && (
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+                      <span className="text-xs bg-ocean-100 text-ocean-700 px-2 py-1 rounded-full font-medium">
                         Unread
                       </span>
                     )}
@@ -285,7 +285,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
             <div className="text-center mt-6">
               <button
                 onClick={() => setShowAll(true)}
-                className="text-blue-600 hover:text-blue-700 font-medium"
+                className="text-ocean-600 hover:text-ocean-700 font-medium"
               >
                 Show all {filtered.length.toLocaleString()} emails
               </button>

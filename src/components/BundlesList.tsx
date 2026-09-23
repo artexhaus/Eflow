@@ -21,9 +21,9 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
 
   const getBundleTypeColor = (type: string) => {
     const lowerType = type.toLowerCase();
-    if (lowerType.includes('promotion')) return 'from-pink-500 to-rose-500';
-    if (lowerType.includes('notification')) return 'from-blue-500 to-cyan-500';
-    if (lowerType.includes('newsletter')) return 'from-emerald-500 to-teal-500';
+    if (lowerType.includes('promotion')) return 'from-berry-500 to-berry-500';
+    if (lowerType.includes('notification')) return 'from-ocean-500 to-ocean-500';
+    if (lowerType.includes('newsletter')) return 'from-mint-500 to-ocean-500';
     return 'from-gray-500 to-gray-600';
   };
 
@@ -108,9 +108,9 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
                   </div>
 
                   {errors[bundle.id] && (
-                    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-2">
-                      <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-red-700">{errors[bundle.id]}</p>
+                    <div className="mb-4 bg-berry-50 border border-berry-200 rounded-lg p-3 flex items-start space-x-2">
+                      <AlertCircle className="w-4 h-4 text-berry-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-berry-700">{errors[bundle.id]}</p>
                     </div>
                   )}
 
@@ -118,7 +118,7 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
                     <button
                       onClick={() => handleBundleAction(bundle.id, 'archive')}
                       disabled={processing !== null}
-                      className="flex-1 flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
+                      className="flex-1 flex items-center justify-center space-x-2 bg-mint-600 hover:bg-mint-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
                     >
                       {processing?.bundleId === bundle.id && processing.action === 'archive' ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -134,7 +134,7 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
                     <button
                       onClick={() => handleBundleAction(bundle.id, 'delete')}
                       disabled={processing !== null}
-                      className="flex items-center justify-center space-x-2 bg-white border border-red-300 text-red-600 hover:bg-red-50 px-5 py-3 rounded-lg font-semibold transition disabled:opacity-50"
+                      className="flex items-center justify-center space-x-2 bg-white border border-berry-300 text-berry-600 hover:bg-berry-50 px-5 py-3 rounded-lg font-semibold transition disabled:opacity-50"
                     >
                       {processing?.bundleId === bundle.id && processing.action === 'delete' ? (
                         <Loader2 className="w-5 h-5 animate-spin" />

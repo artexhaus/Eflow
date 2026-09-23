@@ -254,9 +254,9 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-cream flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="w-8 h-8 animate-spin text-emerald-500 mx-auto mb-4" />
+          <RefreshCw className="w-8 h-8 animate-spin text-mint-500 mx-auto mb-4" />
           <p className="text-gray-600">Loading your inbox...</p>
         </div>
       </div>
@@ -264,12 +264,12 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-cream">
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-mint-500 to-ocean-600 rounded-xl flex items-center justify-center">
                 <Mail className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-xl font-bold text-gray-900">Eflow</h1>
@@ -299,6 +299,13 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+        {/* Brand stripe: one band of each theme colour */}
+        <div className="flex h-1.5" aria-hidden="true">
+          <div className="flex-1 bg-berry-300" />
+          <div className="flex-1 bg-ocean-300" />
+          <div className="flex-1 bg-mint-300" />
+          <div className="flex-1 bg-sunny-300" />
+        </div>
       </nav>
 
       {currentScreen === 'dashboard' && (
@@ -311,23 +318,23 @@ export default function Dashboard() {
           )}
 
           {scanError && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="mb-6 bg-berry-50 border border-berry-200 rounded-xl p-4 flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-berry-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-red-900">Scan failed</p>
-                <p className="text-sm text-red-700">{scanError}</p>
+                <p className="font-medium text-berry-900">Scan failed</p>
+                <p className="text-sm text-berry-700">{scanError}</p>
               </div>
             </div>
           )}
 
           {scanResult && !scanning && (
-            <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-xl p-5 flex items-start space-x-3">
-              <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <div className="mb-6 bg-mint-50 border border-mint-200 rounded-xl p-5 flex items-start space-x-3">
+              <CheckCircle className="w-5 h-5 text-mint-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="font-medium text-emerald-900">
+                <p className="font-medium text-mint-900">
                   Scan complete: {scanResult.fetched.toLocaleString()} emails fetched from your entire inbox
                 </p>
-                <div className="flex flex-wrap gap-4 mt-2 text-sm text-emerald-700">
+                <div className="flex flex-wrap gap-4 mt-2 text-sm text-mint-700">
                   <span>{scanResult.important.toLocaleString()} important</span>
                   <span>{scanResult.clutter.toLocaleString()} clutter</span>
                   <span>{scanResult.bundles.toLocaleString()} bundled</span>
@@ -336,7 +343,7 @@ export default function Dashboard() {
               </div>
               <button
                 onClick={() => setScanResult(null)}
-                className="text-emerald-600 hover:text-emerald-800"
+                className="text-mint-600 hover:text-mint-800"
               >
                 <span className="text-sm">Dismiss</span>
               </button>
@@ -344,27 +351,27 @@ export default function Dashboard() {
           )}
 
           {scanning && (
-            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <div className="mb-6 bg-ocean-50 border border-ocean-200 rounded-xl p-6">
               <div className="flex items-center space-x-3 mb-3">
-                <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
-                <p className="font-medium text-blue-900">Scanning your entire inbox...</p>
+                <RefreshCw className="w-5 h-5 text-ocean-600 animate-spin" />
+                <p className="font-medium text-ocean-900">Scanning your entire inbox...</p>
               </div>
               {scanProgress && scanProgress.totalInInbox > 0 ? (
                 <>
-                  <div className="w-full bg-blue-100 rounded-full h-2 mb-2 overflow-hidden">
+                  <div className="w-full bg-ocean-100 rounded-full h-2 mb-2 overflow-hidden">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      className="bg-ocean-600 h-2 rounded-full transition-all"
                       style={{
                         width: `${Math.min(100, Math.round((scanProgress.scannedSoFar / scanProgress.totalInInbox) * 100))}%`,
                       }}
                     />
                   </div>
-                  <p className="text-sm text-blue-700">
+                  <p className="text-sm text-ocean-700">
                     {scanProgress.scannedSoFar.toLocaleString()} of {scanProgress.totalInInbox.toLocaleString()} emails scanned
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-blue-700">
+                <p className="text-sm text-ocean-700">
                   Fetching all emails from the very beginning. This may take a while if you have thousands of emails.
                 </p>
               )}
@@ -384,31 +391,31 @@ export default function Dashboard() {
           ) : (
           <>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition">
+            <div className="bg-gradient-to-br from-ocean-500 to-ocean-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition">
               <Mail className="w-8 h-8 mb-4 opacity-90" />
               <div className="text-3xl font-bold mb-1">{importantCount.toLocaleString()}</div>
-              <div className="text-blue-100">Important Emails</div>
+              <div className="text-ocean-100">Important Emails</div>
             </div>
 
-            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition">
+            <div className="bg-gradient-to-br from-berry-500 to-berry-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition">
               <Trash2 className="w-8 h-8 mb-4 opacity-90" />
               <div className="text-3xl font-bold mb-1">{clutterCount.toLocaleString()}</div>
-              <div className="text-orange-100">Clutter Emails</div>
+              <div className="text-berry-100">Clutter Emails</div>
             </div>
 
-            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition">
+            <div className="bg-gradient-to-br from-mint-500 to-ocean-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition">
               <Package className="w-8 h-8 mb-4 opacity-90" />
               <div className="text-3xl font-bold mb-1">{bundles.length}</div>
-              <div className="text-emerald-100">Email Bundles</div>
+              <div className="text-mint-100">Email Bundles</div>
             </div>
 
             <button
               onClick={() => setCurrentScreen('unread')}
-              className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition text-left"
+              className="bg-gradient-to-br from-sunny-200 to-sunny-300 rounded-2xl p-6 text-sunny-900 shadow-lg hover:shadow-xl transition text-left"
             >
               <Mail className="w-8 h-8 mb-4 opacity-90" />
               <div className="text-3xl font-bold mb-1">{unreadCount.toLocaleString()}</div>
-              <div className="text-purple-100">Unread Emails</div>
+              <div className="text-sunny-800 font-semibold">Unread Emails</div>
             </button>
           </div>
 
@@ -420,7 +427,7 @@ export default function Dashboard() {
               <button
                 onClick={simulateScan}
                 disabled={scanning}
-                className="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-emerald-600 hover:to-teal-700 transition disabled:opacity-50 shadow-lg"
+                className="inline-flex items-center space-x-2 bg-gradient-to-r from-mint-500 to-ocean-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-mint-600 hover:to-ocean-700 transition disabled:opacity-50 shadow-lg"
               >
                 <RefreshCw className={scanning ? 'w-5 h-5 animate-spin' : 'w-5 h-5'} />
                 <span>{scanning ? 'Scanning Entire Inbox...' : 'Scan Entire Inbox'}</span>
@@ -431,10 +438,10 @@ export default function Dashboard() {
               {topSendersEmailCount > 0 && (
                 <button
                   onClick={() => setCurrentScreen('senders')}
-                  className="w-full bg-white rounded-2xl p-6 shadow-sm border-2 border-emerald-100 hover:border-emerald-400 transition text-left flex items-center gap-5"
+                  className="w-full bg-white rounded-2xl p-6 shadow-sm border-2 border-mint-100 hover:border-mint-400 transition text-left flex items-center gap-5"
                 >
-                  <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Users className="w-6 h-6 text-emerald-600" />
+                  <div className="w-12 h-12 bg-mint-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Users className="w-6 h-6 text-mint-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-lg font-semibold text-gray-900">
@@ -444,7 +451,7 @@ export default function Dashboard() {
                       {topSenders.slice(0, 3).map((g) => g.name).join(', ')} and more. Unsubscribe and clear them out in one click.
                     </div>
                   </div>
-                  <ChevronRight className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+                  <ChevronRight className="w-6 h-6 text-mint-600 flex-shrink-0" />
                 </button>
               )}
 
@@ -455,7 +462,7 @@ export default function Dashboard() {
                 <button
                   onClick={simulateScan}
                   disabled={scanning}
-                  className="flex items-center space-x-2 text-emerald-600 hover:text-emerald-700 font-medium transition disabled:opacity-50"
+                  className="flex items-center space-x-2 text-mint-600 hover:text-mint-700 font-medium transition disabled:opacity-50"
                 >
                   <RefreshCw className={scanning ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
                   <span>{scanning ? 'Scanning...' : 'Rescan Entire Inbox'}</span>
@@ -465,38 +472,38 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <button
                   onClick={() => openImportant('all')}
-                  className="bg-white rounded-xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-blue-500"
+                  className="bg-white rounded-xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-ocean-500"
                 >
-                  <Mail className="w-6 h-6 text-blue-500 mb-3" />
+                  <Mail className="w-6 h-6 text-ocean-500 mb-3" />
                   <div className="text-lg font-semibold text-gray-900 mb-1">Important</div>
                   <div className="text-sm text-gray-600">{importantCount.toLocaleString()} emails</div>
                 </button>
 
                 <button
                   onClick={() => setCurrentScreen('clutter')}
-                  className="bg-white rounded-xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-orange-500"
+                  className="bg-white rounded-xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-berry-500"
                 >
-                  <Trash2 className="w-6 h-6 text-orange-500 mb-3" />
+                  <Trash2 className="w-6 h-6 text-berry-500 mb-3" />
                   <div className="text-lg font-semibold text-gray-900 mb-1">Clutter</div>
                   <div className="text-sm text-gray-600">{clutterCount.toLocaleString()} emails</div>
                 </button>
 
                 <button
                   onClick={() => setCurrentScreen('bundles')}
-                  className="bg-white rounded-xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-emerald-500"
+                  className="bg-white rounded-xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-mint-500"
                 >
-                  <Package className="w-6 h-6 text-emerald-500 mb-3" />
+                  <Package className="w-6 h-6 text-mint-500 mb-3" />
                   <div className="text-lg font-semibold text-gray-900 mb-1">Bundles</div>
                   <div className="text-sm text-gray-600">{bundles.length} groups ({bundleEmailCount.toLocaleString()} emails)</div>
                 </button>
 
                 <button
                   onClick={() => setCurrentScreen('reset')}
-                  className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl p-6 hover:shadow-lg transition text-left"
+                  className="bg-gradient-to-br from-mint-500 to-ocean-600 rounded-xl p-6 hover:shadow-lg transition text-left"
                 >
                   <Sparkles className="w-6 h-6 text-white mb-3" />
                   <div className="text-lg font-semibold text-white mb-1">Inbox Reset</div>
-                  <div className="text-sm text-emerald-100">Delete all clutter & bundles</div>
+                  <div className="text-sm text-mint-100">Delete all clutter & bundles</div>
                 </button>
               </div>
             </div>
