@@ -87,14 +87,28 @@ export default function Dashboard() {
     if (!user) return;
 
     try {
-      const emailsRes = await supabase
-        .from('emails')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_deleted', false);
+      // PostgREST returns at most 1000 rows per request, so page through the
+      // table - otherwise every count on the dashboard silently caps at 1000.
+      const PAGE = 1000;
+      const allEmails: Email[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('emails')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('is_deleted', false)
+          .eq('is_archived', false)
+          .order('timestamp', { ascending: false })
+          .order('id')
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        allEmails.push(...(data ?? []));
+        if (!data || data.length < PAGE) break;
+      }
+
       const bundlesRes = await supabase.from('bundles').select('*').eq('user_id', user.id);
 
-      if (emailsRes.data) setEmails(emailsRes.data);
+      setEmails(allEmails);
       if (bundlesRes.data) setBundles(bundlesRes.data);
     } catch (error) {
       console.error('Error loading data:', error);

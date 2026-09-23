@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { ImapFlow } from "npm:imapflow";
+import { readImapPassword } from "../_shared/credentials.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +15,65 @@ const imapHosts: Record<string, { host: string; port: number }> = {
   yahoo: { host: "imap.mail.yahoo.com", port: 993 },
   icloud: { host: "imap.mail.me.com", port: 993 },
 };
+
+type Action = "delete" | "archive" | "mark_read";
+
+const DB_UPDATE_FOR_ACTION: Record<Action, Record<string, boolean>> = {
+  delete: { is_deleted: true },
+  archive: { is_archived: true },
+  mark_read: { is_read: true },
+};
+
+// Looks up the IMAP UIDs of every still-visible email matching a category or
+// bundle. Paginated because PostgREST caps a single select at 1000 rows, and a
+// cleanup of a large inbox routinely targets several thousand emails.
+async function selectTargetIds(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  filter: { categories?: string[]; bundleId?: string },
+): Promise<string[]> {
+  const PAGE = 1000;
+  const ids: string[] = [];
+  let from = 0;
+
+  while (true) {
+    let query = supabase
+      .from("emails")
+      .select("email_id")
+      .eq("user_id", userId)
+      .eq("is_deleted", false)
+      .eq("is_archived", false);
+    if (filter.categories) query = query.in("category", filter.categories);
+    if (filter.bundleId) query = query.eq("bundle_id", filter.bundleId);
+
+    const { data, error } = await query.order("id").range(from, from + PAGE - 1);
+    if (error) throw new Error(`Failed to look up emails: ${error.message}`);
+    if (!data || data.length === 0) break;
+
+    ids.push(...data.map((e: { email_id: string }) => e.email_id));
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+
+  return ids;
+}
+
+// Finds where "archive" should move mail for this provider: the server's
+// special-use Archive folder, else Gmail's All Mail (moving there just drops
+// the Inbox label), else a folder named Archive - created if needed.
+async function resolveArchiveMailbox(client: ImapFlow): Promise<string> {
+  const boxes = await client.list();
+  const special =
+    boxes.find((b) => b.specialUse === "\\Archive") ??
+    boxes.find((b) => b.specialUse === "\\All");
+  if (special) return special.path;
+
+  const named = boxes.find((b) => b.path.toLowerCase() === "archive");
+  if (named) return named.path;
+
+  await client.mailboxCreate("Archive");
+  return "Archive";
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -35,36 +95,40 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) throw new Error("Invalid user");
 
-    const { action, emailIds, provider, category } = await req.json();
+    const { action, emailIds, category, bundleId } = (await req.json()) as {
+      action: Action;
+      emailIds?: string[];
+      category?: string | string[];
+      bundleId?: string;
+    };
 
-    if (!action || !provider || !imapHosts[provider]) {
-      throw new Error("Action and valid provider are required");
+    if (!DB_UPDATE_FOR_ACTION[action]) {
+      throw new Error("A valid action (delete, archive, mark_read) is required");
     }
 
-    // If category is provided, fetch all email UIDs for that category from the database
-    let idsToDelete: string[] = [];
-    if (category && !emailIds) {
-      const { data: categoryEmails } = await supabase
-        .from("emails")
-        .select("email_id")
-        .eq("user_id", user.id)
-        .in("category", Array.isArray(category) ? category : [category]);
-
-      idsToDelete = (categoryEmails || []).map((e) => e.email_id);
-    } else if (emailIds && Array.isArray(emailIds)) {
-      idsToDelete = emailIds;
+    let targetIds: string[];
+    if (Array.isArray(emailIds)) {
+      targetIds = emailIds.map(String);
+    } else if (bundleId) {
+      targetIds = await selectTargetIds(supabase, user.id, { bundleId });
+    } else if (category) {
+      targetIds = await selectTargetIds(supabase, user.id, {
+        categories: Array.isArray(category) ? category : [category],
+      });
+    } else {
+      throw new Error("Specify emailIds, bundleId or category");
     }
 
-    if (idsToDelete.length === 0) {
+    if (targetIds.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, action, processed: 0, message: "No emails to process" }),
+        JSON.stringify({ success: true, action, processed: 0, failed: 0, total: 0 }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const { data: userData } = await supabase
       .from("users")
-      .select("connected_account_id, encrypted_password")
+      .select("email_provider, connected_account_id, encrypted_password")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -72,8 +136,13 @@ Deno.serve(async (req) => {
       throw new Error("No IMAP credentials found. Please connect your email account first.");
     }
 
+    const provider = userData.email_provider;
+    if (!provider || !imapHosts[provider]) {
+      throw new Error(`Unsupported provider: ${provider}`);
+    }
+
     const { host, port } = imapHosts[provider];
-    const password = atob(userData.encrypted_password);
+    const password = await readImapPassword(supabase, user.id, userData.encrypted_password);
 
     const client = new ImapFlow({
       host,
@@ -86,55 +155,49 @@ Deno.serve(async (req) => {
 
     await client.connect();
 
+    const archiveMailbox = action === "archive" ? await resolveArchiveMailbox(client) : null;
     const lock = await client.getMailboxLock("INBOX");
     let processed = 0;
     let failed = 0;
 
     try {
-      // Process in chunks of 100 to handle large batches
+      // Work in chunks, and only mark an email as handled in the database once
+      // the mail server confirmed it. If a chunk fails (or the function times
+      // out part way), those emails stay visible so the user can retry, rather
+      // than disappearing from Eflow while still sitting in their real inbox.
       const CHUNK = 100;
-      for (let i = 0; i < idsToDelete.length; i += CHUNK) {
-        const chunk = idsToDelete.slice(i, i + CHUNK);
+      for (let i = 0; i < targetIds.length; i += CHUNK) {
+        const chunk = targetIds.slice(i, i + CHUNK);
+        const uids = chunk.map((id) => parseInt(id, 10)).filter((u) => !isNaN(u));
+        failed += chunk.length - uids.length;
+        if (uids.length === 0) continue;
 
-        if (action === "delete") {
-          const uids = chunk.map((id) => parseInt(id, 10)).filter((u) => !isNaN(u));
-          if (uids.length > 0) {
-            try {
-              await client.messageDelete(uids, { uid: true });
-              processed += uids.length;
-            } catch (err) {
-              console.error("Batch delete error:", err);
-              failed += uids.length;
-            }
+        let ok = false;
+        try {
+          if (action === "delete") {
+            ok = await client.messageDelete(uids, { uid: true });
+          } else if (action === "archive") {
+            ok = Boolean(await client.messageMove(uids, archiveMailbox!, { uid: true }));
+          } else {
+            ok = await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true });
           }
-        } else if (action === "archive") {
-          for (const emailId of chunk) {
-            const uid = parseInt(emailId, 10);
-            if (isNaN(uid)) continue;
-            try {
-              await client.messageMove(uid, "Archive", { uid: true });
-              processed++;
-            } catch {
-              try {
-                await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true });
-                processed++;
-              } catch {
-                failed++;
-              }
-            }
-          }
-        } else if (action === "mark_read") {
-          const uids = chunk.map((id) => parseInt(id, 10)).filter((u) => !isNaN(u));
-          if (uids.length > 0) {
-            try {
-              await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true });
-              processed += uids.length;
-            } catch (err) {
-              console.error("Batch mark read error:", err);
-              failed += uids.length;
-            }
-          }
+        } catch (err) {
+          console.error(`Batch ${action} error:`, err);
         }
+
+        if (!ok) {
+          failed += uids.length;
+          continue;
+        }
+
+        const { error: dbError } = await supabase
+          .from("emails")
+          .update(DB_UPDATE_FOR_ACTION[action])
+          .eq("user_id", user.id)
+          .in("email_id", uids.map(String));
+        if (dbError) console.error("Failed to record action in database:", dbError);
+
+        processed += uids.length;
       }
     } finally {
       lock.release();
@@ -142,47 +205,8 @@ Deno.serve(async (req) => {
 
     await client.logout();
 
-    // Update database to reflect actions
-    if (action === "delete") {
-      if (category) {
-        await supabase
-          .from("emails")
-          .update({ is_deleted: true })
-          .eq("user_id", user.id)
-          .in("category", Array.isArray(category) ? category : [category]);
-      } else if (emailIds) {
-        const emailIdStrings = emailIds.map(String);
-        await supabase
-          .from("emails")
-          .update({ is_deleted: true })
-          .eq("user_id", user.id)
-          .in("email_id", emailIdStrings);
-      }
-    } else if (action === "archive") {
-      if (category) {
-        await supabase
-          .from("emails")
-          .update({ is_archived: true })
-          .eq("user_id", user.id)
-          .in("category", Array.isArray(category) ? category : [category]);
-      } else if (emailIds) {
-        const emailIdStrings = emailIds.map(String);
-        await supabase
-          .from("emails")
-          .update({ is_archived: true })
-          .eq("user_id", user.id)
-          .in("email_id", emailIdStrings);
-      }
-    }
-
     return new Response(
-      JSON.stringify({
-        success: true,
-        action,
-        processed,
-        failed,
-        total: idsToDelete.length,
-      }),
+      JSON.stringify({ success: true, action, processed, failed, total: targetIds.length }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

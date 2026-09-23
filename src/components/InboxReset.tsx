@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, Sparkles, Trash2, Archive, CheckCircle, AlertCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 
 interface InboxResetProps {
   importantCount: number;
@@ -18,80 +17,31 @@ export default function InboxReset({
   onBack,
   onComplete,
 }: InboxResetProps) {
-  const { user } = useAuth();
   const [step, setStep] = useState<'choose' | 'processing' | 'complete'>('choose');
-  const [action, setAction] = useState<'archive' | 'delete'>('delete');
+  const [action, setAction] = useState<'archive' | 'delete'>('archive');
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
+  const [processedCount, setProcessedCount] = useState(0);
+  const [partialFailure, setPartialFailure] = useState('');
 
   const totalToRemove = clutterCount + bundleCount;
 
   const handleReset = async () => {
-    if (!user) return;
-
     setStep('processing');
     setError('');
-    setProgress('Connecting to your email server...');
+    setProgress(
+      `${action === 'delete' ? 'Deleting' : 'Archiving'} ${totalToRemove.toLocaleString()} clutter and newsletter emails on your mail server...`
+    );
 
     try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('email_provider, connected_account_id')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (!userData?.email_provider || !userData?.connected_account_id) {
-        throw new Error('No email account connected. Please connect your email first.');
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No active session');
-
-      setProgress(`Deleting ${totalToRemove} clutter and bundle emails from your mail server...`);
-
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imap-apply-actions`;
-
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action,
-          provider: userData.email_provider,
-          category: ['clutter', 'bundle'],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete emails from mail server');
-      }
-
-      const result = await response.json();
-      setProgress(`Processed ${result.processed || 0} emails on the server. Updating database...`);
-
-      // Mark emails as deleted/archived in database
-      if (action === 'delete') {
-        await supabase
-          .from('emails')
-          .update({ is_deleted: true })
-          .eq('user_id', user.id)
-          .in('category', ['clutter', 'bundle']);
-      } else {
-        await supabase
-          .from('emails')
-          .update({ is_archived: true })
-          .eq('user_id', user.id)
-          .in('category', ['clutter', 'bundle']);
-      }
-
+      const result = await applyMailAction(action, { category: ['clutter', 'bundle'] });
+      setProcessedCount(result.processed);
+      setPartialFailure(describePartialFailure(result));
       setStep('complete');
-      setTimeout(() => {
-        onComplete();
-        onBack();
-      }, 2000);
+      onComplete();
+      if (result.failed === 0) {
+        setTimeout(onBack, 2000);
+      }
     } catch (error) {
       console.error('Error during reset:', error);
       setError((error as Error).message);
@@ -170,6 +120,34 @@ export default function InboxReset({
 
             <div className="space-y-3 mb-6">
               <button
+                onClick={() => setAction('archive')}
+                className={`w-full p-4 rounded-xl border-2 transition text-left ${
+                  action === 'archive'
+                    ? 'border-emerald-500 bg-emerald-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      action === 'archive' ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'
+                    }`}
+                  >
+                    {action === 'archive' && <div className="w-2 h-2 bg-white rounded-full" />}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">
+                      Archive All Clutter & Bundles
+                      <span className="ml-2 text-xs font-medium bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Recommended</span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Moves {totalToRemove.toLocaleString()} emails to Archive folder (restorable later)
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              <button
                 onClick={() => setAction('delete')}
                 className={`w-full p-4 rounded-xl border-2 transition text-left ${
                   action === 'delete'
@@ -189,31 +167,6 @@ export default function InboxReset({
                     <div className="font-semibold text-gray-900">Delete All Clutter & Bundles</div>
                     <div className="text-sm text-gray-600">
                       Permanently deletes {totalToRemove.toLocaleString()} emails from your mail server
-                    </div>
-                  </div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => setAction('archive')}
-                className={`w-full p-4 rounded-xl border-2 transition text-left ${
-                  action === 'archive'
-                    ? 'border-emerald-500 bg-emerald-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      action === 'archive' ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'
-                    }`}
-                  >
-                    {action === 'archive' && <div className="w-2 h-2 bg-white rounded-full" />}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">Archive All Clutter & Bundles</div>
-                    <div className="text-sm text-gray-600">
-                      Moves {totalToRemove.toLocaleString()} emails to Archive folder (restorable later)
                     </div>
                   </div>
                 </div>
@@ -251,8 +204,24 @@ export default function InboxReset({
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full mb-6 shadow-lg">
             <CheckCircle className="w-10 h-10 text-white" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">All done!</h3>
-          <p className="text-gray-600">{totalToRemove.toLocaleString()} emails have been {action === 'delete' ? 'deleted' : 'archived'} from your inbox.</p>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+            {partialFailure ? 'Mostly done' : 'All done!'}
+          </h3>
+          <p className="text-gray-600">
+            {processedCount.toLocaleString()} emails have been {action === 'delete' ? 'deleted' : 'archived'} from your inbox.
+          </p>
+          {partialFailure && (
+            <>
+              <p className="text-sm text-amber-700 mt-3 max-w-md mx-auto">{partialFailure}</p>
+              <button
+                onClick={onBack}
+                className="mt-6 inline-flex items-center space-x-2 text-emerald-600 hover:text-emerald-700 font-medium"
+              >
+                <ChevronLeft className="w-5 h-5" />
+                <span>Back to Dashboard</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

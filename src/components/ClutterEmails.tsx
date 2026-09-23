@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, Trash2, Archive, Mail, Clock, AlertCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import type { Email } from '../lib/types';
 
 interface ClutterEmailsProps {
@@ -11,7 +10,6 @@ interface ClutterEmailsProps {
 }
 
 export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmailsProps) {
-  const { user } = useAuth();
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
@@ -53,47 +51,15 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
   };
 
   const applyAction = async (action: 'delete' | 'archive') => {
-    if (selectedEmails.size === 0 || !user) return;
+    if (selectedEmails.size === 0) return;
 
     setProcessing(true);
     setError('');
 
     try {
       const selected = emails.filter((e) => selectedEmails.has(e.id));
-      const emailIds = selected.map((e) => e.email_id);
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('email_provider')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (userData?.email_provider) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imap-apply-actions`;
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              action,
-              emailIds,
-              provider: userData.email_provider,
-            }),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Failed to ${action} emails on mail server`);
-          }
-        }
-      }
-
-      const dbAction = action === 'delete' ? { is_deleted: true } : { is_archived: true };
-      await supabase.from('emails').update(dbAction).in('id', Array.from(selectedEmails));
+      const result = await applyMailAction(action, { emailIds: selected.map((e) => e.email_id) });
+      setError(describePartialFailure(result));
       setSelectedEmails(new Set());
       await onRefresh();
     } catch (err) {
@@ -104,55 +70,21 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
     }
   };
 
-  const handleDeleteAll = async () => {
-    if (!user) return;
-
-    const confirmMsg = `Delete ALL ${emails.length} clutter emails from your mail server? This cannot be undone.`;
+  // Archive rather than delete: a misclassified email can still be found in
+  // the Archive folder, so the one-click bulk action is always recoverable.
+  const handleArchiveAll = async () => {
+    const confirmMsg = `Move all ${emails.length.toLocaleString()} clutter emails to your Archive folder? You can still find them there later.`;
     if (!confirm(confirmMsg)) return;
 
     setProcessing(true);
     setError('');
 
     try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('email_provider')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (userData?.email_provider) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imap-apply-actions`;
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              action: 'delete',
-              provider: userData.email_provider,
-              category: 'clutter',
-            }),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to delete emails from mail server');
-          }
-        }
-      }
-
-      await supabase
-        .from('emails')
-        .update({ is_deleted: true })
-        .eq('user_id', user.id)
-        .eq('category', 'clutter');
-
+      const result = await applyMailAction('archive', { category: 'clutter' });
+      setError(describePartialFailure(result));
       await onRefresh();
     } catch (err) {
-      console.error('Error deleting all clutter:', err);
+      console.error('Error archiving all clutter:', err);
       setError((err as Error).message);
     } finally {
       setProcessing(false);
@@ -178,12 +110,12 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
         </div>
         {emails.length > 0 && (
           <button
-            onClick={handleDeleteAll}
+            onClick={handleArchiveAll}
             disabled={processing}
-            className="flex items-center space-x-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-50 shadow-sm"
+            className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition disabled:opacity-50 shadow-sm"
           >
-            <Trash2 className="w-4 h-4" />
-            <span className="font-medium">Delete All</span>
+            <Archive className="w-4 h-4" />
+            <span className="font-medium">{processing ? 'Working...' : 'Archive All'}</span>
           </button>
         )}
       </div>

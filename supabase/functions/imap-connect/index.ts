@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { ImapFlow } from "npm:imapflow";
+import { encryptPassword } from "../_shared/credentials.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -84,7 +85,7 @@ Deno.serve(async (req) => {
       throw new Error(friendlyError);
     }
 
-    const encryptedPassword = btoa(password);
+    const encryptedPassword = await encryptPassword(password);
 
     const { error: upsertError } = await supabase
       .from("users")

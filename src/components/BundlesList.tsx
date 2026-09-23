@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ChevronLeft, Package, Trash2, Mail } from 'lucide-react';
+import { ChevronLeft, Package, Trash2, Mail, Archive, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { applyMailAction, describePartialFailure, type MailAction } from '../lib/mailActions';
 import type { Bundle, Email } from '../lib/types';
 
 interface BundlesListProps {
@@ -11,7 +12,8 @@ interface BundlesListProps {
 }
 
 export default function BundlesList({ bundles, emails, onBack, onRefresh }: BundlesListProps) {
-  const [processing, setProcessing] = useState<string | null>(null);
+  const [processing, setProcessing] = useState<{ bundleId: string; action: MailAction } | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const getBundleEmails = (bundleId: string) => {
     return emails.filter((e) => e.bundle_id === bundleId);
@@ -25,14 +27,23 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
     return 'from-gray-500 to-gray-600';
   };
 
-  const handleDeleteBundle = async (bundleId: string) => {
-    setProcessing(bundleId);
+  // Runs the action on the real mail server first. The bundle row is only
+  // removed once every one of its emails was handled, so a partial failure
+  // leaves the remaining emails visible here to retry.
+  const handleBundleAction = async (bundleId: string, action: 'archive' | 'delete') => {
+    setProcessing({ bundleId, action });
+    setErrors((prev) => ({ ...prev, [bundleId]: '' }));
     try {
-      await supabase.from('emails').update({ is_deleted: true }).eq('bundle_id', bundleId);
-      await supabase.from('bundles').delete().eq('id', bundleId);
+      const result = await applyMailAction(action, { bundleId });
+      if (result.failed === 0) {
+        await supabase.from('bundles').delete().eq('id', bundleId);
+      } else {
+        setErrors((prev) => ({ ...prev, [bundleId]: describePartialFailure(result) }));
+      }
       await onRefresh();
     } catch (error) {
-      console.error('Error deleting bundle:', error);
+      console.error(`Error ${action}ing bundle:`, error);
+      setErrors((prev) => ({ ...prev, [bundleId]: (error as Error).message }));
     } finally {
       setProcessing(null);
     }
@@ -50,7 +61,7 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
 
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-2">Email Bundles</h2>
-        <p className="text-gray-600">Groups of similar emails you can delete at once</p>
+        <p className="text-gray-600">Groups of similar emails you can clear out at once</p>
       </div>
 
       {bundles.length === 0 ? (
@@ -96,18 +107,39 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
                     ))}
                   </div>
 
-                  <button
-                    onClick={() => handleDeleteBundle(bundle.id)}
-                    disabled={processing === bundle.id}
-                    className="w-full flex items-center justify-center space-x-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                    <span>
-                      {processing === bundle.id
-                        ? 'Deleting...'
-                        : `Delete all ${bundleEmails.length} emails`}
-                    </span>
-                  </button>
+                  {errors[bundle.id] && (
+                    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-2">
+                      <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-700">{errors[bundle.id]}</p>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={() => handleBundleAction(bundle.id, 'archive')}
+                      disabled={processing !== null}
+                      className="flex-1 flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
+                    >
+                      <Archive className="w-5 h-5" />
+                      <span>
+                        {processing?.bundleId === bundle.id && processing.action === 'archive'
+                          ? 'Archiving...'
+                          : `Archive all ${bundleEmails.length}`}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => handleBundleAction(bundle.id, 'delete')}
+                      disabled={processing !== null}
+                      className="flex items-center justify-center space-x-2 bg-white border border-red-300 text-red-600 hover:bg-red-50 px-5 py-3 rounded-lg font-semibold transition disabled:opacity-50"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                      <span>
+                        {processing?.bundleId === bundle.id && processing.action === 'delete'
+                          ? 'Deleting...'
+                          : 'Delete'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );

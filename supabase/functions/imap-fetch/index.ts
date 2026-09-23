@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { ImapFlow } from "npm:imapflow";
+import { readImapPassword } from "../_shared/credentials.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -271,7 +272,7 @@ Deno.serve(async (req) => {
     }
 
     const { host, port } = imapHosts[provider];
-    const password = atob(userData.encrypted_password);
+    const password = await readImapPassword(supabase, user.id, userData.encrypted_password);
 
     // A scan is "in progress" (resuming) when scan_remaining_uids is set from a
     // previous chunked call. UIDs (not sequence numbers) are used because

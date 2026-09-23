@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, Mail, Paperclip, Clock, CheckCheck, AlertCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import type { Email } from '../lib/types';
 
 interface UnreadEmailsProps {
@@ -11,7 +10,6 @@ interface UnreadEmailsProps {
 }
 
 export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmailsProps) {
-  const { user } = useAuth();
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
@@ -52,44 +50,15 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
     }
   };
 
-  const markAsRead = async (emailIds: string[], dbIds: string[]) => {
-    if (!user || emailIds.length === 0) return;
+  const markAsRead = async (emailIds: string[]) => {
+    if (emailIds.length === 0) return;
 
     setProcessing(true);
     setError('');
 
     try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('email_provider')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (userData?.email_provider) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imap-apply-actions`;
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              action: 'mark_read',
-              emailIds,
-              provider: userData.email_provider,
-            }),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to mark emails as read on mail server');
-          }
-        }
-      }
-
-      await supabase.from('emails').update({ is_read: true }).in('id', dbIds);
+      const result = await applyMailAction('mark_read', { emailIds });
+      setError(describePartialFailure(result));
       setSelectedEmails(new Set());
       await onRefresh();
     } catch (err) {
@@ -102,11 +71,11 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
 
   const handleMarkSelectedRead = () => {
     const selected = emails.filter((e) => selectedEmails.has(e.id));
-    markAsRead(selected.map((e) => e.email_id), selected.map((e) => e.id));
+    markAsRead(selected.map((e) => e.email_id));
   };
 
   const handleMarkAllRead = () => {
-    markAsRead(emails.map((e) => e.email_id), emails.map((e) => e.id));
+    markAsRead(emails.map((e) => e.email_id));
   };
 
   return (
