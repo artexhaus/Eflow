@@ -1,0 +1,9 @@
+[functions.imap-connect]
+verify_jwt = true
+
+[functions.imap-fetch]
+verify_jwt = true
+
+[functions.imap-apply-actions]
+verify_jwt = true
+
