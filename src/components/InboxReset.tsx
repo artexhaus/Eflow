@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, Sparkles, Trash2, Archive, CheckCircle, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Sparkles, Trash2, Archive, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 
 interface InboxResetProps {
@@ -190,8 +190,8 @@ export default function InboxReset({
 
       {step === 'processing' && (
         <div className="text-center py-16">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full mb-6 shadow-lg animate-pulse">
-            <Sparkles className="w-10 h-10 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full mb-6 shadow-lg">
+            <Loader2 className="w-10 h-10 text-white animate-spin" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-2">Cleaning up your inbox...</h3>
           <p className="text-gray-600">{progress}</p>

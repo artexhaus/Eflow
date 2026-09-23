@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, Package, Trash2, Mail, Archive, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Package, Trash2, Mail, Archive, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { applyMailAction, describePartialFailure, type MailAction } from '../lib/mailActions';
 import type { Bundle, Email } from '../lib/types';
@@ -120,7 +120,11 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
                       disabled={processing !== null}
                       className="flex-1 flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
                     >
-                      <Archive className="w-5 h-5" />
+                      {processing?.bundleId === bundle.id && processing.action === 'archive' ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Archive className="w-5 h-5" />
+                      )}
                       <span>
                         {processing?.bundleId === bundle.id && processing.action === 'archive'
                           ? 'Archiving...'
@@ -132,7 +136,11 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
                       disabled={processing !== null}
                       className="flex items-center justify-center space-x-2 bg-white border border-red-300 text-red-600 hover:bg-red-50 px-5 py-3 rounded-lg font-semibold transition disabled:opacity-50"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      {processing?.bundleId === bundle.id && processing.action === 'delete' ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-5 h-5" />
+                      )}
                       <span>
                         {processing?.bundleId === bundle.id && processing.action === 'delete'
                           ? 'Deleting...'

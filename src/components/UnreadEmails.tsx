@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, Mail, Paperclip, Clock, CheckCheck, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Mail, Paperclip, Clock, CheckCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import type { Email } from '../lib/types';
 
@@ -11,7 +11,8 @@ interface UnreadEmailsProps {
 
 export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmailsProps) {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
-  const [processing, setProcessing] = useState(false);
+  const [activeAction, setActiveAction] = useState<'selected' | 'all' | null>(null);
+  const processing = activeAction !== null;
   const [error, setError] = useState('');
   const [showAll, setShowAll] = useState(false);
 
@@ -50,10 +51,10 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
     }
   };
 
-  const markAsRead = async (emailIds: string[]) => {
+  const markAsRead = async (emailIds: string[], scope: 'selected' | 'all') => {
     if (emailIds.length === 0) return;
 
-    setProcessing(true);
+    setActiveAction(scope);
     setError('');
 
     try {
@@ -65,17 +66,17 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
       console.error('Error marking emails as read:', err);
       setError((err as Error).message);
     } finally {
-      setProcessing(false);
+      setActiveAction(null);
     }
   };
 
   const handleMarkSelectedRead = () => {
     const selected = emails.filter((e) => selectedEmails.has(e.id));
-    markAsRead(selected.map((e) => e.email_id));
+    markAsRead(selected.map((e) => e.email_id), 'selected');
   };
 
   const handleMarkAllRead = () => {
-    markAsRead(emails.map((e) => e.email_id));
+    markAsRead(emails.map((e) => e.email_id), 'all');
   };
 
   return (
@@ -101,8 +102,8 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
             disabled={processing}
             className="flex items-center space-x-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition disabled:opacity-50 shadow-sm"
           >
-            <CheckCheck className="w-4 h-4" />
-            <span className="font-medium">Mark All Read</span>
+            {activeAction === 'all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
+            <span className="font-medium">{activeAction === 'all' ? 'Marking...' : 'Mark All Read'}</span>
           </button>
         )}
       </div>
@@ -142,8 +143,8 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                 disabled={processing}
                 className="flex items-center space-x-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition disabled:opacity-50"
               >
-                <CheckCheck className="w-4 h-4" />
-                <span className="font-medium">Mark as Read</span>
+                {activeAction === 'selected' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
+                <span className="font-medium">{activeAction === 'selected' ? 'Marking...' : 'Mark as Read'}</span>
               </button>
             )}
           </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Lock, AlertCircle, ChevronLeft } from 'lucide-react';
+import { Mail, Lock, AlertCircle, ChevronLeft, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface ImapLoginProps {
@@ -264,7 +264,10 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
               disabled={loading}
               className={`w-full bg-gradient-to-r ${accent.gradient} text-white py-4 rounded-xl font-semibold hover:opacity-90 transition disabled:opacity-50 shadow-lg hover:shadow-xl`}
             >
-              {loading ? 'Connecting...' : `Connect ${providerName}`}
+              <span className="inline-flex items-center justify-center space-x-2">
+                {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+                <span>{loading ? 'Connecting...' : `Connect ${providerName}`}</span>
+              </span>
             </button>
           </form>
 

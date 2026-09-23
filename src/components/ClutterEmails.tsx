@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, Trash2, Archive, Mail, Clock, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Trash2, Archive, Mail, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import type { Email } from '../lib/types';
 
@@ -11,7 +11,8 @@ interface ClutterEmailsProps {
 
 export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmailsProps) {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
-  const [processing, setProcessing] = useState(false);
+  const [activeAction, setActiveAction] = useState<'archive' | 'delete' | 'archive_all' | null>(null);
+  const processing = activeAction !== null;
   const [error, setError] = useState('');
   const [showAll, setShowAll] = useState(false);
 
@@ -53,7 +54,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
   const applyAction = async (action: 'delete' | 'archive') => {
     if (selectedEmails.size === 0) return;
 
-    setProcessing(true);
+    setActiveAction(action);
     setError('');
 
     try {
@@ -66,7 +67,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
       console.error(`Error ${action}ing emails:`, err);
       setError((err as Error).message);
     } finally {
-      setProcessing(false);
+      setActiveAction(null);
     }
   };
 
@@ -76,7 +77,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
     const confirmMsg = `Move all ${emails.length.toLocaleString()} clutter emails to your Archive folder? You can still find them there later.`;
     if (!confirm(confirmMsg)) return;
 
-    setProcessing(true);
+    setActiveAction('archive_all');
     setError('');
 
     try {
@@ -87,7 +88,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
       console.error('Error archiving all clutter:', err);
       setError((err as Error).message);
     } finally {
-      setProcessing(false);
+      setActiveAction(null);
     }
   };
 
@@ -114,8 +115,8 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
             disabled={processing}
             className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition disabled:opacity-50 shadow-sm"
           >
-            <Archive className="w-4 h-4" />
-            <span className="font-medium">{processing ? 'Working...' : 'Archive All'}</span>
+            {activeAction === 'archive_all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+            <span className="font-medium">{activeAction === 'archive_all' ? 'Archiving...' : 'Archive All'}</span>
           </button>
         )}
       </div>
@@ -156,16 +157,16 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                   disabled={processing}
                   className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition disabled:opacity-50"
                 >
-                  <Archive className="w-4 h-4" />
-                  <span className="font-medium">Archive</span>
+                  {activeAction === 'archive' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+                  <span className="font-medium">{activeAction === 'archive' ? 'Archiving...' : 'Archive'}</span>
                 </button>
                 <button
                   onClick={() => applyAction('delete')}
                   disabled={processing}
                   className="flex items-center space-x-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-50"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  <span className="font-medium">Delete</span>
+                  {activeAction === 'delete' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  <span className="font-medium">{activeAction === 'delete' ? 'Deleting...' : 'Delete'}</span>
                 </button>
               </div>
             )}

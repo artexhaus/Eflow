@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Clock,
+  Loader2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -266,7 +267,11 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
         disabled={busy !== null}
         className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg font-medium text-sm transition disabled:opacity-50"
       >
-        <BellOff className="w-4 h-4" />
+        {busy?.key === group.key && busy.action === 'unsubscribe' ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <BellOff className="w-4 h-4" />
+        )}
         <span>{busy?.key === group.key && busy.action === 'unsubscribe' ? 'Unsubscribing...' : 'Unsubscribe'}</span>
       </button>
     );
@@ -451,7 +456,11 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                         disabled={busy !== null}
                         className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm transition disabled:opacity-50"
                       >
-                        <Archive className="w-4 h-4" />
+                        {isBusy && busy?.action === 'archive' ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Archive className="w-4 h-4" />
+                        )}
                         <span>{isBusy && busy?.action === 'archive' ? 'Archiving...' : 'Archive all'}</span>
                       </button>
                       <button
@@ -461,7 +470,11 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                         aria-label={`Delete all emails from ${group.name}`}
                         className="p-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {isBusy && busy?.action === 'delete' ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -542,7 +555,11 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                   disabled={busy !== null}
                   className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 rounded-xl font-semibold disabled:opacity-50"
                 >
-                  <Archive className="w-5 h-5" />
+                  {busy?.key === '__bulk__' && busy.action === 'archive' ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Archive className="w-5 h-5" />
+                  )}
                   <span>{busy?.key === '__bulk__' && busy.action === 'archive' ? 'Archiving...' : 'Archive'}</span>
                 </button>
                 <button
@@ -550,7 +567,11 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                   disabled={busy !== null}
                   className="flex items-center space-x-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold shadow-sm disabled:opacity-50"
                 >
-                  <Trash2 className="w-5 h-5" />
+                  {busy?.key === '__bulk__' && busy.action === 'delete' ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-5 h-5" />
+                  )}
                   <span>
                     {busy?.key === '__bulk__' && busy.action === 'delete'
                       ? 'Deleting...'
