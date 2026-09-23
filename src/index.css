@@ -25,3 +25,85 @@
     transform: translateY(2px);
   }
 }
+
+/* ---- Speed logo ("Eflow" catching speed) ---------------------------------
+   Entrance: the word dashes in from the left leaning forward, overshoots and
+   settles. Then every 3s it "revs": leans forward while four speed lines in
+   the theme colours streak out behind it. Sizes are in em so it scales with
+   the font size it is used at. */
+.speed-logo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding-left: 1.4em; /* room for the speed lines */
+  line-height: 1.1;
+}
+
+.speed-logo__lines {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1.35em;
+}
+
+.speed-logo__line {
+  position: absolute;
+  right: 0;
+  height: 0.1em;
+  min-height: 2px;
+  border-radius: 9999px;
+  transform-origin: right center;
+  opacity: 0;
+  animation:
+    speed-logo-streak 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) 0.15s 1 both,
+    speed-logo-streak-rev 3s ease-out 1.4s infinite;
+}
+
+.speed-logo__word {
+  display: inline-block;
+  transform-origin: left bottom;
+  animation:
+    speed-logo-dash 0.85s cubic-bezier(0.22, 1.2, 0.36, 1) both,
+    speed-logo-rev 3s ease-in-out 1.4s infinite;
+}
+
+@keyframes speed-logo-dash {
+  0% { opacity: 0; transform: translateX(-1.2em) skewX(-22deg); }
+  55% { opacity: 1; transform: translateX(0.12em) skewX(-10deg); }
+  80% { transform: translateX(-0.03em) skewX(6deg); }
+  100% { opacity: 1; transform: translateX(0) skewX(0); }
+}
+
+@keyframes speed-logo-rev {
+  0%, 100% { transform: translateX(0) skewX(0); }
+  8% { transform: translateX(-0.04em) skewX(4deg); }   /* wind up */
+  18% { transform: translateX(0.1em) skewX(-12deg); }  /* burst forward */
+  32% { transform: translateX(0) skewX(0); }
+}
+
+/* Lines rest as short, faint trails (so there's no empty gap beside the
+   word) and flare out long and bright on each burst. */
+@keyframes speed-logo-streak {
+  0% { opacity: 0; transform: translateX(0.6em) scaleX(0); }
+  30% { opacity: 1; transform: translateX(0) scaleX(1); }
+  100% { opacity: 0.35; transform: translateX(0) scaleX(0.55); }
+}
+
+@keyframes speed-logo-streak-rev {
+  0%, 10% { opacity: 0.35; transform: translateX(0) scaleX(0.55); }
+  20% { opacity: 1; transform: translateX(-0.12em) scaleX(1); }
+  40%, 100% { opacity: 0.35; transform: translateX(0) scaleX(0.55); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speed-logo__word,
+  .speed-logo__line {
+    animation: none;
+  }
+  /* Keep a static hint of motion instead of hiding the lines entirely. */
+  .speed-logo__line {
+    opacity: 0.7;
+    transform: scaleX(0.8);
+  }
+}

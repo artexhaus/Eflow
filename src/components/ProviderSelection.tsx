@@ -1,4 +1,5 @@
 import { Mail, ArrowRight } from 'lucide-react';
+import SpeedLogo from './SpeedLogo';
 
 interface ProviderSelectionProps {
   onProviderSelect: (provider: string) => void;
@@ -39,7 +40,9 @@ export default function ProviderSelection({ onProviderSelect }: ProviderSelectio
           <div className="inline-flex items-center justify-center w-20 h-20 bg-mint-200 rounded-3xl mb-6 shadow-2xl">
             <Mail className="w-10 h-10 text-ink" />
           </div>
-          <h1 className="text-5xl font-bold text-ink mb-4">Eflow</h1>
+          <div className="mb-4">
+            <SpeedLogo className="text-5xl -ml-[1.45em]" />
+          </div>
           <p className="text-xl text-ink/75 mb-2">Reset your inbox. Automatically.</p>
           <p className="text-ink/70">Choose your email provider to get started</p>
         </div>

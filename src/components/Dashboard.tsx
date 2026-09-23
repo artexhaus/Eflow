@@ -10,6 +10,7 @@ import InboxReset from './InboxReset';
 import UnreadEmails from './UnreadEmails';
 import SendersList from './SendersList';
 import SimpleHome from './SimpleHome';
+import SpeedLogo from './SpeedLogo';
 import { groupBySender } from '../lib/senders';
 
 type Screen = 'dashboard' | 'important' | 'clutter' | 'bundles' | 'reset' | 'unread' | 'senders';
@@ -272,7 +273,7 @@ export default function Dashboard() {
               <div className="w-10 h-10 bg-mint-200 rounded-2xl flex items-center justify-center">
                 <Mail className="w-6 h-6 text-ink" />
               </div>
-              <h1 className="text-xl font-bold text-ink">Eflow</h1>
+              <SpeedLogo className="text-2xl" />
             </div>
             <div className="flex items-center space-x-5">
             <button
