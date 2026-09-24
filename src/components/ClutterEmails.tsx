@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronLeft, Trash2, Archive, Mail, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import type { Email } from '../lib/types';
+import { ScamBadge } from './ProtectedEmailControls';
 
 interface ClutterEmailsProps {
   emails: Email[];
@@ -204,11 +205,14 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                     </div>
                     <h4 className="text-lg font-medium text-ink mb-2 truncate">{email.subject}</h4>
                     <p className="text-ink/75 line-clamp-2">{email.snippet}</p>
-                    {!email.is_read && (
-                      <span className="inline-block mt-2 text-xs bg-ocean-100 text-ocean-700 px-2 py-1 rounded-full font-medium">
-                        Unread
-                      </span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {!email.is_read && (
+                        <span className="inline-block text-xs bg-ocean-100 text-ocean-700 px-2 py-1 rounded-full font-medium">
+                          Unread
+                        </span>
+                      )}
+                      {email.is_suspicious && <ScamBadge />}
+                    </div>
                   </div>
                 </div>
               </div>

@@ -4,6 +4,7 @@ import { ImapFlow } from "npm:imapflow";
 import { readImapPassword } from "../_shared/credentials.ts";
 import { isChatter } from "../_shared/chatter.ts";
 import { isNotice, isPaymentProof } from "../_shared/payment_proof.ts";
+import { isSuspicious } from "../_shared/scam.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -179,6 +180,13 @@ function classifyEmail(
   // junk even when a post mentions money, a bill or a password - checked
   // before every "important" rule below.
   if (isChatter(sender, senderName, listId)) {
+    return { category: "clutter", importance_reason: null };
+  }
+
+  // Fake order confirmations / invoices (gibberish addresses, glued codes,
+  // brands on personal accounts). Junk, and checked before the receipt rule
+  // so a scam can never be filed as a protected receipt.
+  if (isSuspicious(sender, senderName, subject, hasAttachment)) {
     return { category: "clutter", importance_reason: null };
   }
 

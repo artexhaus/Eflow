@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ChevronLeft, Mail, Paperclip, Clock, CheckCheck, AlertCircle, Loader2, Archive, Trash2, ShieldCheck } from 'lucide-react';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import type { Email } from '../lib/types';
-import { ProtectedBadge } from './ProtectedEmailControls';
+import { ProtectedBadge, ScamBadge } from './ProtectedEmailControls';
 import RemoveConfirmDialog from './RemoveConfirmDialog';
 
 interface UnreadEmailsProps {
@@ -306,6 +306,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                         {email.category}
                       </span>
                       {email.is_protected && <ProtectedBadge />}
+                      {email.is_suspicious && <ScamBadge />}
                     </div>
                   </div>
                 </div>

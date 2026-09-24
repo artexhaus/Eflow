@@ -15,6 +15,7 @@ import AccountScreen from './AccountScreen';
 import UpgradeBanner from './UpgradeBanner';
 import CleanUpJunkCard from './CleanUpJunkCard';
 import TopSendersPanel from './TopSendersPanel';
+import SuspiciousAlert from './SuspiciousAlert';
 import { useBilling } from '../contexts/BillingContext';
 
 type Screen = 'dashboard' | 'important' | 'clutter' | 'bundles' | 'reset' | 'unread' | 'senders' | 'account';
@@ -480,6 +481,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <>
+                <SuspiciousAlert emails={emails} onRefresh={loadData} />
+
                 <CleanUpJunkCard emails={emails} onRefresh={loadData} onOpenVerified={() => openImportant('verified')} />
 
                 <TopSendersPanel emails={emails} onRefresh={loadData} onOpenSenders={() => setCurrentScreen('senders')} />

@@ -6,6 +6,7 @@ import {
 import type { Email } from '../lib/types';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import RemoveConfirmDialog from './RemoveConfirmDialog';
+import { ScamBadge } from './ProtectedEmailControls';
 
 interface ImportantEmailsProps {
   emails: Email[];
@@ -447,6 +448,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                         Unread
                       </span>
                     )}
+                    {email.is_suspicious && <ScamBadge />}
                   </div>
                 </div>
                 </div>

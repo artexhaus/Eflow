@@ -59,6 +59,7 @@ export type Database = {
           list_unsubscribe_post: boolean;
           list_id: string | null;
           is_protected: boolean;
+          is_suspicious: boolean;
           created_at: string;
         };
         Insert: {

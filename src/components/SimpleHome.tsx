@@ -3,6 +3,7 @@ import { ShieldCheck, Users, RefreshCw, ChevronRight, Mail } from 'lucide-react'
 import { groupBySender } from '../lib/senders';
 import UpgradeBanner from './UpgradeBanner';
 import CleanUpJunkCard from './CleanUpJunkCard';
+import SuspiciousAlert from './SuspiciousAlert';
 import type { Email } from '../lib/types';
 
 interface SimpleHomeProps {
@@ -51,6 +52,8 @@ export default function SimpleHome({
         <h2 className="font-display text-3xl font-bold text-ink mb-1">Let's tidy your inbox</h2>
         <p className="text-lg text-ink/75">{emails.length.toLocaleString()} emails in your inbox right now</p>
       </div>
+
+      <SuspiciousAlert emails={emails} onRefresh={onRefresh} />
 
       <CleanUpJunkCard emails={emails} onRefresh={onRefresh} onOpenVerified={onOpenVerified} />
 
