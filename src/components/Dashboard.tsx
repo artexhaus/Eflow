@@ -279,12 +279,24 @@ export default function Dashboard() {
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-mint-200 rounded-2xl flex items-center justify-center">
+            {/* The logo is the way home: Simple view or the All tools dashboard,
+                whichever mode the user is in. */}
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                setCurrentScreen('dashboard');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              aria-label={simpleMode ? 'Eflow home (Simple view)' : 'Eflow home (dashboard)'}
+              title="Back to home"
+              className="group flex items-center space-x-3 rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-ocean-300"
+            >
+              <div className="w-10 h-10 bg-mint-200 rounded-2xl flex items-center justify-center group-hover:-rotate-6 group-hover:bg-mint-300 transition">
                 <Mail className="w-6 h-6 text-ink" />
               </div>
               <SpeedLogo className="text-2xl" />
-            </div>
+            </a>
             <div className="flex items-center space-x-5">
             <button
               onClick={() => setCurrentScreen('account')}
