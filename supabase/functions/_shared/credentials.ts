@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
 // IMAP app passwords are stored AES-GCM encrypted as "v1:<iv>:<ciphertext>"
 // (both base64). The key is derived from the CREDENTIALS_KEY function secret,
@@ -44,7 +44,7 @@ async function decryptPassword(stored: string): Promise<string> {
 // Returns the plaintext IMAP password for a user, upgrading a legacy base64
 // value to the encrypted format in place.
 export async function readImapPassword(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   userId: string,
   stored: string
 ): Promise<string> {

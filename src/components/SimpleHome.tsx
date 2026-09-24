@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Sparkles, ShieldCheck, Users, RefreshCw, CheckCircle, ChevronRight, Mail, AlertCircle } from 'lucide-react';
 import { applyMailAction, describePartialFailure, type MailActionResult } from '../lib/mailActions';
 import { groupBySender } from '../lib/senders';
+import { useBilling } from '../contexts/BillingContext';
 import type { Email } from '../lib/types';
 
 interface SimpleHomeProps {
@@ -44,16 +45,21 @@ export default function SimpleHome({
   const [step, setStep] = useState<CleanUpStep>('idle');
   const [result, setResult] = useState<MailActionResult | null>(null);
   const [error, setError] = useState('');
+  const { isPro, remaining, openPricing } = useBilling();
 
   const junk = useMemo(() => selectUnopenedJunk(emails), [emails]);
   const verifiedCount = useMemo(() => emails.filter((e) => e.is_protected).length, [emails]);
   const topSender = useMemo(() => groupBySender(emails)[0], [emails]);
 
-  const runCleanUp = async () => {
+  // Free users over their monthly allowance can still clear what fits:
+  // emails are loaded newest first, so the oldest junk is at the end.
+  const overLimit = !isPro && junk.length > remaining;
+
+  const runCleanUp = async (batch: Email[] = junk) => {
     setStep('working');
     setError('');
     try {
-      const res = await applyMailAction('archive', { emailIds: junk.map((e) => e.email_id) });
+      const res = await applyMailAction('archive', { emailIds: batch.map((e) => e.email_id) });
       setResult(res);
       setStep('done');
       await onRefresh();
@@ -135,13 +141,42 @@ export default function SimpleHome({
             <ShieldCheck className="w-5 h-5 flex-shrink-0" />
             <span>Your bills and receipts are never touched.</span>
           </p>
+          {overLimit && (
+            <div className="mb-6 bg-sunny-100 border-2 border-sunny-300 rounded-2xl p-4">
+              <p className="text-lg font-semibold text-ink">
+                {remaining === 0
+                  ? "You've used this month's free cleans."
+                  : `That's more than your ${remaining.toLocaleString()} free cleans left this month.`}
+              </p>
+              <p className="text-ink/75">Go Pro to clear everything in one go.</p>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={runCleanUp}
-              className="flex-1 bg-mint-200 hover:bg-mint-300 text-ink py-5 rounded-2xl text-xl font-bold border-2 border-ink/10 shadow-lg"
-            >
-              Yes, clean up
-            </button>
+            {overLimit ? (
+              <>
+                <button
+                  onClick={() => openPricing({ kind: 'limit', remaining, requested: junk.length })}
+                  className="flex-1 bg-ocean-200 hover:bg-ocean-300 text-ink py-5 rounded-2xl text-xl font-bold border-2 border-ink/10 shadow-lg"
+                >
+                  See Pro plans
+                </button>
+                {remaining > 0 && (
+                  <button
+                    onClick={() => runCleanUp(junk.slice(-remaining))}
+                    className="flex-1 bg-mint-200 hover:bg-mint-300 text-ink py-5 rounded-2xl text-xl font-bold border-2 border-ink/10 shadow-lg"
+                  >
+                    Clean the oldest {remaining.toLocaleString()} free
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={() => runCleanUp()}
+                className="flex-1 bg-mint-200 hover:bg-mint-300 text-ink py-5 rounded-2xl text-xl font-bold border-2 border-ink/10 shadow-lg"
+              >
+                Yes, clean up
+              </button>
+            )}
             <button
               onClick={() => setStep('idle')}
               className="flex-1 bg-gray-100 hover:bg-gray-200 text-ink py-5 rounded-2xl text-xl font-semibold"

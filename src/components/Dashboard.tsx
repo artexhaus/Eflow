@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Mail, Sparkles, Trash2, Package, LogOut, RefreshCw, CheckCircle, AlertCircle, Users, ChevronRight, LayoutGrid, Smile } from 'lucide-react';
+import { Mail, Sparkles, Trash2, Package, LogOut, RefreshCw, CheckCircle, AlertCircle, Users, ChevronRight, LayoutGrid, Smile, Crown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { Email, Bundle } from '../lib/types';
@@ -11,9 +11,11 @@ import UnreadEmails from './UnreadEmails';
 import SendersList from './SendersList';
 import SimpleHome from './SimpleHome';
 import SpeedLogo from './SpeedLogo';
+import AccountScreen from './AccountScreen';
+import { useBilling } from '../contexts/BillingContext';
 import { groupBySender } from '../lib/senders';
 
-type Screen = 'dashboard' | 'important' | 'clutter' | 'bundles' | 'reset' | 'unread' | 'senders';
+type Screen = 'dashboard' | 'important' | 'clutter' | 'bundles' | 'reset' | 'unread' | 'senders' | 'account';
 
 interface ScanResult {
   fetched: number;
@@ -54,6 +56,7 @@ interface ScanProgress {
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
+  const billing = useBilling();
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [emails, setEmails] = useState<Email[]>([]);
   const [bundles, setBundles] = useState<Bundle[]>([]);
@@ -277,11 +280,29 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center space-x-5">
             <button
+              onClick={() => setCurrentScreen('account')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl border-2 border-ink/10 shadow-sm font-display font-semibold text-sm text-ink transition ${
+                billing.isPro ? 'bg-mint-200 hover:bg-mint-300' : 'bg-sunny-200 hover:bg-sunny-300'
+              }`}
+              title="Your plan and usage"
+            >
+              {billing.isPro ? (
+                <>
+                  <Crown className="w-4 h-4" />
+                  <span>Pro</span>
+                </>
+              ) : (
+                <span>
+                  Free · {billing.used.toLocaleString()}/{billing.limit}
+                </span>
+              )}
+            </button>
+            <button
               onClick={toggleSimpleMode}
               className="flex items-center space-x-2 text-ink/75 hover:text-ink transition"
             >
               {simpleMode ? <LayoutGrid className="w-5 h-5" /> : <Smile className="w-5 h-5" />}
-              <span className="text-sm font-medium">{simpleMode ? 'All tools' : 'Simple view'}</span>
+              <span className="hidden sm:inline text-sm font-medium">{simpleMode ? 'All tools' : 'Simple view'}</span>
             </button>
             <button
               onClick={async () => {
@@ -295,7 +316,7 @@ export default function Dashboard() {
               className="flex items-center space-x-2 text-ink/75 hover:text-ink transition"
             >
               <LogOut className="w-5 h-5" />
-              <span className="text-sm font-medium">Sign Out</span>
+              <span className="hidden sm:inline text-sm font-medium">Sign Out</span>
             </button>
             </div>
           </div>
@@ -550,6 +571,8 @@ export default function Dashboard() {
           onComplete={loadData}
         />
       )}
+
+      {currentScreen === 'account' && <AccountScreen onBack={() => setCurrentScreen('dashboard')} />}
 
       {currentScreen === 'senders' && (
         <SendersList

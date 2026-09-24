@@ -129,6 +129,34 @@ export type Database = {
         };
         Relationships: [];
       };
+      subscriptions: {
+        Row: {
+          user_id: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          subscription_status: string;
+          plan: 'monthly' | 'annual' | null;
+          current_period_end: string | null;
+          cancel_at_period_end: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        // Written only by edge functions (service role); users can read.
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      usage_monthly: {
+        Row: {
+          user_id: string;
+          period_start: string;
+          emails_cleaned: number;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       bundles: {
         Row: {
           id: string;
@@ -167,3 +195,5 @@ export type User = Database['public']['Tables']['users']['Row'];
 export type Email = Database['public']['Tables']['emails']['Row'];
 export type Bundle = Database['public']['Tables']['bundles']['Row'];
 export type SenderAction = Database['public']['Tables']['sender_actions']['Row'];
+export type Subscription = Database['public']['Tables']['subscriptions']['Row'];
+export type UsageMonthly = Database['public']['Tables']['usage_monthly']['Row'];

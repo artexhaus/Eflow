@@ -1,7 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { ImapFlow } from "npm:imapflow";
 import { readImapPassword } from "../_shared/credentials.ts";
+import {
+  FREE_MONTHLY_LIMIT,
+  addCleanUsage,
+  getSubscriptionStatus,
+  isProStatus,
+  reserveCleanQuota,
+} from "../_shared/billing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,7 +39,7 @@ const escapeLike = (value: string) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
 // bundle or sender. Paginated because PostgREST caps a single select at 1000 rows, and a
 // cleanup of a large inbox routinely targets several thousand emails.
 async function selectTargetIds(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   userId: string,
   filter: { categories?: string[]; bundleId?: string; sender?: string; excludeProtected?: boolean },
 ): Promise<string[]> {
@@ -66,7 +73,7 @@ async function selectTargetIds(
 
 // Returns which of the given UIDs belong to protected (Paid & Verified) emails.
 async function selectProtectedIds(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   userId: string,
   emailIds: string[],
 ): Promise<Set<string>> {
@@ -186,66 +193,105 @@ Deno.serve(async (req) => {
     const { host, port } = imapHosts[provider];
     const password = await readImapPassword(supabase, user.id, userData.encrypted_password);
 
-    const client = new ImapFlow({
-      host,
-      port,
-      secure: true,
-      auth: { user: userData.connected_account_id, pass: password },
-      logger: false,
-      emitLogs: false,
-    });
+    // Free plan: archiving/deleting counts towards a monthly quota. The whole
+    // request is reserved up front (atomically, so parallel clean-ups can't
+    // overshoot) and anything the mail server doesn't end up processing is
+    // refunded below. Requests that don't fit are refused outright rather than
+    // half-done, so the user never has to work out which emails were skipped.
+    const countsTowardQuota = action !== "mark_read";
+    const isPro = countsTowardQuota && isProStatus(await getSubscriptionStatus(user.id));
+    let reserved = 0;
+    if (countsTowardQuota && !isPro) {
+      const { allowed, used } = await reserveCleanQuota(user.id, targetIds.length);
+      if (!allowed) {
+        const remaining = Math.max(FREE_MONTHLY_LIMIT - used, 0);
+        return new Response(
+          JSON.stringify({
+            error: remaining === 0
+              ? `You've cleaned ${FREE_MONTHLY_LIMIT} emails this month, the Free plan limit. Upgrade to Pro for unlimited cleaning.`
+              : `This would clean ${targetIds.length.toLocaleString()} emails, but you have ${remaining.toLocaleString()} free cleans left this month. Upgrade to Pro for unlimited cleaning.`,
+            code: "usage_limit",
+            limit: FREE_MONTHLY_LIMIT,
+            used,
+            remaining,
+            requested: targetIds.length,
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      reserved = targetIds.length;
+    }
 
-    await client.connect();
-
-    const archiveMailbox = action === "archive" ? await resolveArchiveMailbox(client) : null;
-    const lock = await client.getMailboxLock("INBOX");
     let processed = 0;
     let failed = 0;
 
     try {
-      // Work in chunks, and only mark an email as handled in the database once
-      // the mail server confirmed it. If a chunk fails (or the function times
-      // out part way), those emails stay visible so the user can retry, rather
-      // than disappearing from Eflow while still sitting in their real inbox.
-      const CHUNK = 100;
-      for (let i = 0; i < targetIds.length; i += CHUNK) {
-        const chunk = targetIds.slice(i, i + CHUNK);
-        const uids = chunk.map((id) => parseInt(id, 10)).filter((u) => !isNaN(u));
-        failed += chunk.length - uids.length;
-        if (uids.length === 0) continue;
+      const client = new ImapFlow({
+        host,
+        port,
+        secure: true,
+        auth: { user: userData.connected_account_id, pass: password },
+        logger: false,
+        emitLogs: false,
+      });
 
-        let ok = false;
-        try {
-          if (action === "delete") {
-            ok = await client.messageDelete(uids, { uid: true });
-          } else if (action === "archive") {
-            ok = Boolean(await client.messageMove(uids, archiveMailbox!, { uid: true }));
-          } else {
-            ok = await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true });
+      await client.connect();
+
+      const archiveMailbox = action === "archive" ? await resolveArchiveMailbox(client) : null;
+      const lock = await client.getMailboxLock("INBOX");
+
+      try {
+        // Work in chunks, and only mark an email as handled in the database once
+        // the mail server confirmed it. If a chunk fails (or the function times
+        // out part way), those emails stay visible so the user can retry, rather
+        // than disappearing from Eflow while still sitting in their real inbox.
+        const CHUNK = 100;
+        for (let i = 0; i < targetIds.length; i += CHUNK) {
+          const chunk = targetIds.slice(i, i + CHUNK);
+          const uids = chunk.map((id) => parseInt(id, 10)).filter((u) => !isNaN(u));
+          failed += chunk.length - uids.length;
+          if (uids.length === 0) continue;
+
+          let ok = false;
+          try {
+            if (action === "delete") {
+              ok = await client.messageDelete(uids, { uid: true });
+            } else if (action === "archive") {
+              ok = Boolean(await client.messageMove(uids, archiveMailbox!, { uid: true }));
+            } else {
+              ok = await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true });
+            }
+          } catch (err) {
+            console.error(`Batch ${action} error:`, err);
           }
-        } catch (err) {
-          console.error(`Batch ${action} error:`, err);
+
+          if (!ok) {
+            failed += uids.length;
+            continue;
+          }
+
+          const { error: dbError } = await supabase
+            .from("emails")
+            .update(DB_UPDATE_FOR_ACTION[action])
+            .eq("user_id", user.id)
+            .in("email_id", uids.map(String));
+          if (dbError) console.error("Failed to record action in database:", dbError);
+
+          processed += uids.length;
         }
-
-        if (!ok) {
-          failed += uids.length;
-          continue;
-        }
-
-        const { error: dbError } = await supabase
-          .from("emails")
-          .update(DB_UPDATE_FOR_ACTION[action])
-          .eq("user_id", user.id)
-          .in("email_id", uids.map(String));
-        if (dbError) console.error("Failed to record action in database:", dbError);
-
-        processed += uids.length;
+      } finally {
+        lock.release();
       }
-    } finally {
-      lock.release();
-    }
 
-    await client.logout();
+      await client.logout();
+    } finally {
+      // Settle usage even if the mail server connection failed part way.
+      if (reserved > 0) {
+        await addCleanUsage(user.id, -(reserved - processed));
+      } else if (countsTowardQuota) {
+        await addCleanUsage(user.id, processed);
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true, action, processed, failed, total: targetIds.length, protected_skipped: protectedSkipped }),

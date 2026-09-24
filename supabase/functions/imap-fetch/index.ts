@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { ImapFlow } from "npm:imapflow";
 import { readImapPassword } from "../_shared/credentials.ts";
 
@@ -25,7 +25,7 @@ const imapHosts: Record<string, { host: string; port: number }> = {
 const FETCH_CHUNK_SIZE = 150;
 
 async function selectAllRows<T>(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   table: string,
   columns: string,
   userId: string,
@@ -379,7 +379,7 @@ Deno.serve(async (req) => {
       }, { uid: true })) {
         const { email: senderEmail, name: senderName } = parseSender(msg.envelope);
         const subject = msg.envelope?.subject || "(no subject)";
-        const internalDate = msg.internalDate || new Date().toISOString();
+        const internalDate = new Date(msg.internalDate ?? Date.now()).toISOString();
         const flags = (msg as any).flags;
         const isRead = flags instanceof Set
           ? flags.has("\\Seen")

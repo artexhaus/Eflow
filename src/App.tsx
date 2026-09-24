@@ -1,6 +1,7 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
+import { BillingProvider } from './contexts/BillingContext';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -16,7 +17,13 @@ function AppContent() {
     );
   }
 
-  return user ? <Dashboard /> : <Auth />;
+  return user ? (
+    <BillingProvider>
+      <Dashboard />
+    </BillingProvider>
+  ) : (
+    <Auth />
+  );
 }
 
 function App() {
