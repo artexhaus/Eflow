@@ -44,8 +44,9 @@ export interface MailActionOptions {
   // Skip the global progress popup, for screens with their own full-screen
   // progress state (Simple view clean-up, Inbox Reset).
   silent?: boolean;
-  // "Delete anyway": act on a protected bill/receipt. The server honours this
-  // only for a single email, never for bulk actions.
+  // Include protected bills/receipts in an explicit emailIds selection, after
+  // the user confirmed it. The server ignores this for category, sender and
+  // bundle actions.
   allowProtected?: boolean;
 }
 

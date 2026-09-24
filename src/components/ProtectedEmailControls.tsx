@@ -19,9 +19,9 @@ interface DeleteAnywayButtonProps {
   onDeleted: () => void | Promise<void>;
 }
 
-// For false alarms (e.g. a forum post that mentions "your bill"): deletes this
-// one protected email after an explicit confirmation. The server only allows
-// this override for a single email, never for bulk actions.
+// Deletes one protected email after an explicit confirmation. Used where there
+// is no selection to act on (the Paid & Verified tab); lists with checkboxes
+// handle protected emails in their own delete confirmation instead.
 export function DeleteAnywayButton({ email, onDeleted }: DeleteAnywayButtonProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

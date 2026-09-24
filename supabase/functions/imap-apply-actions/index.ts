@@ -142,13 +142,14 @@ Deno.serve(async (req) => {
       throw new Error("A valid action (delete, archive, mark_read) is required");
     }
 
-    // Bills and receipts ("Paid & Verified") are never archived or deleted,
-    // whichever screen sent the request. Enforced here rather than in the UI
-    // so no bulk action can sweep them up by accident. The one exception is
-    // "Delete anyway" on a single email the user picked themselves - for
-    // false alarms like a forum post that mentions a bill.
-    const singleEmailOverride = allowProtected === true && Array.isArray(emailIds) && emailIds.length === 1;
-    const excludeProtected = action !== "mark_read" && !singleEmailOverride;
+    // Bills and receipts ("Paid & Verified") are never archived or deleted by
+    // category, sender or bundle actions (Clean Up, Senders, Bundles, Inbox
+    // Reset). Enforced here rather than in the UI so none of those can sweep
+    // them up by accident. The one exception: emails the user ticked by hand,
+    // after the confirmation window named the receipts and they chose to
+    // include them (allowProtected).
+    const explicitOverride = allowProtected === true && Array.isArray(emailIds);
+    const excludeProtected = action !== "mark_read" && !explicitOverride;
 
     let targetIds: string[];
     let protectedSkipped = 0;

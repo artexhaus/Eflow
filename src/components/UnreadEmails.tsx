@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { ChevronLeft, Mail, Paperclip, Clock, CheckCheck, AlertCircle, Loader2, Archive, Trash2, ShieldCheck } from 'lucide-react';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import type { Email } from '../lib/types';
-import { ProtectedBadge, DeleteAnywayButton } from './ProtectedEmailControls';
+import { ProtectedBadge } from './ProtectedEmailControls';
+import RemoveConfirmDialog from './RemoveConfirmDialog';
 
 interface UnreadEmailsProps {
   emails: Email[];
@@ -19,6 +20,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
   const processing = activeAction !== null;
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [pendingRemove, setPendingRemove] = useState<'archive' | 'delete' | null>(null);
   const [showAll, setShowAll] = useState(false);
 
   const visibleEmails = showAll ? emails : emails.slice(0, 50);
@@ -98,43 +100,30 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
 
   // Archive or delete the selection. Bills and receipts (Paid & Verified) are
   // always skipped by the server; the confirmation says so up front.
-  const handleRemoveSelected = async (action: 'archive' | 'delete') => {
+  // Delete/Archive opens one confirmation window. If the selection includes
+  // bills or receipts it names them and lets the user keep or include them.
+  const handleRemoveSelected = (action: 'archive' | 'delete') => {
     if (selectedCount === 0) return;
-    const protectedCount = selectedList.filter((e) => e.is_protected).length;
-    const importantCount = selectedList.filter((e) => e.category === 'important' && !e.is_protected).length;
-    const removable = selectedCount - protectedCount;
+    setPendingRemove(action);
+  };
 
-    if (removable === 0) {
-      setError('');
-      setNotice(
-        `${protectedCount === 1 ? 'That looks like a bill or receipt' : 'Those all look like bills or receipts'}, ` +
-          `so Eflow keeps ${protectedCount === 1 ? 'it' : 'them'} safe and nothing was ${action === 'delete' ? 'deleted' : 'archived'}. ` +
-          'Not a real bill? Use "Delete anyway" on the email.'
-      );
-      return;
-    }
-
-    let prompt =
-      action === 'delete'
-        ? `Permanently delete ${removable.toLocaleString()} unread emails? This cannot be undone.`
-        : `Move ${removable.toLocaleString()} unread emails to your Archive folder?`;
-    if (importantCount > 0) {
-      prompt += `\n\n${importantCount.toLocaleString()} of them are marked Important.`;
-    }
-    if (protectedCount > 0) {
-      prompt += `\n\n${protectedCount.toLocaleString()} bills and receipts will be kept.`;
-    }
-    if (!confirm(prompt)) return;
+  const runRemove = async (action: 'archive' | 'delete', includeProtected: boolean) => {
+    setPendingRemove(null);
+    const targets = includeProtected ? selectedList : selectedList.filter((e) => !e.is_protected);
+    const kept = selectedCount - targets.length;
 
     setActiveAction(action);
     setError('');
     setNotice('');
     try {
-      const result = await applyMailAction(action, { emailIds: selectedList.map((e) => e.email_id) });
+      const result = await applyMailAction(
+        action,
+        { emailIds: targets.map((e) => e.email_id) },
+        { allowProtected: includeProtected }
+      );
       let text = `${action === 'delete' ? 'Deleted' : 'Archived'} ${result.processed.toLocaleString()} email${result.processed === 1 ? '' : 's'}.`;
-      if (result.protectedSkipped > 0) {
-        text += ` ${result.protectedSkipped.toLocaleString()} bills and receipts were kept safe.`;
-      }
+      const safe = kept + result.protectedSkipped;
+      if (safe > 0) text += ` Kept ${safe.toLocaleString()} ${safe === 1 ? 'bill or receipt' : 'bills and receipts'} safe.`;
       setNotice(text);
       setError(describePartialFailure(result));
       clearSelection();
@@ -316,14 +305,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                       <span className="text-xs bg-ocean-100 text-ocean-700 px-2 py-1 rounded-full font-medium capitalize">
                         {email.category}
                       </span>
-                      {email.is_protected && (
-                        <>
-                          <ProtectedBadge />
-                          <span className="ml-auto">
-                            <DeleteAnywayButton email={email} onDeleted={onRefresh} />
-                          </span>
-                        </>
-                      )}
+                      {email.is_protected && <ProtectedBadge />}
                     </div>
                   </div>
                 </div>
@@ -352,6 +334,16 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
             </div>
           )}
         </>
+      )}
+      {pendingRemove && (
+        <RemoveConfirmDialog
+          action={pendingRemove}
+          total={selectedCount}
+          protectedEmails={selectedList.filter((e) => e.is_protected)}
+          importantCount={selectedList.filter((e) => e.category === 'important' && !e.is_protected).length}
+          onConfirm={(includeProtected) => runRemove(pendingRemove, includeProtected)}
+          onCancel={() => setPendingRemove(null)}
+        />
       )}
     </div>
   );
