@@ -12,6 +12,7 @@ import SendersList from './SendersList';
 import SimpleHome from './SimpleHome';
 import SpeedLogo from './SpeedLogo';
 import AccountScreen from './AccountScreen';
+import UpgradeBanner from './UpgradeBanner';
 import { useBilling } from '../contexts/BillingContext';
 import { groupBySender } from '../lib/senders';
 
@@ -297,6 +298,15 @@ export default function Dashboard() {
                 </span>
               )}
             </button>
+            {!billing.isPro && !billing.loading && (
+              <button
+                onClick={() => billing.openPricing()}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl border-2 border-ink/10 shadow-sm font-display font-semibold text-sm text-ink bg-ocean-200 hover:bg-ocean-300 transition"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Upgrade</span>
+              </button>
+            )}
             <button
               onClick={toggleSimpleMode}
               className="flex items-center space-x-2 text-ink/75 hover:text-ink transition"
@@ -457,6 +467,8 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-4">
+              <UpgradeBanner />
+
               {topSendersEmailCount > 0 && (
                 <button
                   onClick={() => setCurrentScreen('senders')}

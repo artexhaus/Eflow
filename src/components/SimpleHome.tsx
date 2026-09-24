@@ -3,6 +3,7 @@ import { Sparkles, ShieldCheck, Users, RefreshCw, CheckCircle, ChevronRight, Mai
 import { applyMailAction, describePartialFailure, type MailActionResult } from '../lib/mailActions';
 import { groupBySender } from '../lib/senders';
 import { useBilling } from '../contexts/BillingContext';
+import UpgradeBanner from './UpgradeBanner';
 import type { Email } from '../lib/types';
 
 interface SimpleHomeProps {
@@ -255,6 +256,8 @@ export default function SimpleHome({
           </div>
         </button>
       </div>
+
+      <UpgradeBanner />
 
       <div className="text-center pt-2">
         <button onClick={onShowAllTools} className="text-ink/70 hover:text-ink underline underline-offset-4">

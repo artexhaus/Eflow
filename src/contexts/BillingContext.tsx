@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { PartyPopper, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
@@ -6,6 +6,11 @@ import { FREE_MONTHLY_LIMIT, currentPeriodStart, isProStatus } from '../lib/bill
 import { addMailActionListener } from '../lib/mailActions';
 import type { Subscription } from '../lib/types';
 import PricingModal, { type PricingReason } from '../components/PricingModal';
+import UpgradeNudge from '../components/UpgradeNudge';
+
+// Free users get a small "N cleans left, upgrade now" popup each time their
+// monthly cleans pass another multiple of this (150, 300, 450).
+const NUDGE_EVERY = 150;
 
 interface BillingContextType {
   loading: boolean;
@@ -29,6 +34,9 @@ export function BillingProvider({ children }: { children: ReactNode }) {
   const [used, setUsed] = useState(0);
   const [pricingReason, setPricingReason] = useState<PricingReason | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
+  const [nudgeAt, setNudgeAt] = useState<number | null>(null);
+  // Last known usage, so a clean-up can tell which milestone it just crossed.
+  const usedRef = useRef(0);
 
   // Returns whether the user is Pro after refreshing, for the checkout poll.
   const refresh = useCallback(async (): Promise<boolean> => {
@@ -43,7 +51,8 @@ export function BillingProvider({ children }: { children: ReactNode }) {
         .maybeSingle(),
     ]);
     setSubscription(subRes.data ?? null);
-    setUsed(usageRes.data?.emails_cleaned ?? 0);
+    usedRef.current = usageRes.data?.emails_cleaned ?? 0;
+    setUsed(usedRef.current);
     setLoading(false);
     return isProStatus(subRes.data?.subscription_status);
   }, [user]);
@@ -59,8 +68,17 @@ export function BillingProvider({ children }: { children: ReactNode }) {
       addMailActionListener({
         onUsageLimit: (error) =>
           setPricingReason({ kind: 'limit', remaining: error.remaining, requested: error.requested }),
-        onCleaned: () => {
-          refresh();
+        onCleaned: async () => {
+          const before = usedRef.current;
+          const isProNow = await refresh();
+          const after = usedRef.current;
+          if (isProNow || after <= before) return;
+          if (after >= FREE_MONTHLY_LIMIT) {
+            // Just used the last free clean: show the plans straight away.
+            setPricingReason({ kind: 'limit', remaining: 0 });
+          } else if (Math.floor(after / NUDGE_EVERY) > Math.floor(before / NUDGE_EVERY)) {
+            setNudgeAt(after);
+          }
         },
       }),
     [refresh]
@@ -122,6 +140,18 @@ export function BillingProvider({ children }: { children: ReactNode }) {
       {children}
 
       {pricingReason && <PricingModal reason={pricingReason} onClose={() => setPricingReason(null)} />}
+
+      {nudgeAt !== null && !pricingReason && (
+        <UpgradeNudge
+          used={nudgeAt}
+          limit={FREE_MONTHLY_LIMIT}
+          onUpgrade={() => {
+            setNudgeAt(null);
+            setPricingReason({ kind: 'upgrade' });
+          }}
+          onDismiss={() => setNudgeAt(null)}
+        />
+      )}
 
       {notice && (
         <div className="fixed top-20 inset-x-0 z-40 flex justify-center px-4" role="status">
