@@ -3,7 +3,7 @@ import { PartyPopper, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { FREE_MONTHLY_LIMIT, currentPeriodStart, isProStatus } from '../lib/billing';
-import { setMailActionListener } from '../lib/mailActions';
+import { addMailActionListener } from '../lib/mailActions';
 import type { Subscription } from '../lib/types';
 import PricingModal, { type PricingReason } from '../components/PricingModal';
 
@@ -56,7 +56,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
   // over the limit, and keep the usage meter current after every clean-up.
   useEffect(
     () =>
-      setMailActionListener({
+      addMailActionListener({
         onUsageLimit: (error) =>
           setPricingReason({ kind: 'limit', remaining: error.remaining, requested: error.requested }),
         onCleaned: () => {

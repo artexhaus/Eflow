@@ -34,7 +34,7 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
     setProcessing({ bundleId, action });
     setErrors((prev) => ({ ...prev, [bundleId]: '' }));
     try {
-      const result = await applyMailAction(action, { bundleId });
+      const result = await applyMailAction(action, { bundleId }, { count: getBundleEmails(bundleId).length });
       if (result.failed === 0) {
         await supabase.from('bundles').delete().eq('id', bundleId);
       } else {

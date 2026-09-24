@@ -113,7 +113,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
     setBusy({ key: group.key, action });
     setMessage(group.key, null);
     try {
-      const result = await applyMailAction(action, { sender: group.sender });
+      const result = await applyMailAction(action, { sender: group.sender }, { label: `emails from ${group.name}` });
       if (result.failed > 0) setMessage(group.key, { tone: 'error', text: describePartialFailure(result) });
       await onRefresh();
     } catch (err) {

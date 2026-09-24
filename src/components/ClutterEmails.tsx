@@ -81,7 +81,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
     setError('');
 
     try {
-      const result = await applyMailAction('archive', { category: 'clutter' });
+      const result = await applyMailAction('archive', { category: 'clutter' }, { count: emails.length });
       setError(describePartialFailure(result));
       await onRefresh();
     } catch (err) {

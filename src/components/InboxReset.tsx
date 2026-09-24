@@ -34,7 +34,7 @@ export default function InboxReset({
     );
 
     try {
-      const result = await applyMailAction(action, { category: ['clutter', 'bundle'] });
+      const result = await applyMailAction(action, { category: ['clutter', 'bundle'] }, { silent: true });
       setProcessedCount(result.processed);
       setPartialFailure(describePartialFailure(result));
       setStep('complete');

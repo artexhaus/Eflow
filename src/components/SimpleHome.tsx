@@ -59,7 +59,7 @@ export default function SimpleHome({
     setStep('working');
     setError('');
     try {
-      const res = await applyMailAction('archive', { emailIds: batch.map((e) => e.email_id) });
+      const res = await applyMailAction('archive', { emailIds: batch.map((e) => e.email_id) }, { silent: true });
       setResult(res);
       setStep('done');
       await onRefresh();

@@ -2,6 +2,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import { BillingProvider } from './contexts/BillingContext';
+import MailActionOverlay from './components/MailActionOverlay';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -20,6 +21,7 @@ function AppContent() {
   return user ? (
     <BillingProvider>
       <Dashboard />
+      <MailActionOverlay />
     </BillingProvider>
   ) : (
     <Auth />
