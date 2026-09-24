@@ -98,10 +98,10 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
     markAsRead(selectedList.map((e) => e.email_id), 'selected');
   };
 
-  // Archive or delete the selection. Bills and receipts (Paid & Verified) are
+  // Archive or delete the selection. Receipts and invoices (Paid & Verified) are
   // always skipped by the server; the confirmation says so up front.
   // Delete/Archive opens one confirmation window. If the selection includes
-  // bills or receipts it names them and lets the user keep or include them.
+  // receipts or invoices it names them and lets the user keep or include them.
   const handleRemoveSelected = (action: 'archive' | 'delete') => {
     if (selectedCount === 0) return;
     setPendingRemove(action);
@@ -123,7 +123,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
       );
       let text = `${action === 'delete' ? 'Deleted' : 'Archived'} ${result.processed.toLocaleString()} email${result.processed === 1 ? '' : 's'}.`;
       const safe = kept + result.protectedSkipped;
-      if (safe > 0) text += ` Kept ${safe.toLocaleString()} ${safe === 1 ? 'bill or receipt' : 'bills and receipts'} safe.`;
+      if (safe > 0) text += ` Kept ${safe.toLocaleString()} ${safe === 1 ? 'receipt or invoice' : 'receipts and invoices'} safe.`;
       setNotice(text);
       setError(describePartialFailure(result));
       clearSelection();

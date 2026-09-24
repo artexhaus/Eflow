@@ -7,7 +7,7 @@ interface RemoveConfirmDialogProps {
   total: number;
   protectedEmails: Email[];
   importantCount: number;
-  // includeProtected: whether the user chose to also remove the bills/receipts.
+  // includeProtected: whether the user chose to also remove the receipts/invoices.
   onConfirm: (includeProtected: boolean) => void;
   onCancel: () => void;
 }
@@ -15,7 +15,7 @@ interface RemoveConfirmDialogProps {
 const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
 
 // One confirmation for deleting/archiving a hand-picked selection. If the
-// selection includes bills or receipts, it names them and offers the choice
+// selection includes receipts or invoices, it names them and offers the choice
 // right here - no separate "delete anyway" step.
 export default function RemoveConfirmDialog({
   action,
@@ -43,7 +43,7 @@ export default function RemoveConfirmDialog({
 
   let title: string;
   if (protectedCount > 0 && others === 0) {
-    title = protectedCount === 1 ? `${verb} this bill or receipt?` : `${verb} these ${protectedCount} bills or receipts?`;
+    title = protectedCount === 1 ? `${verb} this receipt or invoice?` : `${verb} these ${protectedCount} receipts or invoices?`;
   } else {
     title = `${verb} ${plural(total, 'email')}?`;
   }
@@ -82,7 +82,7 @@ export default function RemoveConfirmDialog({
             <p className="flex items-center gap-2 font-semibold mb-1">
               <ShieldCheck className="w-4 h-4 text-mint-700" />
               <span>
-                {protectedCount === 1 ? 'This looks like a bill or receipt:' : `${protectedCount} look like bills or receipts:`}
+                {protectedCount === 1 ? 'This looks like a receipt or invoice:' : `${protectedCount} look like receipts or invoices:`}
               </span>
             </p>
             <ul className="space-y-0.5 pl-6 list-disc">
@@ -108,7 +108,9 @@ export default function RemoveConfirmDialog({
             </>
           ) : (
             <button autoFocus onClick={() => onConfirm(protectedCount > 0)} className={`${button} ${primaryTone}`}>
-              {protectedCount > 0 ? `${verb} ${protectedCount === 1 ? 'it' : 'them'} anyway` : `${verb} ${plural(total, 'email')}`}
+              {protectedCount > 0
+                ? `${verb} ${protectedCount === 1 ? 'it' : 'them'}${isDelete ? ' anyway' : ''}`
+                : `${verb} ${plural(total, 'email')}`}
             </button>
           )}
           <button onClick={onCancel} className="w-full py-3 rounded-2xl text-ink/75 hover:text-ink font-semibold">

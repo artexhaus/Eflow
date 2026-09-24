@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, Mail, Paperclip, Clock, Eye, EyeOff, Receipt, ShoppingBag, CalendarClock, ShieldCheck, User, Tag, KeyRound } from 'lucide-react';
+import {
+  ChevronLeft, Mail, Paperclip, Clock, Eye, EyeOff, Receipt, ShoppingBag, CalendarClock, ShieldCheck, User, Tag, KeyRound,
+  CheckCheck, Archive, Trash2, Loader2, Download, AlertCircle,
+} from 'lucide-react';
 import type { Email } from '../lib/types';
-import { DeleteAnywayButton } from './ProtectedEmailControls';
+import { applyMailAction, describePartialFailure } from '../lib/mailActions';
+import RemoveConfirmDialog from './RemoveConfirmDialog';
 
 interface ImportantEmailsProps {
   emails: Email[];
-  // Every protected bill/receipt, whatever category the scan gave it - a
+  // Every protected receipt/invoice, whatever category the scan gave it - a
   // receipt filed under "clutter" still belongs in Paid & Verified.
   verifiedEmails: Email[];
   initialTab?: 'all' | 'verified';
@@ -54,17 +58,53 @@ function getEmailCategory(email: Email): CategoryKey {
   return 'other';
 }
 
-// Display-only split inside Paid & Verified: money already sent vs bills.
-function getVerifiedKind(email: Email): 'Paid' | 'Bill' {
-  return /receipt|paid|confirm|refund|successful|processed|complete|transaction/i.test(email.subject || '')
-    ? 'Paid'
-    : 'Bill';
+// Display-only label inside Paid & Verified: what kind of payment proof it is.
+function getVerifiedKind(email: Email): 'Receipt' | 'Order' | 'Invoice' {
+  const subject = email.subject || '';
+  if (/receipt|paid|payment|refund|thank/i.test(subject)) return 'Receipt';
+  if (/order|purchase/i.test(subject)) return 'Order';
+  return 'Invoice';
 }
+
+// Saves the receipts and invoices as a CSV spreadsheet (e.g. for taxes or
+// expenses). Built in the browser from the list already on screen.
+function downloadReceiptsCsv(rows: Email[]) {
+  const cell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+  const lines = [
+    ['Date', 'From', 'Email address', 'Subject', 'Type', 'Attachment'].map(cell).join(','),
+    ...rows.map((e) =>
+      [
+        new Date(e.timestamp).toISOString().slice(0, 10),
+        e.sender_name || '',
+        e.sender,
+        e.subject,
+        getVerifiedKind(e),
+        e.has_attachment ? 'Yes' : 'No',
+      ]
+        .map(cell)
+        .join(',')
+    ),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `eflow-receipts-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+type BulkAction = 'mark_read' | 'archive' | 'delete';
 
 export default function ImportantEmails({ emails, verifiedEmails, initialTab = 'all', onBack, onRefresh }: ImportantEmailsProps) {
   const [showAll, setShowAll] = useState(false);
   const [filterUnread, setFilterUnread] = useState(false);
   const [activeCategory, setActiveCategory] = useState<CategoryKey>(initialTab);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [activeAction, setActiveAction] = useState<BulkAction | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<'archive' | 'delete' | null>(null);
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
 
   const categorized = useMemo(
     () => emails.map((email) => ({ email, category: getEmailCategory(email) })),
@@ -98,6 +138,54 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
 
   const filtered = filterUnread ? byCategory.filter((e) => !e.is_read) : byCategory;
   const visibleEmails = showAll ? filtered : filtered.slice(0, 50);
+
+  const selectedList = filtered.filter((e) => selected.has(e.id));
+  const allVisibleSelected = visibleEmails.length > 0 && visibleEmails.every((e) => selected.has(e.id));
+  const processing = activeAction !== null;
+
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const toggleAllVisible = () =>
+    setSelected(allVisibleSelected ? new Set() : new Set(visibleEmails.map((e) => e.id)));
+
+  // Receipts and invoices here are ones the user picked by hand; the
+  // confirmation window names them before anything is removed.
+  const runAction = async (action: BulkAction, includeProtected = false) => {
+    setPendingRemove(null);
+    const targets =
+      action === 'mark_read' || includeProtected ? selectedList : selectedList.filter((e) => !e.is_protected);
+    const kept = selectedList.length - targets.length;
+    if (targets.length === 0) return;
+
+    setActiveAction(action);
+    setNotice('');
+    setError('');
+    try {
+      const result = await applyMailAction(
+        action,
+        { emailIds: targets.map((e) => e.email_id) },
+        { allowProtected: includeProtected }
+      );
+      const verb = action === 'delete' ? 'Deleted' : action === 'archive' ? 'Archived' : 'Marked as read:';
+      let text = `${verb} ${result.processed.toLocaleString()} email${result.processed === 1 ? '' : 's'}.`;
+      if (action === 'archive') text += ' You can find them in your Archive folder.';
+      if (kept > 0) text += ` Kept ${kept.toLocaleString()} ${kept === 1 ? 'receipt or invoice' : 'receipts and invoices'}.`;
+      setNotice(text);
+      setError(describePartialFailure(result));
+      setSelected(new Set());
+      await onRefresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActiveAction(null);
+    }
+  };
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -164,6 +252,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
             onClick={() => {
               setActiveCategory(key);
               setShowAll(false);
+              setSelected(new Set());
             }}
             className={`flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap transition border ${
               key === 'verified'
@@ -191,16 +280,41 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
       </div>
 
       {isVerifiedTab && (
-        <div className="mb-6 bg-mint-50 border border-mint-200 rounded-2xl p-5 flex items-start space-x-4">
+        <div className="mb-6 bg-mint-50 border-2 border-mint-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-11 h-11 bg-mint-100 rounded-2xl flex items-center justify-center flex-shrink-0">
             <ShieldCheck className="w-6 h-6 text-mint-600" />
           </div>
-          <div>
-            <p className="font-semibold text-mint-900 text-lg">Your bills and receipts are safely filed</p>
+          <div className="flex-1">
+            <p className="font-semibold text-mint-900 text-lg">Your receipts and invoices are safely filed</p>
             <p className="text-mint-800">
-              Everything here is protected. Clean-ups, Archive All and Delete buttons always skip these emails.
+              Clean Up and bulk actions always skip these. To archive or delete some yourself, tick them below.
             </p>
           </div>
+          {verifiedEmails.length > 0 && (
+            <button
+              onClick={() => downloadReceiptsCsv(verifiedEmails)}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-mint-100 text-ink rounded-2xl border-2 border-ink/10 shadow-sm font-semibold flex-shrink-0"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download list</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {notice && (
+        <div className="mb-4 bg-mint-100 border-2 border-mint-200 rounded-2xl p-4 flex items-start gap-3">
+          <ShieldCheck className="w-5 h-5 text-mint-700 flex-shrink-0 mt-0.5" />
+          <p className="flex-1 text-sm text-mint-900">{notice}</p>
+          <button onClick={() => setNotice('')} className="text-sm font-medium text-mint-800">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {error && (
+        <div className="mb-4 bg-berry-50 border-2 border-berry-200 rounded-2xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-berry-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-berry-700">{error}</p>
         </div>
       )}
 
@@ -209,20 +323,67 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
           <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-ink mb-2">
             {isVerifiedTab
-              ? 'No bills or receipts yet'
+              ? 'No receipts or invoices yet'
               : filterUnread ? 'No unread important emails' : 'No important emails'}
           </h3>
           <p className="text-ink/75">
-            {isVerifiedTab ? "When a bill or receipt arrives, it'll be filed here automatically." : "You're all caught up!"}
+            {isVerifiedTab ? "When a receipt or invoice arrives, it'll be filed here automatically." : "You're all caught up!"}
           </p>
         </div>
       ) : (
         <>
+          <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm border-2 border-ink/10 sticky top-20 z-10 flex flex-wrap items-center justify-between gap-3">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleAllVisible}
+                disabled={processing}
+                className="w-5 h-5 rounded border-gray-300 text-mint-600 focus:ring-mint-500"
+              />
+              <span className="font-medium text-ink/85">
+                {selectedList.length > 0 ? `${selectedList.length.toLocaleString()} selected` : 'Select All'}
+              </span>
+            </label>
+            {selectedList.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => runAction('mark_read')}
+                  disabled={processing}
+                  className="flex items-center space-x-2 px-4 py-2 bg-sunny-300 hover:bg-sunny-400 text-sunny-900 rounded-xl border-2 border-ink/10 shadow-sm transition disabled:opacity-50"
+                >
+                  {activeAction === 'mark_read' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
+                  <span className="font-medium">Mark as Read</span>
+                </button>
+                <button
+                  onClick={() => setPendingRemove('archive')}
+                  disabled={processing}
+                  className="flex items-center space-x-2 px-4 py-2 bg-mint-200 hover:bg-mint-300 text-ink rounded-xl border-2 border-ink/10 shadow-sm transition disabled:opacity-50"
+                >
+                  {activeAction === 'archive' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+                  <span className="font-medium">Archive</span>
+                </button>
+                <button
+                  onClick={() => setPendingRemove('delete')}
+                  disabled={processing}
+                  className="flex items-center space-x-2 px-4 py-2 bg-berry-200 hover:bg-berry-300 text-ink rounded-xl border-2 border-ink/10 shadow-sm transition disabled:opacity-50"
+                >
+                  {activeAction === 'delete' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  <span className="font-medium">Delete</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-3">
             {visibleEmails.map((email) => (
               <div
                 key={email.id}
                 className={`rounded-2xl p-6 transition border-2 shadow-md ${
+                  selected.has(email.id)
+                    ? 'ring-2 ring-ocean-300 '
+                    : ''
+                }${
                   email.is_protected
                     ? 'bg-mint-50 border-mint-300 shadow-mint-300'
                     : !email.is_read
@@ -230,6 +391,16 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                       : 'bg-white border-ink/10 hover:border-ocean-300'
                 }`}
               >
+                <div className="flex items-start gap-4">
+                <input
+                  type="checkbox"
+                  checked={selected.has(email.id)}
+                  onChange={() => toggleOne(email.id)}
+                  disabled={processing}
+                  aria-label={`Select ${email.subject}`}
+                  className="w-5 h-5 mt-1 rounded border-gray-300 text-mint-600 focus:ring-mint-500 flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-3 mb-2">
@@ -239,7 +410,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                       {email.is_protected && (
                         <span className="flex items-center space-x-1 text-xs px-2 py-1 rounded-full font-semibold flex-shrink-0 bg-mint-100 text-mint-800">
                           <Receipt className="w-3.5 h-3.5" />
-                          <span>{getVerifiedKind(email) === 'Paid' ? 'Paid · Safe' : 'Bill · Safe'}</span>
+                          <span>{getVerifiedKind(email)} · Safe</span>
                         </span>
                       )}
                       {email.importance_reason && !email.is_protected && (
@@ -277,7 +448,8 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                       </span>
                     )}
                   </div>
-                  {email.is_protected && <DeleteAnywayButton email={email} onDeleted={onRefresh} />}
+                </div>
+                </div>
                 </div>
               </div>
             ))}
@@ -304,6 +476,16 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
             </div>
           )}
         </>
+      )}
+      {pendingRemove && (
+        <RemoveConfirmDialog
+          action={pendingRemove}
+          total={selectedList.length}
+          protectedEmails={selectedList.filter((e) => e.is_protected)}
+          importantCount={0}
+          onConfirm={(includeProtected) => runAction(pendingRemove, includeProtected)}
+          onCancel={() => setPendingRemove(null)}
+        />
       )}
     </div>
   );

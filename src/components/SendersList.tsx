@@ -104,7 +104,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
       action === 'delete' &&
       !confirm(
         `Permanently delete ${(group.count - group.protectedCount).toLocaleString()} emails from ${group.name}? This cannot be undone.` +
-          (group.protectedCount > 0 ? ` Their ${group.protectedCount.toLocaleString()} bills and receipts will be kept.` : '')
+          (group.protectedCount > 0 ? ` Their ${group.protectedCount.toLocaleString()} receipts and invoices will be kept.` : '')
       )
     ) {
       return;
@@ -184,14 +184,14 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
 
   // Acts on every email from all checked senders in a single request, so the
   // mail server is connected to once rather than once per sender. Protected
-  // bills and receipts are filtered out by the server.
+  // receipts and invoices are filtered out by the server.
   const handleBulkAction = async (action: 'archive' | 'delete') => {
     if (selectedGroups.length === 0) return;
     const removable = selectedEmailCount - selectedProtectedCount;
     const senderLabel = `${selectedGroups.length.toLocaleString()} sender${selectedGroups.length === 1 ? '' : 's'}`;
     const keptNote =
       selectedProtectedCount > 0
-        ? ` ${selectedProtectedCount.toLocaleString()} bills and receipts will be kept.`
+        ? ` ${selectedProtectedCount.toLocaleString()} receipts and invoices will be kept.`
         : '';
     const prompt =
       action === 'delete'
@@ -209,7 +209,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
       const verb = action === 'delete' ? 'Deleted' : 'Archived';
       let text = `${verb} ${result.processed.toLocaleString()} emails from ${senderLabel}.`;
       if (result.protectedSkipped > 0) {
-        text += ` ${result.protectedSkipped.toLocaleString()} bills and receipts were kept safe.`;
+        text += ` ${result.protectedSkipped.toLocaleString()} receipts and invoices were kept safe.`;
       }
       if (result.failed > 0) text += ` ${describePartialFailure(result)}`;
       setBulkMessage({ tone: result.failed > 0 ? 'error' : 'info', text });
@@ -434,7 +434,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                           <p className="flex items-center space-x-1 text-xs text-mint-700 mt-2">
                             <ShieldCheck className="w-3.5 h-3.5" />
                             <span>
-                              {group.protectedCount.toLocaleString()} bills or receipts from them are Paid & Verified and will be kept.
+                              {group.protectedCount.toLocaleString()} receipts or invoices from them are Paid & Verified and will be kept.
                             </span>
                           </p>
                         )}
@@ -538,7 +538,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                 {selectedProtectedCount > 0 && (
                   <p className="text-sm text-mint-700 flex items-center space-x-1">
                     <ShieldCheck className="w-4 h-4" />
-                    <span>{selectedProtectedCount.toLocaleString()} bills and receipts will be kept</span>
+                    <span>{selectedProtectedCount.toLocaleString()} receipts and invoices will be kept</span>
                   </p>
                 )}
               </div>

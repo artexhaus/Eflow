@@ -16,7 +16,7 @@ const TIPS = [
   'Talking to your mail server...',
   'Stacking the blocks...',
   'Sweeping up the junk...',
-  'Your bills and receipts stay safe.',
+  'Your receipts and invoices stay safe.',
   'Big batches can take a minute.',
 ];
 

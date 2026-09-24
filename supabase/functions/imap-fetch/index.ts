@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.5
 import { ImapFlow } from "npm:imapflow";
 import { readImapPassword } from "../_shared/credentials.ts";
 import { isChatter } from "../_shared/chatter.ts";
+import { isNotice, isPaymentProof } from "../_shared/payment_proof.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -178,6 +179,17 @@ function classifyEmail(
   // junk even when a post mentions money, a bill or a password - checked
   // before every "important" rule below.
   if (isChatter(sender, senderName, listId)) {
+    return { category: "clutter", importance_reason: null };
+  }
+
+  // Proof that money moved (receipts, payment confirmations, invoices, order
+  // confirmations, refunds) is kept; reminders and notices ("payment due",
+  // "your bill is ready", "shipped", "expiring") are fluff and filed as junk
+  // so Clean Up sweeps them. Same rules as the is_protected column.
+  if (isPaymentProof(subject, hasAttachment)) {
+    return { category: "important", importance_reason: "Receipt or invoice" };
+  }
+  if (isNotice(subject)) {
     return { category: "clutter", importance_reason: null };
   }
 
