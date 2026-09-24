@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, Mail, Paperclip, Clock, CheckCheck, AlertCircle, Loader2 } from 'lucide-react';
+import { ChevronLeft, Mail, Paperclip, Clock, CheckCheck, AlertCircle, Loader2, Archive, Trash2, ShieldCheck } from 'lucide-react';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import type { Email } from '../lib/types';
 
@@ -11,9 +11,13 @@ interface UnreadEmailsProps {
 
 export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmailsProps) {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
-  const [activeAction, setActiveAction] = useState<'selected' | 'all' | null>(null);
+  // True after "Select all N unread emails": the selection is every unread
+  // email, not just the ones rendered on the page.
+  const [selectAllMatching, setSelectAllMatching] = useState(false);
+  const [activeAction, setActiveAction] = useState<'selected' | 'all' | 'archive' | 'delete' | null>(null);
   const processing = activeAction !== null;
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [showAll, setShowAll] = useState(false);
 
   const visibleEmails = showAll ? emails : emails.slice(0, 50);
@@ -33,7 +37,23 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
     return `${Math.floor(diffDays / 365)} years ago`;
   };
 
+  const selectedList = selectAllMatching ? emails : emails.filter((e) => selectedEmails.has(e.id));
+  const selectedCount = selectedList.length;
+  const allVisibleSelected =
+    selectAllMatching || (visibleEmails.length > 0 && visibleEmails.every((e) => selectedEmails.has(e.id)));
+
+  const clearSelection = () => {
+    setSelectedEmails(new Set());
+    setSelectAllMatching(false);
+  };
+
   const toggleEmail = (id: string) => {
+    if (selectAllMatching) {
+      // Unticking one email turns "everything" back into an explicit list.
+      setSelectAllMatching(false);
+      setSelectedEmails(new Set(emails.filter((e) => e.id !== id).map((e) => e.id)));
+      return;
+    }
     const newSelected = new Set(selectedEmails);
     if (newSelected.has(id)) {
       newSelected.delete(id);
@@ -44,8 +64,8 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
   };
 
   const toggleAll = () => {
-    if (selectedEmails.size === visibleEmails.length) {
-      setSelectedEmails(new Set());
+    if (allVisibleSelected) {
+      clearSelection();
     } else {
       setSelectedEmails(new Set(visibleEmails.map((e) => e.id)));
     }
@@ -56,11 +76,12 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
 
     setActiveAction(scope);
     setError('');
+    setNotice('');
 
     try {
       const result = await applyMailAction('mark_read', { emailIds });
       setError(describePartialFailure(result));
-      setSelectedEmails(new Set());
+      clearSelection();
       await onRefresh();
     } catch (err) {
       console.error('Error marking emails as read:', err);
@@ -71,8 +92,48 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
   };
 
   const handleMarkSelectedRead = () => {
-    const selected = emails.filter((e) => selectedEmails.has(e.id));
-    markAsRead(selected.map((e) => e.email_id), 'selected');
+    markAsRead(selectedList.map((e) => e.email_id), 'selected');
+  };
+
+  // Archive or delete the selection. Bills and receipts (Paid & Verified) are
+  // always skipped by the server; the confirmation says so up front.
+  const handleRemoveSelected = async (action: 'archive' | 'delete') => {
+    if (selectedCount === 0) return;
+    const protectedCount = selectedList.filter((e) => e.is_protected).length;
+    const importantCount = selectedList.filter((e) => e.category === 'important' && !e.is_protected).length;
+    const removable = selectedCount - protectedCount;
+
+    let prompt =
+      action === 'delete'
+        ? `Permanently delete ${removable.toLocaleString()} unread emails? This cannot be undone.`
+        : `Move ${removable.toLocaleString()} unread emails to your Archive folder?`;
+    if (importantCount > 0) {
+      prompt += `\n\n${importantCount.toLocaleString()} of them are marked Important.`;
+    }
+    if (protectedCount > 0) {
+      prompt += `\n\n${protectedCount.toLocaleString()} bills and receipts will be kept.`;
+    }
+    if (!confirm(prompt)) return;
+
+    setActiveAction(action);
+    setError('');
+    setNotice('');
+    try {
+      const result = await applyMailAction(action, { emailIds: selectedList.map((e) => e.email_id) });
+      let text = `${action === 'delete' ? 'Deleted' : 'Archived'} ${result.processed.toLocaleString()} emails.`;
+      if (result.protectedSkipped > 0) {
+        text += ` ${result.protectedSkipped.toLocaleString()} bills and receipts were kept safe.`;
+      }
+      setNotice(text);
+      setError(describePartialFailure(result));
+      clearSelection();
+      await onRefresh();
+    } catch (err) {
+      console.error(`Error ${action}ing emails:`, err);
+      setError((err as Error).message);
+    } finally {
+      setActiveAction(null);
+    }
   };
 
   const handleMarkAllRead = () => {
@@ -115,6 +176,16 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
         </div>
       )}
 
+      {notice && (
+        <div className="mb-4 bg-mint-100 border-2 border-mint-200 rounded-2xl p-4 flex items-start space-x-3">
+          <ShieldCheck className="w-5 h-5 text-mint-700 flex-shrink-0 mt-0.5" />
+          <p className="flex-1 text-sm text-mint-900">{notice}</p>
+          <button onClick={() => setNotice('')} className="text-sm font-medium text-mint-800">
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {emails.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm p-12 text-center border-2 border-ink/10">
           <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -123,29 +194,72 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm border-2 border-ink/10">
-            <div className="flex items-center space-x-4">
+          <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm border-2 border-ink/10 sticky top-20 z-10">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={selectedEmails.size === visibleEmails.length && visibleEmails.length > 0}
+                  checked={allVisibleSelected}
                   onChange={toggleAll}
+                  disabled={processing}
                   className="w-5 h-5 rounded border-gray-300 text-sunny-600 focus:ring-sunny-500"
                 />
                 <span className="font-medium text-ink/85">
-                  {selectedEmails.size > 0 ? `${selectedEmails.size} selected` : 'Select All'}
+                  {selectedCount > 0 ? `${selectedCount.toLocaleString()} selected` : 'Select All'}
                 </span>
               </label>
+              {selectedCount > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleMarkSelectedRead}
+                    disabled={processing}
+                    className="flex items-center space-x-2 px-4 py-2 bg-sunny-300 hover:bg-sunny-400 text-sunny-900 rounded-xl border-2 border-ink/10 shadow-sm transition disabled:opacity-50"
+                  >
+                    {activeAction === 'selected' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
+                    <span className="font-medium">{activeAction === 'selected' ? 'Marking...' : 'Mark as Read'}</span>
+                  </button>
+                  <button
+                    onClick={() => handleRemoveSelected('archive')}
+                    disabled={processing}
+                    className="flex items-center space-x-2 px-4 py-2 bg-mint-200 hover:bg-mint-300 text-ink rounded-xl border-2 border-ink/10 shadow-sm transition disabled:opacity-50"
+                  >
+                    {activeAction === 'archive' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+                    <span className="font-medium">{activeAction === 'archive' ? 'Archiving...' : 'Archive'}</span>
+                  </button>
+                  <button
+                    onClick={() => handleRemoveSelected('delete')}
+                    disabled={processing}
+                    className="flex items-center space-x-2 px-4 py-2 bg-berry-200 hover:bg-berry-300 text-ink rounded-xl border-2 border-ink/10 shadow-sm transition disabled:opacity-50"
+                  >
+                    {activeAction === 'delete' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    <span className="font-medium">{activeAction === 'delete' ? 'Deleting...' : 'Delete'}</span>
+                  </button>
+                </div>
+              )}
             </div>
-            {selectedEmails.size > 0 && (
-              <button
-                onClick={handleMarkSelectedRead}
-                disabled={processing}
-                className="flex items-center space-x-2 px-4 py-2 bg-sunny-300 hover:bg-sunny-400 text-sunny-900 rounded-xl transition disabled:opacity-50"
-              >
-                {activeAction === 'selected' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
-                <span className="font-medium">{activeAction === 'selected' ? 'Marking...' : 'Mark as Read'}</span>
-              </button>
+
+            {/* Gmail-style: after ticking the page, offer to extend to every unread email. */}
+            {allVisibleSelected && emails.length > visibleEmails.length && (
+              <div className="mt-3 pt-3 border-t-2 border-ink/5 text-sm text-ink/80 text-center">
+                {selectAllMatching ? (
+                  <>
+                    All {emails.length.toLocaleString()} unread emails are selected.{' '}
+                    <button onClick={clearSelection} className="font-semibold text-ocean-700 hover:underline">
+                      Clear selection
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    All {visibleEmails.length.toLocaleString()} on this page are selected.{' '}
+                    <button
+                      onClick={() => setSelectAllMatching(true)}
+                      className="font-semibold text-ocean-700 hover:underline"
+                    >
+                      Select all {emails.length.toLocaleString()} unread emails
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
 
@@ -154,7 +268,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
               <div
                 key={email.id}
                 className={`bg-white rounded-2xl p-6 transition border ${
-                  selectedEmails.has(email.id)
+                  selectAllMatching || selectedEmails.has(email.id)
                     ? 'border-sunny-500 shadow-md'
                     : 'border-ocean-200 bg-ocean-50/30 hover:border-sunny-300'
                 }`}
@@ -162,7 +276,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                 <div className="flex items-start space-x-4">
                   <input
                     type="checkbox"
-                    checked={selectedEmails.has(email.id)}
+                    checked={selectAllMatching || selectedEmails.has(email.id)}
                     onChange={() => toggleEmail(email.id)}
                     className="w-5 h-5 rounded border-gray-300 text-sunny-600 focus:ring-sunny-500 mt-1"
                   />
