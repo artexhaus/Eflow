@@ -132,9 +132,9 @@ interface FetchedMessage {
   listId: string | null;
 }
 
-// Pulls List-Unsubscribe / List-Unsubscribe-Post / List-Id out of the raw header block
-// ImapFlow returns for `headers: [...]`. Header values may be folded across
-// several lines, so unfold continuation lines before matching.
+// Pulls List-Unsubscribe / List-Unsubscribe-Post / List-Id out of the message's
+// raw header block. Header values may be folded across several lines, so
+// unfold continuation lines before matching.
 function parseListHeaders(raw: Uint8Array | undefined): { listUnsubscribe: string | null; listUnsubscribePost: boolean; listId: string | null } {
   if (!raw) return { listUnsubscribe: null, listUnsubscribePost: false, listId: null };
   const text = new TextDecoder().decode(raw).replace(/\r?\n[ \t]+/g, " ");
@@ -403,7 +403,11 @@ Deno.serve(async (req) => {
         internalDate: true,
         bodyStructure: true,
         flags: true,
-        headers: ["list-unsubscribe", "list-unsubscribe-post", "list-id"],
+        // The whole header block, parsed by parseListHeaders. Asking the server
+        // for only the named fields (["list-unsubscribe", ...]) came back
+        // without List-Unsubscribe on Yahoo - List-Id arrived, unsubscribe
+        // links never did - so every sender showed "No unsubscribe option".
+        headers: true,
       }, { uid: true })) {
         const { email: senderEmail, name: senderName } = parseSender(msg.envelope);
         const subject = msg.envelope?.subject || "(no subject)";
@@ -535,6 +539,11 @@ Deno.serve(async (req) => {
         const { error: bundleError } = await supabase.from("bundles").insert(bundlesToInsert);
         if (bundleError) {
           console.error("Error inserting bundles:", bundleError);
+        } else {
+          // Point each bundled email at its sender's group (see migration
+          // 20260924050000), so the Bundles screen and "Archive all" work.
+          const { error: linkError } = await supabase.rpc("link_bundle_emails");
+          if (linkError) console.error("Error linking bundle emails:", linkError);
         }
       }
 

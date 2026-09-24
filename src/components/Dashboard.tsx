@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Mail, Sparkles, Trash2, Package, LogOut, RefreshCw, CheckCircle, AlertCircle, Users, ChevronRight, LayoutGrid, Smile, Crown } from 'lucide-react';
+import { Mail, Sparkles, Trash2, Package, LogOut, RefreshCw, CheckCircle, AlertCircle, ChevronRight, LayoutGrid, Smile, Crown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { Email, Bundle } from '../lib/types';
@@ -13,8 +13,9 @@ import SimpleHome from './SimpleHome';
 import SpeedLogo from './SpeedLogo';
 import AccountScreen from './AccountScreen';
 import UpgradeBanner from './UpgradeBanner';
+import CleanUpJunkCard from './CleanUpJunkCard';
+import TopSendersPanel from './TopSendersPanel';
 import { useBilling } from '../contexts/BillingContext';
-import { groupBySender } from '../lib/senders';
 
 type Screen = 'dashboard' | 'important' | 'clutter' | 'bundles' | 'reset' | 'unread' | 'senders' | 'account';
 
@@ -254,8 +255,12 @@ export default function Dashboard() {
   const bundleEmailCount = emails.filter((e) => e.category === 'bundle').length;
   const unreadCount = emails.filter((e) => !e.is_read).length;
 
-  const topSenders = useMemo(() => groupBySender(emails).slice(0, 10), [emails]);
-  const topSendersEmailCount = topSenders.reduce((sum, g) => sum + g.count, 0);
+  // Bundle groups that still have emails in the inbox; groups whose emails
+  // were all archived or deleted since the last scan aren't worth showing.
+  const activeBundles = useMemo(() => {
+    const ids = new Set(emails.map((e) => e.bundle_id).filter(Boolean));
+    return bundles.filter((b) => ids.has(b.id));
+  }, [emails, bundles]);
 
   if (loading) {
     return (
@@ -345,7 +350,11 @@ export default function Dashboard() {
           {!simpleMode && (
             <div className="mb-8">
               <h2 className="font-display text-3xl font-bold text-ink mb-2">Welcome back!</h2>
-              <p className="text-ink/75">Here's your inbox overview</p>
+              <p className="text-ink/75">
+                {billing.used > 0
+                  ? `You've cleared ${billing.used.toLocaleString()} email${billing.used === 1 ? '' : 's'} this month. Nice work!`
+                  : "Here's your inbox overview"}
+              </p>
             </div>
           )}
 
@@ -421,128 +430,86 @@ export default function Dashboard() {
               onShowAllTools={toggleSimpleMode}
             />
           ) : (
-          <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-ocean-200 rounded-2xl p-6 text-ink shadow-lg hover:shadow-xl transition">
-              <Mail className="w-8 h-8 mb-4 opacity-90" />
-              <div className="font-display text-3xl font-bold mb-1">{importantCount.toLocaleString()}</div>
-              <div className="text-ocean-800">Important Emails</div>
-            </div>
-
-            <div className="bg-berry-200 rounded-2xl p-6 text-ink shadow-lg hover:shadow-xl transition">
-              <Trash2 className="w-8 h-8 mb-4 opacity-90" />
-              <div className="font-display text-3xl font-bold mb-1">{clutterCount.toLocaleString()}</div>
-              <div className="text-berry-800">Clutter Emails</div>
-            </div>
-
-            <div className="bg-mint-200 rounded-2xl p-6 text-ink shadow-lg hover:shadow-xl transition">
-              <Package className="w-8 h-8 mb-4 opacity-90" />
-              <div className="font-display text-3xl font-bold mb-1">{bundles.length}</div>
-              <div className="text-mint-800">Email Bundles</div>
-            </div>
-
-            <button
-              onClick={() => setCurrentScreen('unread')}
-              className="bg-sunny-200 rounded-2xl p-6 text-sunny-900 shadow-lg hover:shadow-xl transition text-left"
-            >
-              <Mail className="w-8 h-8 mb-4 opacity-90" />
-              <div className="font-display text-3xl font-bold mb-1">{unreadCount.toLocaleString()}</div>
-              <div className="text-sunny-800 font-semibold">Unread Emails</div>
-            </button>
-          </div>
-
-          {emails.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-sm p-12 text-center border-2 border-ink/10">
-              <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-ink mb-2">No emails yet</h3>
-              <p className="text-ink/75 mb-6">Start by scanning your entire inbox to see all your emails organized</p>
-              <button
-                onClick={simulateScan}
-                disabled={scanning}
-                className="inline-flex items-center space-x-2 bg-mint-200 text-ink px-6 py-3 rounded-xl font-semibold hover:bg-mint-300 transition disabled:opacity-50 shadow-lg"
-              >
-                <RefreshCw className={scanning ? 'w-5 h-5 animate-spin' : 'w-5 h-5'} />
-                <span>{scanning ? 'Scanning Entire Inbox...' : 'Scan Entire Inbox'}</span>
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <UpgradeBanner />
-
-              {topSendersEmailCount > 0 && (
+          <div className="space-y-6">
+            {/* The four blocks are the way into each list. */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              {[
+                { label: 'Important', count: importantCount, sub: 'emails', icon: Mail, tone: 'bg-ocean-200 hover:bg-ocean-300', text: 'text-ocean-800', onClick: () => openImportant('all') },
+                { label: 'Clutter', count: clutterCount, sub: 'emails', icon: Trash2, tone: 'bg-berry-200 hover:bg-berry-300', text: 'text-berry-800', onClick: () => setCurrentScreen('clutter') },
+                {
+                  label: 'Bundles',
+                  count: bundleEmailCount,
+                  sub: `emails in ${activeBundles.length.toLocaleString()} group${activeBundles.length === 1 ? '' : 's'}`,
+                  icon: Package,
+                  tone: 'bg-mint-200 hover:bg-mint-300',
+                  text: 'text-mint-800',
+                  onClick: () => setCurrentScreen('bundles'),
+                },
+                { label: 'Unread', count: unreadCount, sub: 'emails', icon: Mail, tone: 'bg-sunny-200 hover:bg-sunny-300', text: 'text-sunny-800', onClick: () => setCurrentScreen('unread') },
+              ].map(({ label, count, sub, icon: Icon, tone, text, onClick }) => (
                 <button
-                  onClick={() => setCurrentScreen('senders')}
-                  className="w-full bg-white rounded-2xl p-6 shadow-sm border-2 border-mint-100 hover:border-mint-400 transition text-left flex items-center gap-5"
+                  key={label}
+                  onClick={onClick}
+                  className={`group text-left rounded-3xl p-5 sm:p-6 text-ink border-2 border-ink/10 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition ${tone}`}
                 >
-                  <div className="w-12 h-12 bg-mint-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-                    <Users className="w-6 h-6 text-mint-600" />
+                  <Icon className="w-8 h-8 mb-3 opacity-90" />
+                  <div className="font-display text-3xl font-bold">{count.toLocaleString()}</div>
+                  <div className="font-semibold">{label}</div>
+                  <div className={`text-sm ${text}`}>{sub}</div>
+                  <div className={`mt-3 inline-flex items-center gap-1 text-sm font-semibold ${text}`}>
+                    <span>View</span>
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-lg font-semibold text-ink">
-                      Your top {topSenders.length} senders sent {topSendersEmailCount.toLocaleString()} emails
-                    </div>
-                    <div className="text-sm text-ink/75 truncate">
-                      {topSenders.slice(0, 3).map((g) => g.name).join(', ')} and more. Unsubscribe and clear them out in one click.
-                    </div>
-                  </div>
-                  <ChevronRight className="w-6 h-6 text-mint-600 flex-shrink-0" />
                 </button>
-              )}
+              ))}
+            </div>
 
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold text-ink">
-                  {emails.length.toLocaleString()} total emails loaded
-                </h3>
+            {emails.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-sm p-12 text-center border-2 border-ink/10">
+                <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-ink mb-2">No emails yet</h3>
+                <p className="text-ink/75 mb-6">Start by scanning your entire inbox to see all your emails organized</p>
                 <button
                   onClick={simulateScan}
                   disabled={scanning}
-                  className="flex items-center space-x-2 text-mint-600 hover:text-mint-700 font-medium transition disabled:opacity-50"
+                  className="inline-flex items-center space-x-2 bg-mint-200 text-ink px-6 py-3 rounded-xl font-semibold hover:bg-mint-300 transition disabled:opacity-50 shadow-lg"
                 >
-                  <RefreshCw className={scanning ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
-                  <span>{scanning ? 'Scanning...' : 'Rescan Entire Inbox'}</span>
+                  <RefreshCw className={scanning ? 'w-5 h-5 animate-spin' : 'w-5 h-5'} />
+                  <span>{scanning ? 'Scanning Entire Inbox...' : 'Scan Entire Inbox'}</span>
                 </button>
               </div>
+            ) : (
+              <>
+                <CleanUpJunkCard emails={emails} onRefresh={loadData} onOpenVerified={() => openImportant('verified')} />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <button
-                  onClick={() => openImportant('all')}
-                  className="bg-white rounded-2xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-ocean-500"
-                >
-                  <Mail className="w-6 h-6 text-ocean-500 mb-3" />
-                  <div className="text-lg font-semibold text-ink mb-1">Important</div>
-                  <div className="text-sm text-ink/75">{importantCount.toLocaleString()} emails</div>
-                </button>
+                <TopSendersPanel emails={emails} onRefresh={loadData} onOpenSenders={() => setCurrentScreen('senders')} />
 
-                <button
-                  onClick={() => setCurrentScreen('clutter')}
-                  className="bg-white rounded-2xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-berry-500"
-                >
-                  <Trash2 className="w-6 h-6 text-berry-500 mb-3" />
-                  <div className="text-lg font-semibold text-ink mb-1">Clutter</div>
-                  <div className="text-sm text-ink/75">{clutterCount.toLocaleString()} emails</div>
-                </button>
+                <UpgradeBanner />
 
-                <button
-                  onClick={() => setCurrentScreen('bundles')}
-                  className="bg-white rounded-2xl p-6 hover:shadow-lg transition text-left border-2 border-transparent hover:border-mint-500"
-                >
-                  <Package className="w-6 h-6 text-mint-500 mb-3" />
-                  <div className="text-lg font-semibold text-ink mb-1">Bundles</div>
-                  <div className="text-sm text-ink/75">{bundles.length} groups ({bundleEmailCount.toLocaleString()} emails)</div>
-                </button>
-
-                <button
-                  onClick={() => setCurrentScreen('reset')}
-                  className="bg-mint-200 rounded-2xl p-6 hover:shadow-lg transition text-left"
-                >
-                  <Sparkles className="w-6 h-6 text-ink mb-3" />
-                  <div className="text-lg font-semibold text-ink mb-1">Inbox Reset</div>
-                  <div className="text-sm text-mint-800">Delete all clutter & bundles</div>
-                </button>
-              </div>
-            </div>
-          )}
-          </>
+                {/* Occasional tools, kept out of the way of the daily actions. */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-sm">
+                  <span className="text-ink/70">{emails.length.toLocaleString()} emails in your inbox</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={simulateScan}
+                      disabled={scanning}
+                      className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-ocean-50 text-ink rounded-xl border-2 border-ink/10 shadow-sm font-medium transition disabled:opacity-50"
+                    >
+                      <RefreshCw className={scanning ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
+                      <span>{scanning ? 'Scanning...' : 'Rescan inbox'}</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentScreen('reset')}
+                      className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-mint-50 text-ink rounded-xl border-2 border-ink/10 shadow-sm font-medium transition"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Inbox Reset</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
           )}
         </div>
       )}
@@ -567,7 +534,7 @@ export default function Dashboard() {
 
       {currentScreen === 'bundles' && (
         <BundlesList
-          bundles={bundles}
+          bundles={activeBundles}
           emails={emails.filter((e) => e.category === 'bundle')}
           onBack={() => setCurrentScreen('dashboard')}
           onRefresh={loadData}

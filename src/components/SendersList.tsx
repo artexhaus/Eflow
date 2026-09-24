@@ -1,29 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ChevronLeft,
   Users,
   Search,
   Archive,
   Trash2,
-  BellOff,
-  CheckCircle,
-  ExternalLink,
   AlertCircle,
   ShieldAlert,
   ShieldCheck,
   Clock,
   Loader2,
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
 import { applyMailAction, describePartialFailure, type MailAction } from '../lib/mailActions';
-import {
-  groupBySender,
-  requestOneClickUnsubscribe,
-  recordUnsubscribeLinkOpened,
-  type SenderGroup,
-} from '../lib/senders';
-import type { Email, SenderAction } from '../lib/types';
+import { groupBySender, type SenderGroup } from '../lib/senders';
+import type { Email } from '../lib/types';
+import UnsubscribeButton from './UnsubscribeButton';
+import { useSenderActions } from '../hooks/useSenderActions';
 
 interface SendersListProps {
   emails: Email[];
@@ -48,30 +40,15 @@ function formatTime(timestamp: string) {
 }
 
 export default function SendersList({ emails, simple = false, onBack, onRefresh }: SendersListProps) {
-  const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [includeOneOffs, setIncludeOneOffs] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [senderActions, setSenderActions] = useState<Record<string, SenderAction['unsubscribe_status']>>({});
-  const [busy, setBusy] = useState<{ key: string; action: MailAction | 'unsubscribe' } | null>(null);
+  const { statuses: senderActions, setStatus } = useSenderActions();
+  const [busy, setBusy] = useState<{ key: string; action: MailAction } | null>(null);
   const [messages, setMessages] = useState<Record<string, RowMessage>>({});
-  const [pendingLinks, setPendingLinks] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkMessage, setBulkMessage] = useState<RowMessage | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from('sender_actions')
-      .select('sender, unsubscribe_status')
-      .eq('user_id', user.id)
-      .then(({ data }) => {
-        const map: Record<string, SenderAction['unsubscribe_status']> = {};
-        for (const row of data ?? []) map[row.sender] = row.unsubscribe_status;
-        setSenderActions(map);
-      });
-  }, [user]);
 
   const groups = useMemo(() => groupBySender(emails), [emails]);
   const hasUnsubscribeData = useMemo(() => emails.some((e) => e.list_unsubscribe), [emails]);
@@ -96,9 +73,6 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
       return next;
     });
 
-  const markStatus = (key: string, status: SenderAction['unsubscribe_status']) =>
-    setSenderActions((prev) => ({ ...prev, [key]: status }));
-
   const handleMailAction = async (group: SenderGroup, action: 'archive' | 'delete') => {
     if (
       action === 'delete' &&
@@ -121,41 +95,6 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
     } finally {
       setBusy(null);
     }
-  };
-
-  const handleUnsubscribe = async (group: SenderGroup) => {
-    if (!group.oneClick && group.unsubscribeLink) {
-      // No one-click support: the link itself is rendered as the button, see below.
-      return;
-    }
-
-    setBusy({ key: group.key, action: 'unsubscribe' });
-    setMessage(group.key, null);
-    try {
-      const result = await requestOneClickUnsubscribe(group.sender);
-      if (result.status === 'unsubscribed') {
-        markStatus(group.key, 'unsubscribed');
-      } else if (result.status === 'needs_user') {
-        setPendingLinks((prev) => ({ ...prev, [group.key]: result.url }));
-        setMessage(group.key, {
-          tone: 'info',
-          text: "This sender needs you to confirm on their page. Open it below to finish unsubscribing.",
-        });
-      } else {
-        setMessage(group.key, { tone: 'error', text: result.message });
-      }
-    } catch (err) {
-      setMessage(group.key, { tone: 'error', text: (err as Error).message });
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const handleLinkOpened = (group: SenderGroup) => {
-    if (!user) return;
-    markStatus(group.key, 'link_opened');
-    setMessage(group.key, null);
-    recordUnsubscribeLinkOpened(user.id, group.key);
   };
 
   // Drop selections for senders that disappeared (e.g. after a clean-up).
@@ -220,61 +159,6 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
     } finally {
       setBusy(null);
     }
-  };
-
-  const renderUnsubscribe = (group: SenderGroup) => {
-    const status = senderActions[group.key];
-    if (status === 'unsubscribed') {
-      return (
-        <span className="flex items-center space-x-1 text-sm font-medium text-mint-700 bg-mint-50 px-3 py-2 rounded-xl">
-          <CheckCircle className="w-4 h-4" />
-          <span>Unsubscribed</span>
-        </span>
-      );
-    }
-    if (status === 'link_opened') {
-      return (
-        <span className="flex items-center space-x-1 text-sm font-medium text-ink/75 bg-gray-100 px-3 py-2 rounded-xl">
-          <CheckCircle className="w-4 h-4" />
-          <span>Unsubscribe page opened</span>
-        </span>
-      );
-    }
-
-    const link = pendingLinks[group.key] ?? (!group.oneClick ? group.unsubscribeLink : null);
-    if (link) {
-      return (
-        <a
-          href={link}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => handleLinkOpened(group)}
-          className="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-ink/10 text-ink/85 hover:bg-gray-50 rounded-xl font-medium text-sm transition"
-        >
-          <ExternalLink className="w-4 h-4" />
-          <span>{link.startsWith('mailto:') ? 'Unsubscribe by email' : 'Open unsubscribe page'}</span>
-        </a>
-      );
-    }
-
-    if (!group.unsubscribeLink) {
-      return <span className="text-xs text-gray-400 px-2">No unsubscribe option</span>;
-    }
-
-    return (
-      <button
-        onClick={() => handleUnsubscribe(group)}
-        disabled={busy !== null}
-        className="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-ink/10 text-ink/85 hover:bg-gray-50 rounded-xl font-medium text-sm transition disabled:opacity-50"
-      >
-        {busy?.key === group.key && busy.action === 'unsubscribe' ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <BellOff className="w-4 h-4" />
-        )}
-        <span>{busy?.key === group.key && busy.action === 'unsubscribe' ? 'Unsubscribing...' : 'Unsubscribe'}</span>
-      </button>
-    );
   };
 
   return (
@@ -450,7 +334,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                     </label>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {renderUnsubscribe(group)}
+                      <UnsubscribeButton group={group} status={senderActions[group.key]} onStatus={setStatus} disabled={busy !== null} />
                       <button
                         onClick={() => handleMailAction(group, 'archive')}
                         disabled={busy !== null}
