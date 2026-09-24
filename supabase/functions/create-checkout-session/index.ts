@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
-import { getAppUrl, getServiceClient, getStripe, isProStatus } from "../_shared/billing.ts";
+import { getAppUrl, getServiceClient, getStripe, isPlan, isProStatus, resolvePriceId } from "../_shared/billing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,13 +14,6 @@ function json(body: unknown, status = 200) {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
-
-// The client only says which plan it wants; the price is always resolved
-// here from server-side config, never taken from the request.
-const PRICE_ENV_FOR_PLAN: Record<string, string> = {
-  monthly: "STRIPE_PRICE_MONTHLY",
-  annual: "STRIPE_PRICE_ANNUAL",
-};
 
 // Starts a Stripe Checkout session for the Pro plan (monthly or annual) and
 // returns its URL. The Stripe customer is created once per user and reused.
@@ -41,14 +34,14 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
     if (!user) throw new Error("Invalid user");
 
+    // The client only says which plan it wants; the price is always resolved
+    // here on the server, never taken from the request.
     const { plan } = (await req.json()) as { plan?: string };
-    const priceEnv = plan ? PRICE_ENV_FOR_PLAN[plan] : undefined;
-    if (!priceEnv) return json({ error: "Choose the monthly or annual plan." }, 400);
-    const priceId = Deno.env.get(priceEnv);
-    if (!priceId) throw new Error(`Server misconfigured: ${priceEnv} is not set.`);
+    if (!isPlan(plan)) return json({ error: "Choose the monthly or annual plan." }, 400);
 
     const service = getServiceClient();
     const stripe = getStripe();
+    const priceId = await resolvePriceId(stripe, plan);
 
     const { data: existing, error: readError } = await service
       .from("subscriptions")
@@ -76,7 +69,7 @@ Deno.serve(async (req) => {
       if (saveError) throw new Error(`Failed to save customer: ${saveError.message}`);
     }
 
-    const appUrl = getAppUrl();
+    const appUrl = getAppUrl(req);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,

@@ -10,7 +10,6 @@ import { getServiceClient, getStripe } from "../_shared/billing.ts";
 // writes its current state, which makes every event idempotent and ordering
 // irrelevant.
 
-const stripe = getStripe();
 const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
 function planFromSubscription(sub: Stripe.Subscription): "monthly" | "annual" | null {
@@ -42,7 +41,7 @@ async function findUserId(sub: Stripe.Subscription, hint: string | null): Promis
   return data?.user_id ?? null;
 }
 
-async function syncSubscription(subscriptionId: string, userIdHint: string | null) {
+async function syncSubscription(stripe: Stripe, subscriptionId: string, userIdHint: string | null) {
   const sub = await stripe.subscriptions.retrieve(subscriptionId);
   const userId = await findUserId(sub, userIdHint);
   if (!userId) {
@@ -76,8 +75,10 @@ Deno.serve(async (req) => {
     return new Response("Missing signature or webhook secret", { status: 400 });
   }
 
+  let stripe: Stripe;
   let event: Stripe.Event;
   try {
+    stripe = getStripe();
     // The signature covers the exact raw body, so read it as text, unparsed.
     const body = await req.text();
     event = await stripe.webhooks.constructEventAsync(body, signature, secret, undefined, cryptoProvider);
@@ -93,7 +94,7 @@ Deno.serve(async (req) => {
         if (session.mode === "subscription" && session.subscription) {
           const subscriptionId =
             typeof session.subscription === "string" ? session.subscription : session.subscription.id;
-          await syncSubscription(subscriptionId, session.client_reference_id);
+          await syncSubscription(stripe, subscriptionId, session.client_reference_id);
         }
         break;
       }
@@ -101,7 +102,7 @@ Deno.serve(async (req) => {
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
-        await syncSubscription(sub.id, null);
+        await syncSubscription(stripe, sub.id, null);
         break;
       }
       default:

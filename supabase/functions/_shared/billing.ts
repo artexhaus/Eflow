@@ -19,10 +19,43 @@ export function getStripe(): Stripe {
   return new Stripe(key, { httpClient: Stripe.createFetchHttpClient() });
 }
 
-export function getAppUrl(): string {
-  const url = Deno.env.get("APP_URL");
-  if (!url) throw new Error("Server misconfigured: APP_URL is not set.");
-  return url.replace(/\/$/, "");
+// Where Stripe sends people back after checkout / the portal. APP_URL wins
+// when set (production); otherwise the site the request came from, so local
+// development works with no extra setup.
+export function getAppUrl(req: Request): string {
+  const configured = Deno.env.get("APP_URL");
+  if (configured) return configured.replace(/\/$/, "");
+  const origin = req.headers.get("Origin");
+  if (origin && /^https?:\/\/[^/]+$/.test(origin)) return origin;
+  throw new Error("Server misconfigured: set the APP_URL secret to your site's address.");
+}
+
+export type Plan = "monthly" | "annual";
+
+// Prices are found by these Stripe lookup keys (created by
+// scripts/setup-stripe.sh), so no price IDs need copying into secrets.
+// STRIPE_PRICE_MONTHLY / STRIPE_PRICE_ANNUAL still override them if set.
+const PLAN_LOOKUP_KEYS: Record<Plan, string> = {
+  monthly: "eflow_pro_monthly",
+  annual: "eflow_pro_annual",
+};
+const PLAN_PRICE_ENV: Record<Plan, string> = {
+  monthly: "STRIPE_PRICE_MONTHLY",
+  annual: "STRIPE_PRICE_ANNUAL",
+};
+
+export function isPlan(value: unknown): value is Plan {
+  return value === "monthly" || value === "annual";
+}
+
+export async function resolvePriceId(stripe: Stripe, plan: Plan): Promise<string> {
+  const override = Deno.env.get(PLAN_PRICE_ENV[plan]);
+  if (override) return override;
+  const { data } = await stripe.prices.list({ lookup_keys: [PLAN_LOOKUP_KEYS[plan]], active: true, limit: 1 });
+  if (!data[0]) {
+    throw new Error("The Pro plan isn't set up in Stripe yet. Run scripts/setup-stripe.sh.");
+  }
+  return data[0].id;
 }
 
 // Service-role client: bypasses RLS. Only used for billing tables, which users

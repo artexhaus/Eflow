@@ -1,86 +1,45 @@
 # Stripe setup for Eflow Pro
 
-Eflow has three plans:
-
 | Plan | Price | What it unlocks |
 |---|---|---|
 | Free | $0 | 500 emails cleaned (archived or deleted) per calendar month, UTC |
 | Pro monthly | $6.99 / month | Unlimited cleaning |
 | Pro yearly | $49.99 / year | Unlimited cleaning |
 
-The 500 limit is enforced in `imap-apply-actions` and changed in two places: `FREE_MONTHLY_LIMIT` in `supabase/functions/_shared/billing.ts` (enforced) and `src/lib/billing.ts` (display only). Displayed prices live in `PRICES` in `src/lib/billing.ts`; the amount actually charged comes from the Stripe prices below.
+## Set it up (one command)
 
-Do everything in **test mode** first.
-
-## 1. Create the product and prices
-
-Stripe Dashboard → Product catalog → **Add product**: "Eflow Pro", with two recurring prices:
-
-- $6.99 USD, billed monthly
-- $49.99 USD, billed yearly
-
-Copy both price IDs (`price_...`).
-
-## 2. Set the function secrets
+You need the Supabase CLI logged in and linked to the project (`supabase link`), plus `jq`.
 
 ```sh
-supabase secrets set \
-  STRIPE_SECRET_KEY=sk_test_... \
-  STRIPE_PRICE_MONTHLY=price_... \
-  STRIPE_PRICE_ANNUAL=price_... \
-  APP_URL=http://localhost:5173
+./scripts/setup-stripe.sh
 ```
 
-`APP_URL` is where Stripe sends people back after checkout and the portal. Set it to your real site URL in production.
+It asks for your Stripe secret key (Stripe Dashboard → Developers → API keys; use the **test** key `sk_test_...` first) and, optionally, your production site address. Then it:
 
-## 3. Deploy
+1. Creates the **Eflow Pro** product with a $6.99/month and a $49.99/year price. The app finds them by their lookup keys (`eflow_pro_monthly`, `eflow_pro_annual`), so there are no price IDs to copy.
+2. Creates the **webhook** to `https://<project-ref>.supabase.co/functions/v1/stripe-webhook` for `checkout.session.completed` and `customer.subscription.created/updated/deleted`.
+3. Creates the **Customer Portal** settings behind **Manage Subscription**: update card, switch monthly ⇄ yearly, invoice history, cancel at the end of the billing period.
+4. Saves `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PORTAL_CONFIGURATION` (and `APP_URL` if given) as Supabase function secrets.
+5. Runs `supabase db push` and deploys every edge function.
 
-```sh
-supabase db push
-supabase functions deploy create-checkout-session create-portal-session stripe-webhook imap-apply-actions
-```
+It is safe to run again; it reuses what already exists. Each run replaces the webhook endpoint, because Stripe only reveals its signing secret when it is created.
 
-`stripe-webhook` is deployed with `verify_jwt = false` (see `supabase/config.toml`) because Stripe can't send a Supabase login token; it checks the Stripe signature instead.
+## Test it
 
-## 4. Add the webhook endpoint
+1. `npm run dev`, sign in, click **Upgrade**, pick a plan.
+2. Pay with `4242 4242 4242 4242`, any future date, any CVC.
+3. You land back in Eflow with "Welcome to Pro!" and the badge shows **Pro**.
+4. Account → **Manage Subscription** opens Stripe's portal; cancel there and the account page shows "Pro ends on …".
 
-Stripe Dashboard → Developers → Webhooks → **Add endpoint**:
+To test the free limit without cleaning 500 emails, lower `FREE_MONTHLY_LIMIT` in `supabase/functions/_shared/billing.ts` and redeploy `imap-apply-actions`.
 
-- URL: `https://<your-project-ref>.supabase.co/functions/v1/stripe-webhook`
-- Events:
-  - `checkout.session.completed`
-  - `customer.subscription.created`
-  - `customer.subscription.updated`
-  - `customer.subscription.deleted`
+## Go live
 
-Copy the signing secret and set it:
+Run the script again with your **live** key (`sk_live_...`) and your real site address. Live mode has its own products, webhook and portal settings, so the script sets them up there too.
 
-```sh
-supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
-```
+## Where things live
 
-## 5. Turn on the Customer Portal
-
-Stripe Dashboard → Settings → Billing → **Customer portal**. Enable:
-
-- Update payment methods
-- Cancel subscriptions (at end of billing period is kindest)
-- Switch plans, with both Pro prices added as options
-- Invoice history
-
-Without this, **Manage Subscription** returns an error from Stripe.
-
-## 6. Test
-
-1. Sign in, open the plan badge in the top bar → **See Pro plans**, pick a plan.
-2. Pay with card `4242 4242 4242 4242`, any future date, any CVC.
-3. You land back on Eflow with "Welcome to Pro!" and the badge shows **Pro**.
-4. **Manage Subscription** opens the portal; cancel there and the account page shows "Pro ends on …".
-
-To test the limit without cleaning 500 emails, lower `FREE_MONTHLY_LIMIT` in `_shared/billing.ts` temporarily and redeploy `imap-apply-actions`.
-
-To replay webhooks locally: `stripe listen --forward-to https://<your-project-ref>.supabase.co/functions/v1/stripe-webhook`.
-
-## Going live
-
-Repeat steps 1, 2, 4 and 5 in live mode (live keys, live price IDs, a live webhook endpoint with its own signing secret) and set `APP_URL` to the production URL.
+- Limit enforced: `FREE_MONTHLY_LIMIT` in `supabase/functions/_shared/billing.ts` (the app's copy in `src/lib/billing.ts` is display only).
+- Prices shown in the app: `PRICES` in `src/lib/billing.ts`. The amount charged comes from the Stripe prices.
+- Return address after checkout: the `APP_URL` secret if set, otherwise the site the user came from.
+- Optional overrides: `STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_ANNUAL` secrets pin specific price IDs instead of the lookup keys.

@@ -44,9 +44,13 @@ Deno.serve(async (req) => {
       return json({ error: "You don't have a subscription to manage yet.", code: "no_customer" }, 404);
     }
 
+    // STRIPE_PORTAL_CONFIGURATION (set by scripts/setup-stripe.sh) picks the
+    // portal settings: card updates, monthly/yearly switching, cancelling.
+    const configuration = Deno.env.get("STRIPE_PORTAL_CONFIGURATION") || undefined;
     const session = await getStripe().billingPortal.sessions.create({
       customer: data.stripe_customer_id,
-      return_url: `${getAppUrl()}/?portal=return`,
+      return_url: `${getAppUrl(req)}/?portal=return`,
+      configuration,
     });
     return json({ url: session.url });
   } catch (err) {

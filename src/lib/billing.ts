@@ -39,14 +39,22 @@ async function callBillingFunction(name: string, body: unknown): Promise<string>
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new BillingError('Your session expired. Please sign in again.');
 
-  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // The request never got an answer: offline, or the function isn't
+    // deployed (Supabase's "not found" reply is blocked by the browser).
+    console.error(`Could not reach the ${name} edge function. Is it deployed? See scripts/setup-stripe.sh.`);
+    throw new BillingError("We couldn't reach the billing service just now. Please check your connection and try again.");
+  }
   const result = await response.json().catch(() => ({}));
   if (!response.ok || !result.url) {
     throw new BillingError(result.error || 'Something went wrong. Please try again.', result.code);
