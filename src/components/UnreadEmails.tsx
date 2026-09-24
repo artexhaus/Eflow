@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronLeft, Mail, Paperclip, Clock, CheckCheck, AlertCircle, Loader2, Archive, Trash2, ShieldCheck } from 'lucide-react';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import type { Email } from '../lib/types';
+import { ProtectedBadge, DeleteAnywayButton } from './ProtectedEmailControls';
 
 interface UnreadEmailsProps {
   emails: Email[];
@@ -103,6 +104,16 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
     const importantCount = selectedList.filter((e) => e.category === 'important' && !e.is_protected).length;
     const removable = selectedCount - protectedCount;
 
+    if (removable === 0) {
+      setError('');
+      setNotice(
+        `${protectedCount === 1 ? 'That looks like a bill or receipt' : 'Those all look like bills or receipts'}, ` +
+          `so Eflow keeps ${protectedCount === 1 ? 'it' : 'them'} safe and nothing was ${action === 'delete' ? 'deleted' : 'archived'}. ` +
+          'Not a real bill? Use "Delete anyway" on the email.'
+      );
+      return;
+    }
+
     let prompt =
       action === 'delete'
         ? `Permanently delete ${removable.toLocaleString()} unread emails? This cannot be undone.`
@@ -120,7 +131,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
     setNotice('');
     try {
       const result = await applyMailAction(action, { emailIds: selectedList.map((e) => e.email_id) });
-      let text = `${action === 'delete' ? 'Deleted' : 'Archived'} ${result.processed.toLocaleString()} emails.`;
+      let text = `${action === 'delete' ? 'Deleted' : 'Archived'} ${result.processed.toLocaleString()} email${result.processed === 1 ? '' : 's'}.`;
       if (result.protectedSkipped > 0) {
         text += ` ${result.protectedSkipped.toLocaleString()} bills and receipts were kept safe.`;
       }
@@ -295,7 +306,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                     </div>
                     <h4 className="text-lg font-medium text-ink mb-2 truncate">{email.subject}</h4>
                     <p className="text-ink/75 line-clamp-2">{email.snippet}</p>
-                    <div className="flex items-center space-x-3 mt-2">
+                    <div className="flex flex-wrap items-center gap-3 mt-2">
                       {email.has_attachment && (
                         <div className="flex items-center space-x-1 text-sm text-ink/70">
                           <Paperclip className="w-4 h-4" />
@@ -305,6 +316,14 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                       <span className="text-xs bg-ocean-100 text-ocean-700 px-2 py-1 rounded-full font-medium capitalize">
                         {email.category}
                       </span>
+                      {email.is_protected && (
+                        <>
+                          <ProtectedBadge />
+                          <span className="ml-auto">
+                            <DeleteAnywayButton email={email} onDeleted={onRefresh} />
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

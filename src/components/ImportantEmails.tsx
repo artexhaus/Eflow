@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, Mail, Paperclip, Clock, Eye, EyeOff, Receipt, ShoppingBag, CalendarClock, ShieldCheck, User, Tag, KeyRound } from 'lucide-react';
 import type { Email } from '../lib/types';
+import { DeleteAnywayButton } from './ProtectedEmailControls';
 
 interface ImportantEmailsProps {
   emails: Email[];
@@ -60,7 +61,7 @@ function getVerifiedKind(email: Email): 'Paid' | 'Bill' {
     : 'Bill';
 }
 
-export default function ImportantEmails({ emails, verifiedEmails, initialTab = 'all', onBack }: ImportantEmailsProps) {
+export default function ImportantEmails({ emails, verifiedEmails, initialTab = 'all', onBack, onRefresh }: ImportantEmailsProps) {
   const [showAll, setShowAll] = useState(false);
   const [filterUnread, setFilterUnread] = useState(false);
   const [activeCategory, setActiveCategory] = useState<CategoryKey>(initialTab);
@@ -276,6 +277,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                       </span>
                     )}
                   </div>
+                  {email.is_protected && <DeleteAnywayButton email={email} onDeleted={onRefresh} />}
                 </div>
               </div>
             ))}

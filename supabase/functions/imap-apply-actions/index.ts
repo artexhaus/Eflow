@@ -129,12 +129,13 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) throw new Error("Invalid user");
 
-    const { action, emailIds, category, bundleId, sender } = (await req.json()) as {
+    const { action, emailIds, category, bundleId, sender, allowProtected } = (await req.json()) as {
       action: Action;
       emailIds?: string[];
       category?: string | string[];
       bundleId?: string;
       sender?: string;
+      allowProtected?: boolean;
     };
 
     if (!DB_UPDATE_FOR_ACTION[action]) {
@@ -143,8 +144,11 @@ Deno.serve(async (req) => {
 
     // Bills and receipts ("Paid & Verified") are never archived or deleted,
     // whichever screen sent the request. Enforced here rather than in the UI
-    // so no bulk action can sweep them up by accident.
-    const excludeProtected = action !== "mark_read";
+    // so no bulk action can sweep them up by accident. The one exception is
+    // "Delete anyway" on a single email the user picked themselves - for
+    // false alarms like a forum post that mentions a bill.
+    const singleEmailOverride = allowProtected === true && Array.isArray(emailIds) && emailIds.length === 1;
+    const excludeProtected = action !== "mark_read" && !singleEmailOverride;
 
     let targetIds: string[];
     let protectedSkipped = 0;

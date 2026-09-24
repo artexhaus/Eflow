@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { ImapFlow } from "npm:imapflow";
 import { readImapPassword } from "../_shared/credentials.ts";
+import { isChatter } from "../_shared/chatter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -127,17 +128,24 @@ interface FetchedMessage {
   isRead: boolean;
   listUnsubscribe: string | null;
   listUnsubscribePost: boolean;
+  listId: string | null;
 }
 
-// Pulls List-Unsubscribe / List-Unsubscribe-Post out of the raw header block
+// Pulls List-Unsubscribe / List-Unsubscribe-Post / List-Id out of the raw header block
 // ImapFlow returns for `headers: [...]`. Header values may be folded across
 // several lines, so unfold continuation lines before matching.
-function parseUnsubscribeHeaders(raw: Uint8Array | undefined): { listUnsubscribe: string | null; listUnsubscribePost: boolean } {
-  if (!raw) return { listUnsubscribe: null, listUnsubscribePost: false };
+function parseListHeaders(raw: Uint8Array | undefined): { listUnsubscribe: string | null; listUnsubscribePost: boolean; listId: string | null } {
+  if (!raw) return { listUnsubscribe: null, listUnsubscribePost: false, listId: null };
   const text = new TextDecoder().decode(raw).replace(/\r?\n[ \t]+/g, " ");
   const value = text.match(/^list-unsubscribe:[ \t]*(.+)$/im)?.[1]?.trim() || null;
   const post = /^list-unsubscribe-post:.*one-click/im.test(text);
-  return { listUnsubscribe: value ? value.slice(0, 2000) : null, listUnsubscribePost: Boolean(value) && post };
+  // List-Id marks mailing lists, forums and discussion groups (RFC 2919).
+  const listId = text.match(/^list-id:[ \t]*(.+)$/im)?.[1]?.trim() || null;
+  return {
+    listUnsubscribe: value ? value.slice(0, 2000) : null,
+    listUnsubscribePost: Boolean(value) && post,
+    listId: listId ? listId.slice(0, 500) : null,
+  };
 }
 
 function parseSender(envelope: any): { email: string; name: string } {
@@ -164,7 +172,15 @@ function classifyEmail(
   hasAttachment: boolean,
   isRead: boolean,
   senderFrequency: number,
+  listId: string | null,
 ): { category: string; importance_reason: string | null; bundle_type?: string } {
+  // Community feeds, forums, social apps, mailing lists and news sources are
+  // junk even when a post mentions money, a bill or a password - checked
+  // before every "important" rule below.
+  if (isChatter(sender, senderName, listId)) {
+    return { category: "clutter", importance_reason: null };
+  }
+
   const lowerSender = sender.toLowerCase();
   const lowerName = senderName.toLowerCase();
   const lowerSubject = subject.toLowerCase();
@@ -375,7 +391,7 @@ Deno.serve(async (req) => {
         internalDate: true,
         bodyStructure: true,
         flags: true,
-        headers: ["list-unsubscribe", "list-unsubscribe-post"],
+        headers: ["list-unsubscribe", "list-unsubscribe-post", "list-id"],
       }, { uid: true })) {
         const { email: senderEmail, name: senderName } = parseSender(msg.envelope);
         const subject = msg.envelope?.subject || "(no subject)";
@@ -407,7 +423,7 @@ Deno.serve(async (req) => {
         snippet: subject.slice(0, 120),
         hasAttachment,
         isRead,
-        ...parseUnsubscribeHeaders(msg.headers),
+        ...parseListHeaders(msg.headers),
       });
     }
     }
@@ -428,7 +444,7 @@ Deno.serve(async (req) => {
 
     const emailsToInsert = chunkMessages.map((m) => {
       const freq = senderCounts[m.from.toLowerCase()] || 1;
-      const classification = classifyEmail(m.from, m.fromName, m.subject, m.snippet, m.hasAttachment, m.isRead, freq);
+      const classification = classifyEmail(m.from, m.fromName, m.subject, m.snippet, m.hasAttachment, m.isRead, freq, m.listId);
       if (classification.category === "important") importantAdded++;
       else if (classification.category === "clutter") clutterAdded++;
       else bundleAdded++;
@@ -447,6 +463,7 @@ Deno.serve(async (req) => {
         is_read: m.isRead,
         list_unsubscribe: m.listUnsubscribe,
         list_unsubscribe_post: m.listUnsubscribePost,
+        list_id: m.listId,
       };
     });
 

@@ -57,6 +57,7 @@ export type Database = {
           is_deleted: boolean;
           list_unsubscribe: string | null;
           list_unsubscribe_post: boolean;
+          list_id: string | null;
           is_protected: boolean;
           created_at: string;
         };
@@ -78,6 +79,7 @@ export type Database = {
           is_deleted?: boolean;
           list_unsubscribe?: string | null;
           list_unsubscribe_post?: boolean;
+          list_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -98,6 +100,7 @@ export type Database = {
           is_deleted?: boolean;
           list_unsubscribe?: string | null;
           list_unsubscribe_post?: boolean;
+          list_id?: string | null;
           created_at?: string;
         };
         Relationships: [];

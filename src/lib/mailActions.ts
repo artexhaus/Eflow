@@ -44,6 +44,9 @@ export interface MailActionOptions {
   // Skip the global progress popup, for screens with their own full-screen
   // progress state (Simple view clean-up, Inbox Reset).
   silent?: boolean;
+  // "Delete anyway": act on a protected bill/receipt. The server honours this
+  // only for a single email, never for bulk actions.
+  allowProtected?: boolean;
 }
 
 // Lets app-wide layers react to every mail action without each screen wiring
@@ -78,13 +81,17 @@ export async function applyMailAction(
   const count = options.count ?? ('emailIds' in target ? target.emailIds.length : undefined);
   if (!options.silent) notify((l) => l.onStart?.({ action, count, label: options.label }));
   try {
-    return await runMailAction(action, target);
+    return await runMailAction(action, target, options.allowProtected === true);
   } finally {
     if (!options.silent) notify((l) => l.onFinish?.());
   }
 }
 
-async function runMailAction(action: MailAction, target: MailActionTarget): Promise<MailActionResult> {
+async function runMailAction(
+  action: MailAction,
+  target: MailActionTarget,
+  allowProtected: boolean
+): Promise<MailActionResult> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Your session expired. Please sign in again.');
 
@@ -94,7 +101,7 @@ async function runMailAction(action: MailAction, target: MailActionTarget): Prom
       Authorization: `Bearer ${session.access_token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ action, ...target }),
+    body: JSON.stringify({ action, ...target, ...(allowProtected ? { allowProtected: true } : {}) }),
   });
 
   const body = await response.json().catch(() => ({}));
