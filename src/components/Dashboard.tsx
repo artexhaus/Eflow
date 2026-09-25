@@ -588,7 +588,7 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
                       <span>{scanning ? 'Scanning...' : 'Rescan inbox'}</span>
                     </button>
                     <button
-                      onClick={() => setCurrentScreen('reset')}
+                      onClick={() => billing.requirePro('Inbox Reset') && setCurrentScreen('reset')}
                       className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-mint-50 text-ink rounded-xl border-2 border-ink/10 shadow-sm font-medium transition"
                     >
                       <Sparkles className="w-4 h-4" />

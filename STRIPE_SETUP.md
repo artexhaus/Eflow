@@ -2,9 +2,9 @@
 
 | Plan | Price | What it unlocks |
 |---|---|---|
-| Free | $0 | 500 emails cleaned (archived or deleted) per calendar month, UTC |
-| Pro monthly | $6.99 / month | Unlimited cleaning |
-| Pro yearly | $49.99 / year | Unlimited cleaning |
+| Free | $0 | 500 emails cleaned (archived or deleted) and 10 unsubscribes per calendar month (UTC); one email/sender at a time; receipt protection and scam warnings |
+| Pro monthly | $6.99 / month | Unlimited cleaning and unsubscribes, bulk actions (multi-select, Select All, Mark/Archive All, Inbox Reset), receipt CSV export, priority support |
+| Pro yearly | $49.99 / year | Same as Pro monthly, 40% cheaper |
 
 ## Set it up (one command)
 

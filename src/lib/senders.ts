@@ -70,6 +70,7 @@ export function groupBySender(emails: Email[]): SenderGroup[] {
 
 export type UnsubscribeResult =
   | { status: 'unsubscribed' }
+  | { status: 'limit' }
   | { status: 'needs_user'; url: string }
   | { status: 'unavailable'; message: string };
 
@@ -87,6 +88,7 @@ export async function requestOneClickUnsubscribe(sender: string): Promise<Unsubs
   });
 
   const body = await response.json().catch(() => ({}));
+  if (response.status === 402 && body.code === 'unsubscribe_limit') return { status: 'limit' };
   if (!response.ok) throw new Error(body.error || 'Could not unsubscribe. Please try again.');
 
   if (body.status === 'needs_user') {

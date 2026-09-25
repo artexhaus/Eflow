@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { applyMailAction, describePartialFailure, type MailAction } from '../lib/mailActions';
 import { groupBySender, type SenderGroup } from '../lib/senders';
+import { useBilling } from '../contexts/BillingContext';
 import type { Email } from '../lib/types';
 import UnsubscribeButton from './UnsubscribeButton';
 import { useSenderActions } from '../hooks/useSenderActions';
@@ -103,15 +104,21 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
   const selectedProtectedCount = selectedGroups.reduce((sum, g) => sum + g.protectedCount, 0);
   const allVisibleSelected = visible.length > 0 && visible.every((g) => selected.has(g.key));
 
-  const toggleSelected = (key: string) =>
+  // Free plan: one sender at a time; selecting several is a Pro feature.
+  const { requirePro } = useBilling();
+
+  const toggleSelected = (key: string) => {
+    if (!selected.has(key) && selected.size >= 1 && !requirePro('Selecting several senders')) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
+  };
 
-  const toggleAllVisible = () =>
+  const toggleAllVisible = () => {
+    if (!allVisibleSelected && !requirePro('Select all senders')) return;
     setSelected((prev) => {
       const next = new Set(prev);
       for (const g of visible) {
@@ -120,6 +127,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
       }
       return next;
     });
+  };
 
   // Acts on every email from all checked senders in a single request, so the
   // mail server is connected to once rather than once per sender. Protected

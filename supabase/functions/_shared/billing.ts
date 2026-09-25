@@ -5,6 +5,14 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 // The app shows the same number (src/lib/billing.ts) - keep them in sync.
 export const FREE_MONTHLY_LIMIT = 500;
 
+// Free tier: senders a user may unsubscribe from per calendar month (UTC).
+// The app shows the same number (src/lib/billing.ts) - keep them in sync.
+export const FREE_UNSUBSCRIBE_LIMIT = 10;
+
+export function currentPeriodStartIso(now = new Date()): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+}
+
 // Statuses that unlock Pro. past_due keeps access while Stripe retries the
 // card; Stripe moves the subscription to unpaid/canceled if retries fail.
 const PRO_STATUSES = new Set(["active", "trialing", "past_due"]);

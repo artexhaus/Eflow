@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, Mail, Paperclip, Clock, CheckCheck, AlertCircle, Loader2, Archive, Trash2, ShieldCheck } from 'lucide-react';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
+import { useBilling } from '../contexts/BillingContext';
 import type { Email } from '../lib/types';
 import { ProtectedBadge, ScamBadge } from './ProtectedEmailControls';
 import RemoveConfirmDialog from './RemoveConfirmDialog';
@@ -13,6 +14,8 @@ interface UnreadEmailsProps {
 
 export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmailsProps) {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+  // Free plan: one email at a time; selecting several is a Pro feature.
+  const { requirePro } = useBilling();
   // True after "Select all N unread emails": the selection is every unread
   // email, not just the ones rendered on the page.
   const [selectAllMatching, setSelectAllMatching] = useState(false);
@@ -57,6 +60,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
       setSelectedEmails(new Set(emails.filter((e) => e.id !== id).map((e) => e.id)));
       return;
     }
+    if (!selectedEmails.has(id) && selectedEmails.size >= 1 && !requirePro('Selecting several emails')) return;
     const newSelected = new Set(selectedEmails);
     if (newSelected.has(id)) {
       newSelected.delete(id);
@@ -70,6 +74,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
     if (allVisibleSelected) {
       clearSelection();
     } else {
+      if (!requirePro('Select All')) return;
       setSelectedEmails(new Set(visibleEmails.map((e) => e.id)));
     }
   };
@@ -137,6 +142,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
   };
 
   const handleMarkAllRead = () => {
+    if (!requirePro('Mark All Read')) return;
     markAsRead(emails.map((e) => e.email_id), 'all');
   };
 

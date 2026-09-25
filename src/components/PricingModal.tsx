@@ -1,24 +1,36 @@
 import { useEffect, useState } from 'react';
 import { Check, Loader2, X, Sparkles, Star, Blocks, Settings } from 'lucide-react';
 import { useBilling } from '../contexts/BillingContext';
-import { BillingError, FREE_MONTHLY_LIMIT, PRICES, formatResetDate, openBillingPortal, startCheckout, type Plan } from '../lib/billing';
+import { BillingError, FREE_MONTHLY_LIMIT, FREE_UNSUBSCRIBE_LIMIT, PRICES, formatResetDate, openBillingPortal, startCheckout, type Plan } from '../lib/billing';
 
 export type PricingReason =
   | { kind: 'upgrade' }
-  | { kind: 'limit'; remaining: number; requested?: number };
+  | { kind: 'limit'; remaining: number; requested?: number }
+  | { kind: 'unsubscribe_limit' }
+  | { kind: 'pro_feature'; feature: string };
 
 interface PricingModalProps {
   reason: PricingReason;
   onClose: () => void;
 }
 
+// What each plan includes. Monthly and yearly Pro have the same features;
+// yearly is just cheaper. Receipt protection and scam warnings are safety
+// features and stay on every plan.
 const FREE_FEATURES = [
   `Clean up to ${FREE_MONTHLY_LIMIT} emails a month`,
   'One-tap Clean Up Unopened Junk',
-  'Unsubscribe from senders',
+  `Unsubscribe from ${FREE_UNSUBSCRIBE_LIMIT} senders a month`,
+  'Receipt protection & scam warnings',
 ];
 
-const PRO_FEATURES = ['Unlimited cleaning', 'Full Paid & Verified receipt vault', 'Bulk actions across all senders'];
+const PRO_FEATURES = [
+  'Unlimited cleaning',
+  'Unlimited unsubscribes',
+  'Bulk actions: select many at once',
+  'Export receipts to a spreadsheet',
+  'Priority support',
+];
 
 export default function PricingModal({ reason, onClose }: PricingModalProps) {
   const { isPro, subscription, used } = useBilling();
@@ -65,6 +77,12 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
       reason.requested && reason.remaining > 0
         ? `That clean-up needs ${reason.requested.toLocaleString()}. Go Pro for unlimited cleaning, or wait until ${resetsOn}.`
         : `Go Pro for unlimited cleaning, or your free cleans come back on ${resetsOn}.`;
+  } else if (reason.kind === 'unsubscribe_limit') {
+    title = `You've used your ${FREE_UNSUBSCRIBE_LIMIT} free unsubscribes this month`;
+    subtitle = `Go Pro to unsubscribe from as many senders as you like, or more free unsubscribes arrive on ${resetsOn}.`;
+  } else if (reason.kind === 'pro_feature') {
+    title = `${reason.feature} is a Pro feature`;
+    subtitle = 'On Free you can act on one email or sender at a time. Go Pro to select many at once and clean up in one go.';
   }
 
   // Free users: buy the plan in Checkout. Pro users: their current plan is
@@ -195,7 +213,8 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
               <span className="font-display text-5xl font-bold text-ink">{PRICES.annual.amount}</span>
               <span className="text-ink/70 ml-1">/ {PRICES.annual.per}</span>
             </div>
-            <p className="text-mint-800 font-semibold mb-5">Just $4.17 a month - save 40%</p>
+            <p className="text-mint-800 font-semibold">Just $4.17 a month - save 40%</p>
+            <p className="text-sm text-ink/70 mb-5">Everything in Pro, billed once a year.</p>
             <ul className="space-y-3 mb-6 flex-1">
               {PRO_FEATURES.map((f) => (
                 <li key={f} className="flex items-start gap-2 text-ink">

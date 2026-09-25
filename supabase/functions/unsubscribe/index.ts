@@ -1,5 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import {
+  FREE_UNSUBSCRIBE_LIMIT,
+  currentPeriodStartIso,
+  getSubscriptionStatus,
+  isProStatus,
+} from "../_shared/billing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,6 +65,27 @@ Deno.serve(async (req) => {
     const { sender } = (await req.json()) as { sender?: string };
     if (!sender) throw new Error("sender is required");
     const senderKey = sender.toLowerCase();
+
+    // Free plan: up to FREE_UNSUBSCRIBE_LIMIT senders per calendar month. A
+    // sender already unsubscribed from this month doesn't count twice.
+    if (!isProStatus(await getSubscriptionStatus(user.id))) {
+      const { count } = await supabase
+        .from("sender_actions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("unsubscribe_status", "is", null)
+        .gte("unsubscribed_at", currentPeriodStartIso())
+        .neq("sender", senderKey);
+      if ((count ?? 0) >= FREE_UNSUBSCRIBE_LIMIT) {
+        return json(
+          {
+            error: `You've used your ${FREE_UNSUBSCRIBE_LIMIT} free unsubscribes this month. Go Pro for unlimited unsubscribes.`,
+            code: "unsubscribe_limit",
+          },
+          402
+        );
+      }
+    }
 
     const { data: latest, error } = await supabase
       .from("emails")

@@ -4,6 +4,10 @@ import { supabase } from './supabase';
 // server enforces the limit; this copy is only for display.
 export const FREE_MONTHLY_LIMIT = 500;
 
+// Free plan: senders you can unsubscribe from per calendar month (UTC). Must
+// match FREE_UNSUBSCRIBE_LIMIT in supabase/functions/_shared/billing.ts.
+export const FREE_UNSUBSCRIBE_LIMIT = 10;
+
 export type Plan = 'monthly' | 'annual';
 
 // Display prices. The amount actually charged comes from the Stripe prices

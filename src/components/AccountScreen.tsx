@@ -15,7 +15,7 @@ const formatDate = (iso: string | Date) =>
 
 export default function AccountScreen({ onBack, onMailboxDisconnected }: AccountScreenProps) {
   const { user } = useAuth();
-  const { isPro, subscription, used, loading, openPricing } = useBilling();
+  const { isPro, subscription, used, loading, openPricing, unsubscribesUsed, unsubscribeLimit } = useBilling();
   const [openingPortal, setOpeningPortal] = useState(false);
   const [error, setError] = useState('');
 
@@ -143,6 +143,9 @@ export default function AccountScreen({ onBack, onMailboxDisconnected }: Account
                     style={{ width: `${usedPct}%` }}
                   />
                 </div>
+                <p className="text-sm font-semibold text-ink/80 mt-3">
+                  {Math.min(unsubscribesUsed, unsubscribeLimit)} of {unsubscribeLimit} free unsubscribes used
+                </p>
               </>
             )}
           </div>

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { ChevronLeft, Mail } from 'lucide-react';
 import { LEGAL } from '../lib/legal';
-import { PRICES, FREE_MONTHLY_LIMIT } from '../lib/billing';
+import { PRICES, FREE_MONTHLY_LIMIT, FREE_UNSUBSCRIBE_LIMIT } from '../lib/billing';
 import LegalLinks from './LegalLinks';
 
 export type LegalPageKind = 'privacy' | 'terms' | 'refunds';
@@ -153,8 +153,8 @@ function Terms() {
       <H2>Plans, billing and cancellation</H2>
       <UL
         items={[
-          `Free: clean up to ${FREE_MONTHLY_LIMIT} emails per calendar month.`,
-          `Pro: ${PRICES.monthly.amount} per ${PRICES.monthly.per} or ${PRICES.annual.amount} per ${PRICES.annual.per}, plus any applicable taxes.`,
+          `Free: clean up to ${FREE_MONTHLY_LIMIT} emails and unsubscribe from up to ${FREE_UNSUBSCRIBE_LIMIT} senders per calendar month, acting on one email or sender at a time. Receipt protection and scam warnings are included on every plan.`,
+          `Pro: unlimited cleaning and unsubscribes, bulk actions (selecting many emails or senders at once) and receipt export, for ${PRICES.monthly.amount} per ${PRICES.monthly.per} or ${PRICES.annual.amount} per ${PRICES.annual.per}, plus any applicable taxes. Monthly and yearly plans include the same features.`,
           'Subscriptions renew automatically at the end of each billing period until you cancel. You can cancel any time in Account > Manage Subscription; Pro stays active until the end of the period you paid for.',
           'We may change prices with notice before your next renewal.',
           <>Refunds are covered by our <a href="/refunds" className="text-ocean-700 underline">Refund Policy</a>.</>,

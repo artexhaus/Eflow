@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { PartyPopper, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
-import { FREE_MONTHLY_LIMIT, currentPeriodStart, isProStatus } from '../lib/billing';
+import { FREE_MONTHLY_LIMIT, FREE_UNSUBSCRIBE_LIMIT, currentPeriodStart, isProStatus } from '../lib/billing';
 import { addMailActionListener } from '../lib/mailActions';
 import type { Subscription } from '../lib/types';
 import PricingModal, { type PricingReason } from '../components/PricingModal';
@@ -19,8 +19,14 @@ interface BillingContextType {
   used: number;
   limit: number;
   remaining: number;
+  // Senders unsubscribed from this month, and the Free plan's allowance.
+  unsubscribesUsed: number;
+  unsubscribeLimit: number;
   refresh: () => Promise<boolean>;
   openPricing: (reason?: PricingReason) => void;
+  // For Pro-only features (bulk actions, receipt export): true for Pro users;
+  // for Free users it opens the plans explaining the feature and returns false.
+  requirePro: (feature: string) => boolean;
 }
 
 const BillingContext = createContext<BillingContextType | undefined>(undefined);
@@ -32,6 +38,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [used, setUsed] = useState(0);
+  const [unsubscribesUsed, setUnsubscribesUsed] = useState(0);
   const [pricingReason, setPricingReason] = useState<PricingReason | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [nudgeAt, setNudgeAt] = useState<number | null>(null);
@@ -41,7 +48,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
   // Returns whether the user is Pro after refreshing, for the checkout poll.
   const refresh = useCallback(async (): Promise<boolean> => {
     if (!user) return false;
-    const [subRes, usageRes] = await Promise.all([
+    const [subRes, usageRes, unsubRes] = await Promise.all([
       supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
       supabase
         .from('usage_monthly')
@@ -49,8 +56,15 @@ export function BillingProvider({ children }: { children: ReactNode }) {
         .eq('user_id', user.id)
         .eq('period_start', currentPeriodStart())
         .maybeSingle(),
+      supabase
+        .from('sender_actions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .not('unsubscribe_status', 'is', null)
+        .gte('unsubscribed_at', `${currentPeriodStart()}T00:00:00Z`),
     ]);
     setSubscription(subRes.data ?? null);
+    setUnsubscribesUsed(unsubRes.count ?? 0);
     usedRef.current = usageRes.data?.emails_cleaned ?? 0;
     setUsed(usedRef.current);
     setLoading(false);
@@ -131,8 +145,15 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     used,
     limit: FREE_MONTHLY_LIMIT,
     remaining: isPro ? Infinity : Math.max(FREE_MONTHLY_LIMIT - used, 0),
+    unsubscribesUsed,
+    unsubscribeLimit: FREE_UNSUBSCRIBE_LIMIT,
     refresh,
     openPricing: (reason = { kind: 'upgrade' }) => setPricingReason(reason),
+    requirePro: (feature: string) => {
+      if (isPro) return true;
+      setPricingReason({ kind: 'pro_feature', feature });
+      return false;
+    },
   };
 
   return (

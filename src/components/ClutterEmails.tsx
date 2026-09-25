@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, Trash2, Archive, Mail, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
+import { useBilling } from '../contexts/BillingContext';
 import type { Email } from '../lib/types';
 import { ScamBadge } from './ProtectedEmailControls';
 
@@ -12,6 +13,8 @@ interface ClutterEmailsProps {
 
 export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmailsProps) {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+  // Free plan: one email at a time; selecting several is a Pro feature.
+  const { requirePro } = useBilling();
   const [activeAction, setActiveAction] = useState<'archive' | 'delete' | 'archive_all' | null>(null);
   const processing = activeAction !== null;
   const [error, setError] = useState('');
@@ -35,6 +38,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
   };
 
   const toggleEmail = (id: string) => {
+    if (!selectedEmails.has(id) && selectedEmails.size >= 1 && !requirePro('Selecting several emails')) return;
     const newSelected = new Set(selectedEmails);
     if (newSelected.has(id)) {
       newSelected.delete(id);
@@ -48,6 +52,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
     if (selectedEmails.size === visibleEmails.length) {
       setSelectedEmails(new Set());
     } else {
+      if (!requirePro('Select All')) return;
       setSelectedEmails(new Set(visibleEmails.map((e) => e.id)));
     }
   };
@@ -75,6 +80,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
   // Archive rather than delete: a misclassified email can still be found in
   // the Archive folder, so the one-click bulk action is always recoverable.
   const handleArchiveAll = async () => {
+    if (!requirePro('Archive All')) return;
     const confirmMsg = `Move all ${emails.length.toLocaleString()} clutter emails to your Archive folder? You can still find them there later.`;
     if (!confirm(confirmMsg)) return;
 

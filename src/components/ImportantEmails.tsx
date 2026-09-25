@@ -3,6 +3,7 @@ import {
   ChevronLeft, Mail, Paperclip, Clock, Eye, EyeOff, Receipt, ShoppingBag, CalendarClock, ShieldCheck, User, Tag, KeyRound,
   CheckCheck, Archive, Trash2, Loader2, Download, AlertCircle,
 } from 'lucide-react';
+import { useBilling } from '../contexts/BillingContext';
 import type { Email } from '../lib/types';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import RemoveConfirmDialog from './RemoveConfirmDialog';
@@ -144,16 +145,24 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
   const allVisibleSelected = visibleEmails.length > 0 && visibleEmails.every((e) => selected.has(e.id));
   const processing = activeAction !== null;
 
-  const toggleOne = (id: string) =>
+  // Free plan: one email at a time; selecting several and exporting receipts
+  // are Pro features.
+  const { requirePro } = useBilling();
+
+  const toggleOne = (id: string) => {
+    if (!selected.has(id) && selected.size >= 1 && !requirePro('Selecting several emails')) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  };
 
-  const toggleAllVisible = () =>
+  const toggleAllVisible = () => {
+    if (!allVisibleSelected && !requirePro('Select All')) return;
     setSelected(allVisibleSelected ? new Set() : new Set(visibleEmails.map((e) => e.id)));
+  };
 
   // Receipts and invoices here are ones the user picked by hand; the
   // confirmation window names them before anything is removed.
@@ -293,7 +302,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
           </div>
           {verifiedEmails.length > 0 && (
             <button
-              onClick={() => downloadReceiptsCsv(verifiedEmails)}
+              onClick={() => requirePro('Receipt export') && downloadReceiptsCsv(verifiedEmails)}
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-mint-100 text-ink rounded-2xl border-2 border-ink/10 shadow-sm font-semibold flex-shrink-0"
             >
               <Download className="w-4 h-4" />
