@@ -16,7 +16,17 @@ additional_redirect_urls = [
 
 [auth.email]
 enable_signup = true
-enable_confirmations = false
+# New accounts must confirm their email address (emails are sent through
+# Resend via the custom SMTP settings configured in the Supabase dashboard).
+enable_confirmations = true
+
+[auth.email.template.confirmation]
+subject = "Confirm your Eflow account"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Eflow password"
+content_path = "./supabase/templates/recovery.html"
 
 [functions.imap-connect]
 verify_jwt = true
