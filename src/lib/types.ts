@@ -13,6 +13,8 @@ export type Database = {
           connected_account_id: string | null;
           encrypted_password: string | null;
           last_scan: string | null;
+          // Set while a chunked scan is unfinished; cleared when it completes.
+          scan_total: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -23,6 +25,7 @@ export type Database = {
           connected_account_id?: string | null;
           encrypted_password?: string | null;
           last_scan?: string | null;
+          scan_total?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -33,6 +36,7 @@ export type Database = {
           connected_account_id?: string | null;
           encrypted_password?: string | null;
           last_scan?: string | null;
+          scan_total?: number | null;
           created_at?: string;
           updated_at?: string;
         };

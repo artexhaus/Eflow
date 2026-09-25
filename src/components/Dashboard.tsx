@@ -68,6 +68,8 @@ export default function Dashboard() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [scanError, setScanError] = useState('');
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+  // True when picking up a scan that was left unfinished (e.g. the tab closed).
+  const [resumingScan, setResumingScan] = useState(false);
   const [simpleMode, setSimpleMode] = useState(readSimpleMode);
   const [importantStartTab, setImportantStartTab] = useState<'all' | 'verified'>('all');
 
@@ -94,20 +96,36 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user || loading) return;
 
+    // Start the first scan automatically, and pick up any scan that was left
+    // unfinished. Scans run in chunks driven from this page, so closing the tab
+    // pauses them; scan_total stays set on the server until one completes.
     const checkAndAutoScan = async () => {
       const { data: userData } = await supabase
         .from('users')
-        .select('email_provider, connected_account_id, last_scan')
+        .select('email_provider, connected_account_id, last_scan, scan_total')
         .eq('id', user.id)
         .maybeSingle();
 
-      if (userData?.connected_account_id && !userData?.last_scan) {
+      const unfinished = userData?.scan_total != null;
+      if (userData?.connected_account_id && (!userData?.last_scan || unfinished)) {
+        setResumingScan(unfinished);
         simulateScan();
       }
     };
 
     checkAndAutoScan();
   }, [user, loading]);
+
+  // Closing the tab pauses a scan, so ask first while one is running.
+  useEffect(() => {
+    if (!scanning) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [scanning]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -225,6 +243,7 @@ export default function Dashboard() {
       setScanError((error as Error).message);
     } finally {
       setScanning(false);
+      setResumingScan(false);
       setScanProgress(null);
     }
   };
@@ -290,17 +309,20 @@ export default function Dashboard() {
               }}
               aria-label={simpleMode ? 'Eflow home (Simple view)' : 'Eflow home (dashboard)'}
               title="Back to home"
-              className="group flex items-center space-x-3 rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-ocean-300"
+              className="group flex items-center space-x-2 min-[360px]:space-x-3 rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-ocean-300"
             >
               <div className="w-10 h-10 bg-mint-200 rounded-2xl flex items-center justify-center group-hover:-rotate-6 group-hover:bg-mint-300 transition">
                 <Mail className="w-6 h-6 text-ink" />
               </div>
-              <SpeedLogo className="text-2xl" />
+              <SpeedLogo className="text-xl sm:text-2xl" />
             </a>
-            <div className="flex items-center space-x-5">
+            {/* On phones: badge + icon-only view toggle and sign out, so all of
+                it fits a 375px screen (Upgrade lives in the badge's account page
+                and the dashboard's upgrade block there). */}
+            <div className="flex items-center gap-2 min-[360px]:gap-3 sm:gap-5">
             <button
               onClick={() => setCurrentScreen('account')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl border-2 border-ink/10 shadow-sm font-display font-semibold text-sm text-ink transition ${
+              className={`flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-2xl border-2 border-ink/10 shadow-sm font-display font-semibold text-sm text-ink whitespace-nowrap transition ${
                 billing.isPro ? 'bg-mint-200 hover:bg-mint-300' : 'bg-sunny-200 hover:bg-sunny-300'
               }`}
               title="Your plan and usage"
@@ -319,7 +341,7 @@ export default function Dashboard() {
             {!billing.isPro && !billing.loading && (
               <button
                 onClick={() => billing.openPricing()}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl border-2 border-ink/10 shadow-sm font-display font-semibold text-sm text-ink bg-ocean-200 hover:bg-ocean-300 transition"
+                className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl border-2 border-ink/10 shadow-sm font-display font-semibold text-sm text-ink bg-ocean-200 hover:bg-ocean-300 transition"
               >
                 <Sparkles className="w-4 h-4" />
                 <span>Upgrade</span>
@@ -327,7 +349,8 @@ export default function Dashboard() {
             )}
             <button
               onClick={toggleSimpleMode}
-              className="flex items-center space-x-2 text-ink/75 hover:text-ink transition"
+              aria-label={simpleMode ? 'Show all tools' : 'Switch to Simple view'}
+              className="flex items-center space-x-2 p-1 text-ink/75 hover:text-ink transition"
             >
               {simpleMode ? <LayoutGrid className="w-5 h-5" /> : <Smile className="w-5 h-5" />}
               <span className="hidden sm:inline text-sm font-medium">{simpleMode ? 'All tools' : 'Simple view'}</span>
@@ -341,7 +364,8 @@ export default function Dashboard() {
                   alert('Failed to sign out. Please try again.');
                 }
               }}
-              className="flex items-center space-x-2 text-ink/75 hover:text-ink transition"
+              aria-label="Sign out"
+              className="flex items-center space-x-2 p-1 text-ink/75 hover:text-ink transition"
             >
               <LogOut className="w-5 h-5" />
               <span className="hidden sm:inline text-sm font-medium">Sign Out</span>
@@ -372,12 +396,21 @@ export default function Dashboard() {
           )}
 
           {scanError && (
-            <div className="mb-6 bg-berry-50 border border-berry-200 rounded-2xl p-4 flex items-start space-x-3">
+            <div className="mb-6 bg-berry-50 border-2 border-berry-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-start gap-3">
               <AlertCircle className="w-5 h-5 text-berry-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-berry-900">Scan failed</p>
+              <div className="flex-1">
+                <p className="font-medium text-berry-900">Scan paused</p>
                 <p className="text-sm text-berry-700">{scanError}</p>
+                <p className="text-sm text-berry-700">Your progress is saved - continue to pick up where it stopped.</p>
               </div>
+              <button
+                onClick={simulateScan}
+                disabled={scanning}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-white hover:bg-berry-100 text-ink rounded-xl border-2 border-ink/10 shadow-sm font-semibold text-sm disabled:opacity-50"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Continue scan</span>
+              </button>
             </div>
           )}
 
@@ -408,8 +441,13 @@ export default function Dashboard() {
             <div className="mb-6 bg-ocean-50 border border-ocean-200 rounded-2xl p-6">
               <div className="flex items-center space-x-3 mb-3">
                 <RefreshCw className="w-5 h-5 text-ocean-600 animate-spin" />
-                <p className="font-medium text-ocean-900">Scanning your entire inbox...</p>
+                <p className="font-medium text-ocean-900">
+                  {resumingScan ? 'Picking up your scan where it left off...' : 'Scanning your entire inbox...'}
+                </p>
               </div>
+              <p className="text-sm font-semibold text-ocean-900 mb-2">
+                Keep this tab open until it finishes. You can keep using Eflow meanwhile.
+              </p>
               {scanProgress && scanProgress.totalInInbox > 0 ? (
                 <>
                   <div className="w-full bg-ocean-100 rounded-full h-2 mb-2 overflow-hidden">

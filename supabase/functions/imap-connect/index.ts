@@ -9,6 +9,30 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+// Wording for login errors, so each provider's users get their own instructions.
+const providerHelp: Record<string, { name: string; passwordPage: string; tip: string }> = {
+  gmail: {
+    name: "Gmail",
+    passwordPage: "Google Account > Security > App passwords",
+    tip: "IMAP must also be on: Gmail Settings > See all settings > Forwarding and POP/IMAP > Enable IMAP.",
+  },
+  yahoo: {
+    name: "Yahoo",
+    passwordPage: "Yahoo Account Security > Generate app password",
+    tip: "Two-step verification must be turned on before Yahoo lets you create an app password.",
+  },
+  outlook: {
+    name: "Outlook",
+    passwordPage: "Microsoft account > Security > Advanced security options > App passwords",
+    tip: "Two-step verification must be on. Some Outlook.com accounts no longer allow app passwords for mail apps.",
+  },
+  icloud: {
+    name: "iCloud",
+    passwordPage: "account.apple.com > Sign-In and Security > App-Specific Passwords",
+    tip: "Use your full @icloud.com (or @me.com) address, not a Gmail or other address linked to your Apple Account.",
+  },
+};
+
 const imapHosts: Record<string, { host: string; port: number }> = {
   gmail: { host: "imap.gmail.com", port: 993 },
   outlook: { host: "outlook.office365.com", port: 993 },
@@ -51,7 +75,8 @@ Deno.serve(async (req) => {
     }
 
     const { host, port } = imapHosts[provider];
-    const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+    const help = providerHelp[provider];
+    const providerName = help.name;
 
     const client = new ImapFlow({
       host,
@@ -73,11 +98,11 @@ Deno.serve(async (req) => {
 
       let friendlyError: string;
       if (errMsg.includes("Authentication") || errMsg.toLowerCase().includes("auth") || errMsg.toLowerCase().includes("password") || errMsg.toLowerCase().includes("credentials") || errMsg.includes("INVALID")) {
-        friendlyError = `Authentication failed. Please double-check: (1) your full Yahoo email address, (2) you are using the app password (not your regular password), (3) the app password was copied correctly without typos.`;
+        friendlyError = `${providerName} didn't accept that login. Please check: (1) your full ${providerName} email address, (2) you're using an app password (${help.passwordPage}), not your regular password, (3) it was copied without typos. ${help.tip}`;
       } else if (errMsg.includes("connect") || errMsg.includes("timeout") || errMsg.includes("ETIMEDOUT") || errMsg.includes("ECONNREFUSED")) {
         friendlyError = `Could not reach ${providerName}'s mail server. Please try again.`;
       } else if (errMsg.includes("Command failed")) {
-        friendlyError = `Yahoo rejected the login. Please verify: (1) 2-step verification is ON in Yahoo Account Security, (2) you generated an app password, (3) you are pasting that app password — not your regular Yahoo password. The app password should be 16 characters with no spaces.`;
+        friendlyError = `${providerName} rejected the login. Please make sure you created an app password (${help.passwordPage}) and pasted it here instead of your regular ${providerName} password. ${help.tip}`;
       } else {
         friendlyError = `Connection failed: ${errMsg}`;
       }

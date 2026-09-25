@@ -67,16 +67,26 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
         : `Go Pro for unlimited cleaning, or your free cleans come back on ${resetsOn}.`;
   }
 
+  // Free users: buy the plan in Checkout. Pro users: their current plan is
+  // shown as "Your plan", and the other one switches via the Customer Portal
+  // (which handles proration) instead of starting a second subscription.
   const planButton = (plan: Plan, label: string, tone: string) => {
     const isCurrent = currentPlan === plan;
+    const isSwitch = isPro && !isCurrent;
+    const working = isSwitch ? busy === 'portal' : busy === plan;
+    let text = label;
+    if (isCurrent) text = 'Your plan';
+    else if (isSwitch) text = working ? 'Opening...' : `Switch to ${plan === 'annual' ? 'yearly' : 'monthly'}`;
+    else if (working) text = 'Opening checkout...';
+
     return (
       <button
-        onClick={() => choose(plan)}
-        disabled={busy !== null || isPro}
+        onClick={() => (isSwitch ? manage() : choose(plan))}
+        disabled={busy !== null || isCurrent}
         className={`w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-lg font-display font-semibold border-2 border-ink/15 shadow-lg transition disabled:opacity-60 ${tone}`}
       >
-        {busy === plan && <Loader2 className="w-5 h-5 animate-spin" />}
-        <span>{isCurrent ? 'Your plan' : busy === plan ? 'Opening checkout...' : label}</span>
+        {working && <Loader2 className="w-5 h-5 animate-spin" />}
+        <span>{text}</span>
       </button>
     );
   };
