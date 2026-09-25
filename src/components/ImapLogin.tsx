@@ -71,44 +71,10 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
         throw new Error('Please enter both your email and app password');
       }
 
-      let user = await getCurrentUser();
-
-      if (!user) {
-        const demoEmail = `demo@${provider}.com`;
-        const demoPassword = 'demo123456';
-
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
-          email: demoEmail,
-          password: demoPassword,
-        });
-
-        if (authError) {
-          // Account doesn't exist yet, create it
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email: demoEmail,
-            password: demoPassword,
-          });
-
-          if (signUpError) {
-            throw new Error(`Failed to create account: ${signUpError.message}`);
-          }
-
-          if (signUpData.user) {
-            // Create the users table row
-            await supabase.from('users').insert({
-              id: signUpData.user.id,
-              email: signUpData.user.email || demoEmail,
-              email_provider: provider,
-            });
-          }
-
-          user = signUpData.user ?? undefined;
-        } else if (data.user) {
-          user = data.user;
-        }
-      }
-
-      if (!user) throw new Error('Failed to authenticate user');
+      // The mailbox is attached to the signed-in Eflow account (each person
+      // has their own; there is no shared/demo account).
+      const user = await getCurrentUser();
+      if (!user) throw new Error('Your session expired. Please sign in again, then connect your mailbox.');
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session found');

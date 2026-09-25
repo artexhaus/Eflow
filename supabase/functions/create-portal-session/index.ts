@@ -47,7 +47,10 @@ Deno.serve(async (req) => {
     // STRIPE_PORTAL_CONFIGURATION (set by scripts/setup-stripe.sh) picks the
     // portal settings: card updates, monthly/yearly switching, cancelling.
     const configuration = Deno.env.get("STRIPE_PORTAL_CONFIGURATION") || undefined;
-    const session = await getStripe().billingPortal.sessions.create({
+    const stripe = getStripe();
+    // Keep Stripe's receipts going to the account's current email.
+    if (user.email) await stripe.customers.update(data.stripe_customer_id, { email: user.email });
+    const session = await stripe.billingPortal.sessions.create({
       customer: data.stripe_customer_id,
       return_url: `${getAppUrl(req)}/?portal=return`,
       configuration,

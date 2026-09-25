@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { ChevronLeft, Crown, Loader2, Settings, Sparkles, AlertCircle, UserRound } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useBilling } from '../contexts/BillingContext';
+import AccountControls from './AccountControls';
 import { FREE_MONTHLY_LIMIT, PRICES, formatResetDate, openBillingPortal } from '../lib/billing';
 
 interface AccountScreenProps {
   onBack: () => void;
+  onMailboxDisconnected: () => void;
 }
 
 const formatDate = (iso: string | Date) =>
   new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
 
-export default function AccountScreen({ onBack }: AccountScreenProps) {
+export default function AccountScreen({ onBack, onMailboxDisconnected }: AccountScreenProps) {
   const { user } = useAuth();
   const { isPro, subscription, used, loading, openPricing } = useBilling();
   const [openingPortal, setOpeningPortal] = useState(false);
@@ -144,6 +146,8 @@ export default function AccountScreen({ onBack }: AccountScreenProps) {
               </>
             )}
           </div>
+
+          <AccountControls onMailboxDisconnected={onMailboxDisconnected} />
         </div>
       )}
     </div>

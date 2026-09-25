@@ -57,6 +57,10 @@ Deno.serve(async (req) => {
     }
 
     let customerId = existing?.stripe_customer_id ?? null;
+    if (customerId && user.email) {
+      // Keep Stripe's receipts going to the account's current email.
+      await stripe.customers.update(customerId, { email: user.email });
+    }
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,

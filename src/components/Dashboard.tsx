@@ -66,7 +66,12 @@ interface ScanProgress {
   totalInInbox: number;
 }
 
-export default function Dashboard() {
+interface DashboardProps {
+  // Called after the user disconnects their mailbox in Account settings.
+  onMailboxDisconnected: () => void;
+}
+
+export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
   const { user, signOut } = useAuth();
   const billing = useBilling();
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
@@ -635,7 +640,9 @@ export default function Dashboard() {
         />
       )}
 
-      {currentScreen === 'account' && <AccountScreen onBack={() => setCurrentScreen('dashboard')} />}
+      {currentScreen === 'account' && (
+        <AccountScreen onBack={() => setCurrentScreen('dashboard')} onMailboxDisconnected={onMailboxDisconnected} />
+      )}
 
       {currentScreen === 'senders' && (
         <SendersList
