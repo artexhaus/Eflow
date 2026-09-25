@@ -52,6 +52,15 @@ function readSimpleMode(): boolean {
   }
 }
 
+// Friendly lines shown (in rotation) while a scan runs.
+const SCAN_TIPS = [
+  'Hang tight - fetching all your mail...',
+  'Sorting the keepers from the clutter...',
+  'Spotting receipts to keep safe...',
+  'Stacking up your senders...',
+  'Big inboxes take a few minutes - thanks for waiting!',
+];
+
 interface ScanProgress {
   scannedSoFar: number;
   totalInInbox: number;
@@ -70,6 +79,10 @@ export default function Dashboard() {
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   // True when picking up a scan that was left unfinished (e.g. the tab closed).
   const [resumingScan, setResumingScan] = useState(false);
+  // Set while a slow/failed scan step is being retried, so the banner can say
+  // "still working" instead of looking frozen.
+  const [scanRetrying, setScanRetrying] = useState(false);
+  const [scanTip, setScanTip] = useState(0);
   const [simpleMode, setSimpleMode] = useState(readSimpleMode);
   const [importantStartTab, setImportantStartTab] = useState<'all' | 'verified'>('all');
 
@@ -115,6 +128,13 @@ export default function Dashboard() {
 
     checkAndAutoScan();
   }, [user, loading]);
+
+  // Rotate the friendly scanning lines every few seconds.
+  useEffect(() => {
+    if (!scanning) return;
+    const timer = setInterval(() => setScanTip((t) => t + 1), 4000);
+    return () => clearInterval(timer);
+  }, [scanning]);
 
   // Closing the tab pauses a scan, so ask first while one is running.
   useEffect(() => {
@@ -207,8 +227,10 @@ export default function Dashboard() {
           try {
             result = await fetchProviderEmailsChunk();
             consecutiveFailures = 0;
+            setScanRetrying(false);
           } catch (chunkError) {
             consecutiveFailures++;
+            setScanRetrying(true);
             console.error(`Scan chunk failed (attempt ${consecutiveFailures}):`, chunkError);
             if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
               throw chunkError;
@@ -244,6 +266,7 @@ export default function Dashboard() {
     } finally {
       setScanning(false);
       setResumingScan(false);
+      setScanRetrying(false);
       setScanProgress(null);
     }
   };
@@ -254,12 +277,16 @@ export default function Dashboard() {
 
     const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imap-fetch`;
 
+    // A step normally takes seconds. If the mail server stalls, give up after
+    // 90s and let the retry loop try again rather than sitting frozen. The
+    // server keeps its progress, so a retried step never loses emails.
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(90_000),
     });
 
     if (!response.ok) {
@@ -442,7 +469,11 @@ export default function Dashboard() {
               <div className="flex items-center space-x-3 mb-3">
                 <RefreshCw className="w-5 h-5 text-ocean-600 animate-spin" />
                 <p className="font-medium text-ocean-900">
-                  {resumingScan ? 'Picking up your scan where it left off...' : 'Scanning your entire inbox...'}
+                  {scanRetrying
+                    ? 'Hang tight - your mail is taking a little longer, still fetching...'
+                    : resumingScan && scanTip === 0
+                      ? 'Picking up your scan where it left off...'
+                      : SCAN_TIPS[scanTip % SCAN_TIPS.length]}
                 </p>
               </div>
               <p className="text-sm font-semibold text-ocean-900 mb-2">
@@ -464,7 +495,7 @@ export default function Dashboard() {
                 </>
               ) : (
                 <p className="text-sm text-ocean-700">
-                  Fetching all emails from the very beginning. This may take a while if you have thousands of emails.
+                  Getting your inbox ready. Big inboxes can take a few minutes.
                 </p>
               )}
             </div>

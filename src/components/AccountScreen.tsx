@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ChevronLeft, Crown, Loader2, Settings, Sparkles, AlertCircle, UserRound } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useBilling } from '../contexts/BillingContext';
-import { FREE_MONTHLY_LIMIT, PRICES, nextResetDate, openBillingPortal } from '../lib/billing';
+import { FREE_MONTHLY_LIMIT, PRICES, formatResetDate, openBillingPortal } from '../lib/billing';
 
 interface AccountScreenProps {
   onBack: () => void;
@@ -48,7 +48,7 @@ export default function AccountScreen({ onBack }: AccountScreenProps) {
       <h2 className="text-3xl font-bold text-ink mb-1">Your account</h2>
       <p className="text-ink/75 mb-8 flex items-center gap-2">
         <UserRound className="w-4 h-4" />
-        <span>{user?.email}</span>
+        <span className="break-all">{user?.email}</span>
       </p>
 
       {loading ? (
@@ -133,7 +133,7 @@ export default function AccountScreen({ onBack }: AccountScreenProps) {
                   <span>
                     {used.toLocaleString()} of {FREE_MONTHLY_LIMIT} emails cleaned
                   </span>
-                  <span>Resets {formatDate(nextResetDate())}</span>
+                  <span>Resets {formatResetDate({ month: 'long', day: 'numeric', year: 'numeric' })}</span>
                 </div>
                 <div className="h-5 bg-cream rounded-full border-2 border-ink/10 overflow-hidden">
                   <div

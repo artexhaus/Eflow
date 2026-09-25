@@ -389,6 +389,11 @@ Deno.serve(async (req) => {
       // behavior.
       const allUids = (await client.search({ all: true }, { uid: true })) as number[];
       remainingUids = [...allUids].sort((a, b) => b - a);
+      // Progress is measured against the messages this scan will actually
+      // read. The folder's STATUS count can differ (Yahoo reported a flat
+      // 10,000 for a folder whose list held ~3,000), which left the bar
+      // stuck at a third even after the scan had finished.
+      totalMessages = remainingUids.length;
 
       // Starting a brand-new scan (or UIDVALIDITY changed): wipe previous results
       await supabase.from("emails").delete().eq("user_id", user.id);

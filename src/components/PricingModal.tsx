@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Loader2, X, Sparkles, Star, Blocks, Settings } from 'lucide-react';
 import { useBilling } from '../contexts/BillingContext';
-import { BillingError, FREE_MONTHLY_LIMIT, PRICES, nextResetDate, openBillingPortal, startCheckout, type Plan } from '../lib/billing';
+import { BillingError, FREE_MONTHLY_LIMIT, PRICES, formatResetDate, openBillingPortal, startCheckout, type Plan } from '../lib/billing';
 
 export type PricingReason =
   | { kind: 'upgrade' }
@@ -55,7 +55,7 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
 
   const currentPlan = isPro ? subscription?.plan ?? 'monthly' : 'free';
   const usedPct = Math.min(100, Math.round((used / FREE_MONTHLY_LIMIT) * 100));
-  const resetsOn = nextResetDate().toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+  const resetsOn = formatResetDate();
 
   let title = 'Pick your plan';
   let subtitle = 'Keep your inbox tidy with a plan that fits.';

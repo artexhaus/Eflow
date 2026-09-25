@@ -301,7 +301,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                         {group.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline space-x-2">
+                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2 min-w-0">
                           <h3 className="font-semibold text-ink truncate">{group.name}</h3>
                           <span className="text-sm text-ink/70 truncate">{group.sender}</span>
                         </div>
@@ -333,7 +333,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                       </div>
                     </label>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 md:flex-shrink-0">
                       <UnsubscribeButton group={group} status={senderActions[group.key]} onStatus={setStatus} disabled={busy !== null} />
                       <button
                         onClick={() => handleMailAction(group, 'archive')}

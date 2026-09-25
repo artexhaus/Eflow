@@ -29,6 +29,12 @@ export function nextResetDate(now = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 }
 
+// The reset instant is midnight UTC on the 1st; format it in UTC so users west
+// of UTC see "October 1", not the local "September 30".
+export function formatResetDate(options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric' }): string {
+  return nextResetDate().toLocaleDateString(undefined, { ...options, timeZone: 'UTC' });
+}
+
 export class BillingError extends Error {
   constructor(message: string, public code?: string) {
     super(message);
