@@ -9,6 +9,8 @@ interface AuthContextType {
   loading: boolean;
   // True after the user opened a password-reset link: show "set a new password".
   recoveringPassword: boolean;
+  // Set when an email link was expired or already used, to explain on sign-in.
+  emailLinkError: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<SignUpResult>;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -23,12 +25,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [recoveringPassword, setRecoveringPassword] = useState(false);
+  const [emailLinkError, setEmailLinkError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Email links point at our own domain (/auth/confirm?token_hash=...&type=...)
+    // rather than at Supabase, which reads as spam to mail providers. Finish the
+    // confirmation / recovery here, then continue as normal.
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get('token_hash');
+    const type = params.get('type');
+    if (window.location.pathname === '/auth/confirm' && tokenHash && (type === 'email' || type === 'recovery')) {
+      window.history.replaceState({}, '', '/');
+      supabase.auth.verifyOtp({ token_hash: tokenHash, type }).then(({ data, error }) => {
+        if (error) {
+          console.error('Email link could not be verified:', error.message);
+          setEmailLinkError(
+            type === 'recovery'
+              ? 'That reset link has expired or was already used. Request a new one below.'
+              : 'That confirmation link has expired or was already used. Sign in, or create your account again to get a new link.'
+          );
+        }
+        if (!error && type === 'recovery') setRecoveringPassword(true);
+        setUser(data.session?.user ?? null);
+        setLoading(false);
+      });
+    } else {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      });
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // The reset-password email link signs the user in with a recovery
@@ -93,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         recoveringPassword,
+        emailLinkError,
         signIn,
         signUp,
         sendPasswordReset,

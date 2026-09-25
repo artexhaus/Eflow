@@ -5,7 +5,7 @@ enable_signup = true
 # Where Supabase sends people back after sign-up confirmation and password
 # reset links. The app always asks to return to the page it's running on, and
 # only addresses on this list are allowed.
-site_url = "https://eflowapp.org"
+site_url = "https://www.eflowapp.org"
 additional_redirect_urls = [
   "http://localhost:5173",
   "http://localhost:5173/**",

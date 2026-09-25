@@ -22,12 +22,12 @@ function friendlyAuthError(message: string): string {
 }
 
 export default function SignIn() {
-  const { signIn, signUp, sendPasswordReset } = useAuth();
+  const { signIn, signUp, sendPasswordReset, emailLinkError } = useAuth();
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(emailLinkError ?? '');
   const [notice, setNotice] = useState('');
 
   const switchMode = (next: Mode) => {
