@@ -3,6 +3,8 @@ import { Mail, Lock, Loader2, AlertCircle, CheckCircle, ChevronLeft } from 'luci
 import { useAuth } from '../contexts/AuthContext';
 import SpeedLogo from './SpeedLogo';
 import LegalLinks from './LegalLinks';
+import LanguageToggle from './LanguageToggle';
+import { t, tKnown, useI18n } from '../lib/i18n';
 
 type Mode = 'signin' | 'signup' | 'forgot';
 
@@ -11,18 +13,19 @@ const MIN_PASSWORD = 8;
 // Supabase's messages are technical; say what the user should do instead.
 function friendlyAuthError(message: string): string {
   const m = message.toLowerCase();
-  if (m.includes('invalid login credentials')) return "That email and password don't match. Try again or reset your password.";
+  if (m.includes('invalid login credentials')) return t("That email and password don't match. Try again or reset your password.");
   if (m.includes('already registered') || m.includes('already been registered')) {
-    return 'An account with this email already exists. Sign in instead.';
+    return t('An account with this email already exists. Sign in instead.');
   }
-  if (m.includes('email not confirmed')) return 'Please confirm your email first - check your inbox for the link we sent.';
-  if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts. Please wait a minute and try again.';
-  if (m.includes('password')) return message;
-  return 'Something went wrong. Please try again.';
+  if (m.includes('email not confirmed')) return t('Please confirm your email first - check your inbox for the link we sent.');
+  if (m.includes('rate limit') || m.includes('too many')) return t('Too many attempts. Please wait a minute and try again.');
+  if (m.includes('password')) return tKnown(message);
+  return t('Something went wrong. Please try again.');
 }
 
 export default function SignIn() {
   const { signIn, signUp, sendPasswordReset, emailLinkError } = useAuth();
+  useI18n();
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,7 +44,7 @@ export default function SignIn() {
     setError('');
     setNotice('');
     if (mode !== 'forgot' && password.length < MIN_PASSWORD) {
-      setError(`Passwords need at least ${MIN_PASSWORD} characters.`);
+      setError(t('Passwords need at least {n} characters.', { n: MIN_PASSWORD }));
       return;
     }
     setBusy(true);
@@ -51,7 +54,7 @@ export default function SignIn() {
       } else if (mode === 'signup') {
         const result = await signUp(email, password);
         if (result === 'confirm_email') {
-          setNotice(`Almost there! We sent a confirmation link to ${email.trim()}. Open it, then sign in here.`);
+          setNotice(t('Almost there! We sent a confirmation link to {email}. Open it, then sign in here.', { email: email.trim() }));
           setMode('signin');
           setPassword('');
         }
@@ -59,7 +62,7 @@ export default function SignIn() {
         await sendPasswordReset(email);
         // Same message whether or not the account exists, so this form can't
         // be used to discover who has an account.
-        setNotice(`If an account exists for ${email.trim()}, a reset link is on its way. Check your inbox (and spam).`);
+        setNotice(t('If an account exists for {email}, a reset link is on its way. Check your inbox (and spam).', { email: email.trim() }));
       }
     } catch (err) {
       setError(friendlyAuthError((err as Error).message));
@@ -68,11 +71,12 @@ export default function SignIn() {
     }
   };
 
-  const title = mode === 'signup' ? 'Create your account' : mode === 'forgot' ? 'Reset your password' : 'Welcome back';
-  const button = mode === 'signup' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : 'Sign in';
+  const title = mode === 'signup' ? t('Create your account') : mode === 'forgot' ? t('Reset your password') : t('Welcome back');
+  const button = mode === 'signup' ? t('Create account') : mode === 'forgot' ? t('Send reset link') : t('Sign in');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-mint-100 via-sunny-100 to-berry-100 flex items-center justify-center p-4">
+    <div className="relative min-h-screen bg-gradient-to-br from-mint-100 via-sunny-100 to-berry-100 flex items-center justify-center p-4 pt-16">
+      <LanguageToggle className="absolute top-4 right-4" />
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-mint-200 rounded-3xl mb-4 shadow-2xl">
@@ -81,7 +85,7 @@ export default function SignIn() {
           <div>
             <SpeedLogo className="text-4xl -ml-[1.4em]" />
           </div>
-          <p className="text-lg text-ink/75 mt-2">Reset your inbox. Automatically.</p>
+          <p className="text-lg text-ink/75 mt-2">{t('Reset your inbox. Automatically.')}</p>
         </div>
 
         <div className="bg-white rounded-3xl shadow-2xl border-2 border-ink/10 p-6 sm:p-8">
@@ -97,7 +101,7 @@ export default function SignIn() {
                     mode === m ? 'bg-mint-200 text-ink shadow-sm' : 'text-ink/70 hover:text-ink'
                   }`}
                 >
-                  {m === 'signin' ? 'Sign in' : 'Create account'}
+                  {m === 'signin' ? t('Sign in') : t('Create account')}
                 </button>
               ))}
             </div>
@@ -109,22 +113,22 @@ export default function SignIn() {
               className="flex items-center gap-1 text-ink/75 hover:text-ink mb-4 text-sm font-medium"
             >
               <ChevronLeft className="w-4 h-4" />
-              <span>Back to sign in</span>
+              <span>{t('Back to sign in')}</span>
             </button>
           )}
 
           <h1 className="font-display text-2xl font-bold text-ink mb-1">{title}</h1>
           <p className="text-ink/70 mb-6">
             {mode === 'signup'
-              ? 'Your Eflow account keeps your settings, receipts and plan in one place.'
+              ? t('Your Eflow account keeps your settings, receipts and plan in one place.')
               : mode === 'forgot'
-                ? "Enter your email and we'll send you a link to choose a new password."
-                : 'Sign in to keep tidying your inbox.'}
+                ? t("Enter your email and we'll send you a link to choose a new password.")
+                : t('Sign in to keep tidying your inbox.')}
           </p>
 
           <form onSubmit={submit} className="space-y-4">
             <label className="block">
-              <span className="block text-sm font-semibold text-ink/85 mb-1">Email</span>
+              <span className="block text-sm font-semibold text-ink/85 mb-1">{t('Email')}</span>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink/40" />
                 <input
@@ -133,7 +137,7 @@ export default function SignIn() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder={t('you@example.com')}
                   className="w-full pl-10 pr-4 py-3 border-2 border-ink/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-mint-400"
                 />
               </div>
@@ -142,14 +146,14 @@ export default function SignIn() {
             {mode !== 'forgot' && (
               <label className="block">
                 <span className="flex justify-between text-sm font-semibold text-ink/85 mb-1">
-                  <span>Password</span>
+                  <span>{t('Password')}</span>
                   {mode === 'signin' && (
                     <button
                       type="button"
                       onClick={() => switchMode('forgot')}
                       className="font-semibold text-ocean-700 hover:text-ocean-900"
                     >
-                      Forgot password?
+                      {t('Forgot password?')}
                     </button>
                   )}
                 </span>
@@ -162,13 +166,13 @@ export default function SignIn() {
                     autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder={mode === 'signup' ? `At least ${MIN_PASSWORD} characters` : 'Your password'}
+                    placeholder={mode === 'signup' ? t('At least {n} characters', { n: MIN_PASSWORD }) : t('Your password')}
                     className="w-full pl-10 pr-4 py-3 border-2 border-ink/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-mint-400"
                   />
                 </div>
                 {mode === 'signup' && (
                   <span className="block text-xs text-ink/60 mt-1">
-                    This is your Eflow password - not your email account's password.
+                    {t("This is your Eflow password - not your email account's password.")}
                   </span>
                 )}
               </label>
@@ -199,8 +203,9 @@ export default function SignIn() {
 
           {mode === 'signup' && (
             <p className="text-xs text-ink/60 text-center mt-4">
-              By creating an account you agree to the <a href="/terms" className="underline">Terms of Service</a> and{' '}
-              <a href="/privacy" className="underline">Privacy Policy</a>.
+              {t('By creating an account you agree to the')}{' '}
+              <a href="/terms" className="underline">{t('Terms of Service')}</a> {t('and')}{' '}
+              <a href="/privacy" className="underline">{t('Privacy Policy')}</a>.
             </p>
           )}
         </div>

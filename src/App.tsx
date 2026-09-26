@@ -8,13 +8,15 @@ import LegalPage, { legalPageForPath } from './components/LegalPage';
 import { BillingProvider } from './contexts/BillingContext';
 import MailActionOverlay from './components/MailActionOverlay';
 import { supabase } from './lib/supabase';
+import { useI18n } from './lib/i18n';
 
 function Loading() {
+  const { t } = useI18n();
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="inline-block w-8 h-8 border-4 border-mint-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-ink/75">Loading...</p>
+        <p className="text-ink/75">{t('Loading...')}</p>
       </div>
     </div>
   );

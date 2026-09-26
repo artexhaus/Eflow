@@ -10,6 +10,7 @@ export const LEGAL = {
   // TODO before launch: the state/country whose laws govern the Terms - usually
   // where Artexhaus is registered, e.g. 'the State of Delaware, United States'.
   governingLaw: '[STATE], United States',
-  // "Last updated" date shown on every legal page.
-  effectiveDate: 'September 25, 2026',
+  // "Last updated" date shown on every legal page (YYYY-MM-DD; shown in the
+  // reader's language).
+  effectiveDate: '2026-09-25',
 } as const;

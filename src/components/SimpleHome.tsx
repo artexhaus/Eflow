@@ -5,6 +5,7 @@ import UpgradeBanner from './UpgradeBanner';
 import CleanUpJunkCard from './CleanUpJunkCard';
 import SuspiciousAlert from './SuspiciousAlert';
 import type { Email } from '../lib/types';
+import { useI18n } from '../lib/i18n';
 
 interface SimpleHomeProps {
   emails: Email[];
@@ -25,22 +26,23 @@ export default function SimpleHome({
   onRefresh,
   onShowAllTools,
 }: SimpleHomeProps) {
+  const { t, plural } = useI18n();
   const verifiedCount = useMemo(() => emails.filter((e) => e.is_protected).length, [emails]);
   const topSender = useMemo(() => groupBySender(emails)[0], [emails]);
 
   if (emails.length === 0) {
     return (
-      <div className="bg-white rounded-3xl shadow-sm p-10 text-center border-2 border-ink/10">
+      <div className="bg-white border-2 border-mint-200 border-t-[10px] border-t-mint-300 rounded-3xl shadow-sm p-10 text-center">
         <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h2 className="font-display text-2xl font-bold text-ink mb-2">Let's look at your inbox</h2>
-        <p className="text-lg text-ink/75 mb-8">We'll sort everything so you only see what matters.</p>
+        <h2 className="font-display text-2xl font-bold text-ink mb-2">{t("Let's look at your inbox")}</h2>
+        <p className="text-lg text-ink/75 mb-8">{t("We'll sort everything so you only see what matters.")}</p>
         <button
           onClick={onScan}
           disabled={scanning}
           className="inline-flex items-center space-x-3 bg-mint-200 text-ink px-8 py-5 rounded-2xl text-xl font-bold shadow-lg disabled:opacity-60"
         >
           <RefreshCw className={scanning ? 'w-6 h-6 animate-spin' : 'w-6 h-6'} />
-          <span>{scanning ? 'Looking...' : 'Look at my inbox'}</span>
+          <span>{scanning ? t('Looking...') : t('Look at my inbox')}</span>
         </button>
       </div>
     );
@@ -49,8 +51,8 @@ export default function SimpleHome({
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h2 className="font-display text-3xl font-bold text-ink mb-1">Let's tidy your inbox</h2>
-        <p className="text-lg text-ink/75">{emails.length.toLocaleString()} emails in your inbox right now</p>
+        <h2 className="font-display text-3xl font-bold text-ink mb-1">{t("Let's tidy your inbox")}</h2>
+        <p className="text-lg text-ink/75">{plural(emails.length, '{n} email in your inbox right now', '{n} emails in your inbox right now')}</p>
       </div>
 
       <SuspiciousAlert emails={emails} onRefresh={onRefresh} />
@@ -66,12 +68,12 @@ export default function SimpleHome({
           <div className="w-14 h-14 bg-white/80 rounded-2xl flex items-center justify-center mb-4 shadow-sm rotate-6">
             <ShieldCheck className="w-8 h-8 text-mint-600" />
           </div>
-          <div className="font-display text-2xl font-bold text-ink mb-1">Paid & Verified</div>
+          <div className="font-display text-2xl font-bold text-ink mb-1">{t('Paid & Verified')}</div>
           <div className="text-lg text-ink/75 mb-3">
-            {verifiedCount.toLocaleString()} receipts & invoices safely filed
+            {plural(verifiedCount, '{n} receipt or invoice safely filed', '{n} receipts & invoices safely filed')}
           </div>
           <div className="flex items-center text-mint-700 font-semibold">
-            <span>Always protected</span>
+            <span>{t('Always protected')}</span>
             <ChevronRight className="w-5 h-5" />
           </div>
         </button>
@@ -83,14 +85,14 @@ export default function SimpleHome({
           <div className="w-14 h-14 bg-white/80 rounded-2xl flex items-center justify-center mb-4 shadow-sm -rotate-6">
             <Users className="w-8 h-8 text-berry-700" />
           </div>
-          <div className="font-display text-2xl font-bold text-ink mb-1">Who emails you most</div>
+          <div className="font-display text-2xl font-bold text-ink mb-1">{t('Who emails you most')}</div>
           <div className="text-lg text-ink/75 mb-3 truncate">
             {topSender
-              ? `${topSender.name} sent ${topSender.count.toLocaleString()}`
-              : 'See everyone who writes to you'}
+              ? t('{name} sent {n}', { name: topSender.name, n: topSender.count })
+              : t('See everyone who writes to you')}
           </div>
           <div className="flex items-center text-berry-800 font-semibold">
-            <span>Stop the ones you don't want</span>
+            <span>{t("Stop the ones you don't want")}</span>
             <ChevronRight className="w-5 h-5" />
           </div>
         </button>
@@ -100,7 +102,7 @@ export default function SimpleHome({
 
       <div className="text-center pt-2">
         <button onClick={onShowAllTools} className="text-ink/70 hover:text-ink underline underline-offset-4">
-          Show all tools
+          {t('Show all tools')}
         </button>
       </div>
     </div>

@@ -17,6 +17,7 @@ import { useBilling } from '../contexts/BillingContext';
 import type { Email } from '../lib/types';
 import UnsubscribeButton from './UnsubscribeButton';
 import { useSenderActions } from '../hooks/useSenderActions';
+import { t, plural, tKnown, timeAgo, useI18n } from '../lib/i18n';
 
 interface SendersListProps {
   emails: Email[];
@@ -31,16 +32,8 @@ type RowMessage = { tone: 'error' | 'info'; text: string };
 
 const PAGE_SIZE = 50;
 
-function formatTime(timestamp: string) {
-  const diffDays = Math.floor((Date.now() - new Date(timestamp).getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays < 1) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 30) return `${diffDays} days ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-  return `${Math.floor(diffDays / 365)} years ago`;
-}
-
 export default function SendersList({ emails, simple = false, onBack, onRefresh }: SendersListProps) {
+  useI18n();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [includeOneOffs, setIncludeOneOffs] = useState(false);
@@ -78,8 +71,10 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
     if (
       action === 'delete' &&
       !confirm(
-        `Permanently delete ${(group.count - group.protectedCount).toLocaleString()} emails from ${group.name}? This cannot be undone.` +
-          (group.protectedCount > 0 ? ` Their ${group.protectedCount.toLocaleString()} receipts and invoices will be kept.` : '')
+        plural(group.count - group.protectedCount, 'Permanently delete {n} email from {name}? This cannot be undone.', 'Permanently delete {n} emails from {name}? This cannot be undone.', { name: group.name }) +
+          (group.protectedCount > 0
+            ? ` ${plural(group.protectedCount, 'Their {n} receipt or invoice will be kept.', 'Their {n} receipts and invoices will be kept.')}`
+            : '')
       )
     ) {
       return;
@@ -88,11 +83,11 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
     setBusy({ key: group.key, action });
     setMessage(group.key, null);
     try {
-      const result = await applyMailAction(action, { sender: group.sender }, { label: `emails from ${group.name}` });
+      const result = await applyMailAction(action, { sender: group.sender }, { label: t('emails from {name}', { name: group.name }) });
       if (result.failed > 0) setMessage(group.key, { tone: 'error', text: describePartialFailure(result) });
       await onRefresh();
     } catch (err) {
-      setMessage(group.key, { tone: 'error', text: (err as Error).message });
+      setMessage(group.key, { tone: 'error', text: tKnown((err as Error).message) });
     } finally {
       setBusy(null);
     }
@@ -108,7 +103,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
   const { requirePro } = useBilling();
 
   const toggleSelected = (key: string) => {
-    if (!selected.has(key) && selected.size >= 1 && !requirePro('Selecting several senders')) return;
+    if (!selected.has(key) && selected.size >= 1 && !requirePro(t('Selecting several senders'))) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -118,7 +113,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
   };
 
   const toggleAllVisible = () => {
-    if (!allVisibleSelected && !requirePro('Select all senders')) return;
+    if (!allVisibleSelected && !requirePro(t('Select all senders'))) return;
     setSelected((prev) => {
       const next = new Set(prev);
       for (const g of visible) {
@@ -135,15 +130,16 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
   const handleBulkAction = async (action: 'archive' | 'delete') => {
     if (selectedGroups.length === 0) return;
     const removable = selectedEmailCount - selectedProtectedCount;
-    const senderLabel = `${selectedGroups.length.toLocaleString()} sender${selectedGroups.length === 1 ? '' : 's'}`;
+    const senderLabel = plural(selectedGroups.length, '{n} sender', '{n} senders');
     const keptNote =
       selectedProtectedCount > 0
-        ? ` ${selectedProtectedCount.toLocaleString()} receipts and invoices will be kept.`
+        ? ` ${plural(selectedProtectedCount, '{n} receipt or invoice will be kept.', '{n} receipts and invoices will be kept.')}`
         : '';
     const prompt =
-      action === 'delete'
-        ? `Permanently delete ${removable.toLocaleString()} emails from ${senderLabel}? This cannot be undone.${keptNote}`
-        : `Move ${removable.toLocaleString()} emails from ${senderLabel} to your Archive folder?${keptNote}`;
+      (action === 'delete'
+        ? plural(removable, 'Permanently delete {n} email from {name}? This cannot be undone.', 'Permanently delete {n} emails from {name}? This cannot be undone.', { name: senderLabel })
+        : plural(removable, 'Move {n} email from {name} to your Archive folder?', 'Move {n} emails from {name} to your Archive folder?', { name: senderLabel })) +
+      keptNote;
     if (!confirm(prompt)) return;
 
     const keys = new Set(selectedGroups.map((g) => g.key));
@@ -153,17 +149,19 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
     setBulkMessage(null);
     try {
       const result = await applyMailAction(action, { emailIds });
-      const verb = action === 'delete' ? 'Deleted' : 'Archived';
-      let text = `${verb} ${result.processed.toLocaleString()} emails from ${senderLabel}.`;
+      let text =
+        action === 'delete'
+          ? plural(result.processed, 'Deleted {n} email from {name}.', 'Deleted {n} emails from {name}.', { name: senderLabel })
+          : plural(result.processed, 'Archived {n} email from {name}.', 'Archived {n} emails from {name}.', { name: senderLabel });
       if (result.protectedSkipped > 0) {
-        text += ` ${result.protectedSkipped.toLocaleString()} receipts and invoices were kept safe.`;
+        text += ` ${plural(result.protectedSkipped, '{n} receipt or invoice was kept safe.', '{n} receipts and invoices were kept safe.')}`;
       }
       if (result.failed > 0) text += ` ${describePartialFailure(result)}`;
       setBulkMessage({ tone: result.failed > 0 ? 'error' : 'info', text });
       setSelected(new Set());
       await onRefresh();
     } catch (err) {
-      setBulkMessage({ tone: 'error', text: (err as Error).message });
+      setBulkMessage({ tone: 'error', text: tKnown((err as Error).message) });
     } finally {
       setBusy(null);
     }
@@ -176,13 +174,13 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
         className="flex items-center space-x-2 text-ink/75 hover:text-ink mb-6 transition"
       >
         <ChevronLeft className="w-5 h-5" />
-        <span className="font-medium">Back to Dashboard</span>
+        <span className="font-medium">{t('Back to Dashboard')}</span>
       </button>
 
       <div className="mb-6">
-        <h2 className="font-display text-3xl font-bold text-ink mb-2">Senders</h2>
+        <h2 className="font-display text-3xl font-bold text-ink mb-2">{t('Senders')}</h2>
         <p className="text-ink/75">
-          Everyone who emails you, biggest first. Unsubscribe, then clear out everything they already sent in one click.
+          {t('Everyone who emails you, biggest first. Unsubscribe, then clear out everything they already sent in one click.')}
         </p>
       </div>
 
@@ -190,12 +188,12 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
         <div className="mb-6 bg-sunny-50 border border-sunny-200 rounded-2xl p-4 flex items-start space-x-3">
           <AlertCircle className="w-5 h-5 text-sunny-600 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-sunny-800">
-            Unsubscribe buttons appear after your next scan. Go back and choose <strong>Rescan Entire Inbox</strong> to turn them on.
+            {t('Unsubscribe buttons appear after your next scan. Go back and choose Rescan inbox to turn them on.')}
           </p>
         </div>
       )}
 
-      <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm space-y-3 border-2 border-ink/10">
+      <div className="bg-berry-100 rounded-2xl p-4 mb-4 shadow-sm space-y-3 border-2 border-ink/10">
         <div className="relative">
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -205,15 +203,15 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
               setQuery(e.target.value);
               setVisibleCount(PAGE_SIZE);
             }}
-            placeholder="Search by name or email address"
+            placeholder={t('Search by name or email address')}
             className="w-full pl-9 pr-3 py-2 border-2 border-ink/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-mint-500"
           />
         </div>
         {!simple && (
         <div className="flex flex-wrap items-center gap-2">
           {([
-            ['all', 'All senders'],
-            ['unsubscribable', 'Can unsubscribe'],
+            ['all', t('All senders')],
+            ['unsubscribable', t('Can unsubscribe')],
           ] as const).map(([key, label]) => (
             <button
               key={key}
@@ -237,18 +235,18 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
               onChange={(e) => setIncludeOneOffs(e.target.checked)}
               className="w-4 h-4 rounded border-gray-300 text-mint-600 focus:ring-mint-500"
             />
-            <span>Include senders with only 1 email</span>
+            <span>{t('Include senders with only 1 email')}</span>
           </label>
         </div>
         )}
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-12 text-center border-2 border-ink/10">
+        <div className="bg-white border-2 border-berry-200 border-t-[10px] border-t-berry-300 rounded-2xl shadow-sm p-12 text-center">
           <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-ink mb-2">No senders to show</h3>
+          <h3 className="text-xl font-semibold text-ink mb-2">{t('No senders to show')}</h3>
           <p className="text-ink/75">
-            {query ? 'Nobody matches that search.' : 'Nothing here - your inbox is looking tidy.'}
+            {query ? t('Nobody matches that search.') : t('Nothing here - your inbox is looking tidy.')}
           </p>
         </div>
       ) : (
@@ -261,7 +259,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
             >
               <span>{bulkMessage.text}</span>
               <button onClick={() => setBulkMessage(null)} className="font-medium whitespace-nowrap">
-                Dismiss
+                {t('Dismiss')}
               </button>
             </div>
           )}
@@ -275,11 +273,11 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                 disabled={busy !== null}
                 className="w-5 h-5 rounded border-gray-300 text-berry-600 focus:ring-berry-500"
               />
-              <span className="text-sm font-medium text-ink/85">Select all shown</span>
+              <span className="text-sm font-medium text-ink/85">{t('Select all shown')}</span>
             </label>
             <p className="text-sm text-ink/70">
-              {filtered.length.toLocaleString()} senders ·{' '}
-              {filtered.reduce((sum, g) => sum + g.count, 0).toLocaleString()} emails
+              {plural(filtered.length, '{n} sender', '{n} senders')} ·{' '}
+              {plural(filtered.reduce((sum, g) => sum + g.count, 0), '{n} email', '{n} emails')}
             </p>
           </div>
           <div className="space-y-3">
@@ -291,8 +289,8 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
               return (
                 <div
                   key={group.key}
-                  className={`bg-white rounded-2xl p-5 border transition ${
-                    selected.has(group.key) ? 'border-berry-400 ring-1 ring-berry-200' : 'border-gray-100 hover:border-gray-300'
+                  className={`bg-white rounded-2xl p-5 border-2 shadow-sm transition ${
+                    selected.has(group.key) ? 'border-berry-400 ring-1 ring-berry-200' : 'border-berry-200 hover:border-berry-300'
                   }`}
                 >
                   <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -302,7 +300,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                         checked={selected.has(group.key)}
                         onChange={() => toggleSelected(group.key)}
                         disabled={busy !== null}
-                        aria-label={`Select ${group.name}`}
+                        aria-label={t('Select {name}', { name: group.name })}
                         className="w-6 h-6 mt-2.5 rounded border-gray-300 text-berry-600 focus:ring-berry-500 flex-shrink-0"
                       />
                       <div className="w-11 h-11 rounded-full bg-mint-200 text-ink flex items-center justify-center font-semibold flex-shrink-0">
@@ -314,11 +312,11 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                           <span className="text-sm text-ink/70 truncate">{group.sender}</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-ink/75">
-                          <span className="font-semibold text-ink">{group.count.toLocaleString()} emails</span>
-                          {group.unreadCount > 0 && <span>{group.unreadCount.toLocaleString()} unread</span>}
+                          <span className="font-semibold text-ink">{plural(group.count, '{n} email', '{n} emails')}</span>
+                          {group.unreadCount > 0 && <span>{t('{n} unread', { n: group.unreadCount })}</span>}
                           <span className="flex items-center space-x-1">
                             <Clock className="w-3.5 h-3.5" />
-                            <span>Latest {formatTime(group.latest)}</span>
+                            <span>{t('Latest {time}', { time: timeAgo(group.latest, { dayPrecision: true }) })}</span>
                           </span>
                         </div>
                         <p className="text-sm text-ink/70 truncate mt-1">{group.exampleSubjects.join(' · ')}</p>
@@ -326,7 +324,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                           <p className="flex items-center space-x-1 text-xs text-mint-700 mt-2">
                             <ShieldCheck className="w-3.5 h-3.5" />
                             <span>
-                              {group.protectedCount.toLocaleString()} receipts or invoices from them are Paid & Verified and will be kept.
+                              {plural(group.protectedCount, '{n} receipt or invoice from them is Paid & Verified and will be kept.', '{n} receipts or invoices from them are Paid & Verified and will be kept.')}
                             </span>
                           </p>
                         )}
@@ -334,7 +332,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                           <p className="flex items-center space-x-1 text-xs text-sunny-700 mt-2">
                             <ShieldAlert className="w-3.5 h-3.5" />
                             <span>
-                              {group.importantCount.toLocaleString()} of these look important - check before clearing.
+                              {plural(group.importantCount, '{n} of these looks important - check before clearing.', '{n} of these look important - check before clearing.')}
                             </span>
                           </p>
                         )}
@@ -353,13 +351,13 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                         ) : (
                           <Archive className="w-4 h-4" />
                         )}
-                        <span>{isBusy && busy?.action === 'archive' ? 'Archiving...' : 'Archive all'}</span>
+                        <span>{isBusy && busy?.action === 'archive' ? t('Archiving...') : t('Archive all')}</span>
                       </button>
                       <button
                         onClick={() => handleMailAction(group, 'delete')}
                         disabled={busy !== null}
-                        title="Delete all permanently"
-                        aria-label={`Delete all emails from ${group.name}`}
+                        title={t('Delete all permanently')}
+                        aria-label={t('Delete all emails from {name}', { name: group.name })}
                         className="p-2 border border-berry-200 text-berry-600 hover:bg-berry-50 rounded-xl transition disabled:opacity-50"
                       >
                         {isBusy && busy?.action === 'delete' ? (
@@ -385,16 +383,16 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                     <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-mint-50 rounded-xl p-3">
                       <p className="text-sm text-mint-800">
                         {senderActions[group.key] === 'unsubscribed'
-                          ? "You won't get new mail from them."
-                          : 'Once you confirm on their page, new mail will stop.'}{' '}
-                        Want to clear the {group.count.toLocaleString()} emails they already sent?
+                          ? t("You won't get new mail from them.")
+                          : t('Once you confirm on their page, new mail will stop.')}{' '}
+                        {plural(group.count, 'Want to clear the {n} email they already sent?', 'Want to clear the {n} emails they already sent?')}
                       </p>
                       <button
                         onClick={() => handleMailAction(group, 'archive')}
                         disabled={busy !== null}
                         className="text-sm font-semibold text-mint-700 hover:text-mint-900 whitespace-nowrap disabled:opacity-50"
                       >
-                        Archive them
+                        {t('Archive them')}
                       </button>
                     </div>
                   )}
@@ -409,7 +407,7 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                 onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
                 className="text-mint-600 hover:text-mint-700 font-medium"
               >
-                Show more senders ({(filtered.length - visibleCount).toLocaleString()} left)
+                {t('Show more senders ({n} left)', { n: filtered.length - visibleCount })}
               </button>
             </div>
           )}
@@ -420,17 +418,17 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
         <>
           {/* Spacer so the fixed bar never covers the last row */}
           <div className="h-28" />
-          <div className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+          <div className="fixed bottom-0 inset-x-0 z-20 bg-berry-100 border-t border-gray-200 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1">
                 <p className="font-semibold text-ink">
-                  {selectedGroups.length.toLocaleString()} sender{selectedGroups.length === 1 ? '' : 's'} selected ·{' '}
-                  {selectedEmailCount.toLocaleString()} emails
+                  {plural(selectedGroups.length, '{n} sender selected', '{n} senders selected')} ·{' '}
+                  {plural(selectedEmailCount, '{n} email', '{n} emails')}
                 </p>
                 {selectedProtectedCount > 0 && (
                   <p className="text-sm text-mint-700 flex items-center space-x-1">
                     <ShieldCheck className="w-4 h-4" />
-                    <span>{selectedProtectedCount.toLocaleString()} receipts and invoices will be kept</span>
+                    <span>{plural(selectedProtectedCount, '{n} receipt or invoice will be kept', '{n} receipts and invoices will be kept')}</span>
                   </p>
                 )}
               </div>
@@ -440,19 +438,19 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                   disabled={busy !== null}
                   className="px-4 py-3 text-ink/75 hover:text-ink font-medium disabled:opacity-50"
                 >
-                  Clear
+                  {t('Clear')}
                 </button>
                 <button
                   onClick={() => handleBulkAction('archive')}
                   disabled={busy !== null}
-                  className="flex items-center space-x-2 px-5 py-3 bg-white border-2 border-ink/10 text-ink hover:bg-gray-50 rounded-2xl font-semibold disabled:opacity-50"
+                  className="flex items-center space-x-2 px-5 py-3 bg-mint-200 border-2 border-ink/10 text-ink hover:bg-mint-300 rounded-2xl font-semibold disabled:opacity-50"
                 >
                   {busy?.key === '__bulk__' && busy.action === 'archive' ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
                     <Archive className="w-5 h-5" />
                   )}
-                  <span>{busy?.key === '__bulk__' && busy.action === 'archive' ? 'Archiving...' : 'Archive'}</span>
+                  <span>{busy?.key === '__bulk__' && busy.action === 'archive' ? t('Archiving...') : t('Archive')}</span>
                 </button>
                 <button
                   onClick={() => handleBulkAction('delete')}
@@ -466,8 +464,8 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
                   )}
                   <span>
                     {busy?.key === '__bulk__' && busy.action === 'delete'
-                      ? 'Deleting...'
-                      : `Delete selected`}
+                      ? t('Deleting...')
+                      : t('Delete selected')}
                   </span>
                 </button>
               </div>

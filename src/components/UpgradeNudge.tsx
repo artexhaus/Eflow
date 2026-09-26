@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Sparkles, PartyPopper } from 'lucide-react';
 import { PRICES } from '../lib/billing';
+import { useI18n } from '../lib/i18n';
 
 interface UpgradeNudgeProps {
   used: number;
@@ -19,6 +20,7 @@ export default function UpgradeNudge({ used, limit, onUpgrade, onDismiss }: Upgr
     return () => window.removeEventListener('keydown', onKey);
   }, [onDismiss]);
 
+  const { t, plural } = useI18n();
   const remaining = Math.max(limit - used, 0);
   const pct = Math.min(100, Math.round((used / limit) * 100));
 
@@ -38,10 +40,12 @@ export default function UpgradeNudge({ used, limit, onUpgrade, onDismiss }: Upgr
           <PartyPopper className="w-8 h-8 text-sunny-800" />
         </div>
         <h2 id="upgrade-nudge-title" className="text-2xl font-bold text-ink mb-1">
-          {used.toLocaleString()} emails cleaned!
+          {plural(used, '{n} email cleaned!', '{n} emails cleaned!')}
         </h2>
         <p className="text-ink/80 mb-4">
-          You have <span className="font-bold text-ink">{remaining.toLocaleString()} free cleans left</span> this month.
+          {t('You have')}{' '}
+          <span className="font-bold text-ink">{plural(remaining, '{n} free clean left', '{n} free cleans left')}</span>{' '}
+          {t('this month.')}
         </p>
 
         <div className="h-4 bg-white rounded-full border-2 border-ink/10 overflow-hidden mb-6">
@@ -57,13 +61,13 @@ export default function UpgradeNudge({ used, limit, onUpgrade, onDismiss }: Upgr
           className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-lg font-display font-semibold bg-ocean-200 hover:bg-ocean-300 text-ink border-2 border-ink/15 shadow-lg"
         >
           <Sparkles className="w-5 h-5" />
-          <span>Upgrade now</span>
+          <span>{t('Upgrade now')}</span>
         </button>
         <p className="text-sm text-ink/70 mt-2">
-          Unlimited cleaning from {PRICES.monthly.amount}/{PRICES.monthly.per}
+          {t('Unlimited cleaning from {price}/month', { price: PRICES.monthly.amount })}
         </p>
         <button onClick={onDismiss} className="mt-3 text-ink/70 hover:text-ink font-semibold">
-          Maybe later
+          {t('Maybe later')}
         </button>
       </div>
     </div>

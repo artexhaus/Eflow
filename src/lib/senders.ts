@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { Email } from './types';
+import { t } from './i18n';
 
 export interface SenderGroup {
   key: string;
@@ -76,7 +77,7 @@ export type UnsubscribeResult =
 
 export async function requestOneClickUnsubscribe(sender: string): Promise<UnsubscribeResult> {
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Your session expired. Please sign in again.');
+  if (!session) throw new Error(t('Your session expired. Please sign in again.'));
 
   const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/unsubscribe`, {
     method: 'POST',
@@ -89,14 +90,14 @@ export async function requestOneClickUnsubscribe(sender: string): Promise<Unsubs
 
   const body = await response.json().catch(() => ({}));
   if (response.status === 402 && body.code === 'unsubscribe_limit') return { status: 'limit' };
-  if (!response.ok) throw new Error(body.error || 'Could not unsubscribe. Please try again.');
+  if (!response.ok) throw new Error(body.error || t('Could not unsubscribe. Please try again.'));
 
   if (body.status === 'needs_user') {
     const safeUrl = getUnsubscribeLink(`<${body.url}>`);
     if (safeUrl) return { status: 'needs_user', url: safeUrl };
   }
   if (body.status === 'unsubscribed') return { status: 'unsubscribed' };
-  return { status: 'unavailable', message: body.message || "This sender can't be unsubscribed from automatically." };
+  return { status: 'unavailable', message: body.message || t("This sender can't be unsubscribed from automatically.") };
 }
 
 export async function recordUnsubscribeLinkOpened(userId: string, senderKey: string) {

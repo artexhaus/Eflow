@@ -1,11 +1,13 @@
 import { Sparkles, ChevronRight } from 'lucide-react';
 import { useBilling } from '../contexts/BillingContext';
 import { PRICES } from '../lib/billing';
+import { useI18n } from '../lib/i18n';
 
 // Dashboard call to action for Free users: how many free cleans are left this
 // month, and a big block button to see the Pro plans. Hidden for Pro users.
 export default function UpgradeBanner() {
   const { loading, isPro, used, limit, remaining, openPricing } = useBilling();
+  const { t } = useI18n();
   if (loading || isPro) return null;
 
   const pct = Math.min(100, Math.round((used / limit) * 100));
@@ -19,10 +21,10 @@ export default function UpgradeBanner() {
         <Sparkles className="w-8 h-8 text-sunny-800" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-display text-2xl font-bold text-ink">Go Pro for unlimited cleaning</div>
+        <div className="font-display text-2xl font-bold text-ink">{t('Go Pro for unlimited cleaning')}</div>
         <div className="text-ink/80 mb-2">
-          {remaining.toLocaleString()} of {limit} free cleans left this month · Pro from {PRICES.monthly.amount}/
-          {PRICES.monthly.per}
+          {t('{remaining} of {limit} free cleans left this month', { remaining, limit })} ·{' '}
+          {t('Pro from {price}/month', { price: PRICES.monthly.amount })}
         </div>
         <div className="h-3 bg-white/80 rounded-full border-2 border-ink/10 overflow-hidden max-w-md">
           <div
@@ -31,8 +33,8 @@ export default function UpgradeBanner() {
           />
         </div>
       </div>
-      <span className="inline-flex items-center justify-center gap-1 bg-white px-5 py-3 rounded-2xl border-2 border-ink/15 shadow-md font-display font-semibold text-ink flex-shrink-0">
-        Upgrade now
+      <span className="inline-flex items-center justify-center gap-1 bg-ocean-200 px-5 py-3 rounded-2xl border-2 border-ink/15 shadow-md font-display font-semibold text-ink flex-shrink-0">
+        {t('Upgrade now')}
         <ChevronRight className="w-5 h-5" />
       </span>
     </button>

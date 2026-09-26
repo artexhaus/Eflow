@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useBilling } from '../contexts/BillingContext';
 import { recordUnsubscribeLinkOpened, requestOneClickUnsubscribe, type SenderGroup } from '../lib/senders';
 import type { SenderAction } from '../lib/types';
+import { tKnown, useI18n } from '../lib/i18n';
 
 type UnsubscribeStatus = SenderAction['unsubscribe_status'];
 
@@ -19,6 +20,7 @@ interface UnsubscribeButtonProps {
 export default function UnsubscribeButton({ group, status, onStatus, disabled }: UnsubscribeButtonProps) {
   const { user } = useAuth();
   const { isPro, unsubscribesUsed, unsubscribeLimit, openPricing, refresh } = useBilling();
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [pendingLink, setPendingLink] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: 'error' | 'info'; text: string } | null>(null);
@@ -27,15 +29,15 @@ export default function UnsubscribeButton({ group, status, onStatus, disabled }:
     return (
       <span className="flex items-center space-x-1 text-sm font-medium text-mint-700 bg-mint-50 px-3 py-2 rounded-xl">
         <CheckCircle className="w-4 h-4" />
-        <span>Unsubscribed</span>
+        <span>{t('Unsubscribed')}</span>
       </span>
     );
   }
   if (status === 'link_opened') {
     return (
-      <span className="flex items-center space-x-1 text-sm font-medium text-ink/75 bg-gray-100 px-3 py-2 rounded-xl">
+      <span className="flex items-center space-x-1 text-sm font-medium text-ink/80 bg-sunny-100 px-3 py-2 rounded-xl">
         <CheckCircle className="w-4 h-4" />
-        <span>Unsubscribe page opened</span>
+        <span>{t('Unsubscribe page opened')}</span>
       </span>
     );
   }
@@ -71,16 +73,16 @@ export default function UnsubscribeButton({ group, status, onStatus, disabled }:
           if (user) await recordUnsubscribeLinkOpened(user.id, group.key);
           refresh();
         }}
-        className="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-ink/10 text-ink/85 hover:bg-gray-50 rounded-xl font-medium text-sm transition"
+        className="flex items-center space-x-2 px-4 py-2 bg-berry-100 border-2 border-ink/10 text-ink/85 hover:bg-berry-200 rounded-xl font-medium text-sm transition"
       >
         <ExternalLink className="w-4 h-4" />
-        <span>{link.startsWith('mailto:') ? 'Unsubscribe by email' : 'Open unsubscribe page'}</span>
+        <span>{link.startsWith('mailto:') ? t('Unsubscribe by email') : t('Open unsubscribe page')}</span>
       </a>
     );
   }
 
   if (!group.unsubscribeLink) {
-    return <span className="text-xs text-gray-400 px-2">No unsubscribe option</span>;
+    return <span className="text-xs text-gray-400 px-2">{t('No unsubscribe option')}</span>;
   }
 
   const unsubscribe = async () => {
@@ -99,12 +101,12 @@ export default function UnsubscribeButton({ group, status, onStatus, disabled }:
         refresh();
       } else if (result.status === 'needs_user') {
         setPendingLink(result.url);
-        setMessage({ tone: 'info', text: 'This sender needs you to confirm on their page - open it to finish.' });
+        setMessage({ tone: 'info', text: t('This sender needs you to confirm on their page - open it to finish.') });
       } else {
-        setMessage({ tone: 'error', text: result.message });
+        setMessage({ tone: 'error', text: tKnown(result.message) });
       }
     } catch (err) {
-      setMessage({ tone: 'error', text: (err as Error).message });
+      setMessage({ tone: 'error', text: tKnown((err as Error).message) });
     } finally {
       setBusy(false);
     }
@@ -114,10 +116,10 @@ export default function UnsubscribeButton({ group, status, onStatus, disabled }:
     <button
       onClick={unsubscribe}
       disabled={busy || disabled}
-      className="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-ink/10 text-ink/85 hover:bg-gray-50 rounded-xl font-medium text-sm transition disabled:opacity-50"
+      className="flex items-center space-x-2 px-4 py-2 bg-berry-100 border-2 border-ink/10 text-ink/85 hover:bg-berry-200 rounded-xl font-medium text-sm transition disabled:opacity-50"
     >
       {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <BellOff className="w-4 h-4" />}
-      <span>{busy ? 'Unsubscribing...' : 'Unsubscribe'}</span>
+      <span>{busy ? t('Unsubscribing...') : t('Unsubscribe')}</span>
     </button>
   );
 }

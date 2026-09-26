@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Trash2, Archive, CheckCheck } from 'lucide-react';
 import { addMailActionListener, type MailActionProgress } from '../lib/mailActions';
+import { useI18n, type MessageKey } from '../lib/i18n';
 
 // Centered "hold tight" window shown while any delete / archive / mark-read
 // request is running, so it's unmistakable that work is in progress. It
 // listens to every applyMailAction call, so screens don't need to wire it up.
 
 const COPY = {
-  delete: { verb: 'deleting', icon: Trash2, tile: 'bg-berry-200', iconColor: 'text-berry-700' },
-  archive: { verb: 'archiving', icon: Archive, tile: 'bg-mint-200', iconColor: 'text-mint-700' },
-  mark_read: { verb: 'marking as read', icon: CheckCheck, tile: 'bg-sunny-200', iconColor: 'text-sunny-800' },
+  delete: { verb: "We're deleting {what}", icon: Trash2, tile: 'bg-berry-200', iconColor: 'text-berry-700' },
+  archive: { verb: "We're archiving {what}", icon: Archive, tile: 'bg-mint-200', iconColor: 'text-mint-700' },
+  mark_read: { verb: "We're marking {what} as read", icon: CheckCheck, tile: 'bg-sunny-200', iconColor: 'text-sunny-800' },
 } as const;
 
-const TIPS = [
+const TIPS: MessageKey[] = [
   'Talking to your mail server...',
   'Stacking the blocks...',
   'Sweeping up the junk...',
@@ -23,6 +24,7 @@ const TIPS = [
 export default function MailActionOverlay() {
   const [progress, setProgress] = useState<MailActionProgress | null>(null);
   const [tip, setTip] = useState(0);
+  const { t, plural } = useI18n();
 
   useEffect(
     () =>
@@ -47,9 +49,7 @@ export default function MailActionOverlay() {
   const { verb, icon: Icon, tile, iconColor } = COPY[progress.action];
   const what =
     progress.label ??
-    (progress.count !== undefined
-      ? `${progress.count.toLocaleString()} email${progress.count === 1 ? '' : 's'}`
-      : 'your emails');
+    (progress.count !== undefined ? plural(progress.count, '{n} email', '{n} emails') : t('your emails'));
 
   return (
     <div
@@ -70,13 +70,13 @@ export default function MailActionOverlay() {
           </div>
         </div>
         <h2 id="mail-action-title" className="text-2xl font-bold text-ink mb-2">
-          Hold tight!
+          {t('Hold tight!')}
         </h2>
         <p className="text-lg text-ink font-semibold mb-1">
-          We're {verb} {what}
+          {t(verb, { what })}
         </p>
         <p id="mail-action-tip" className="text-ink/70 min-h-[1.5rem]" aria-live="polite">
-          {TIPS[tip]}
+          {t(TIPS[tip])}
         </p>
       </div>
     </div>

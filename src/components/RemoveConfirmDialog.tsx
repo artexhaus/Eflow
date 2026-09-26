@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Trash2, Archive, ShieldCheck, AlertCircle } from 'lucide-react';
 import type { Email } from '../lib/types';
+import { useI18n } from '../lib/i18n';
 
 interface RemoveConfirmDialogProps {
   action: 'delete' | 'archive';
@@ -11,8 +12,6 @@ interface RemoveConfirmDialogProps {
   onConfirm: (includeProtected: boolean) => void;
   onCancel: () => void;
 }
-
-const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
 
 // One confirmation for deleting/archiving a hand-picked selection. If the
 // selection includes receipts or invoices, it names them and offers the choice
@@ -25,6 +24,8 @@ export default function RemoveConfirmDialog({
   onConfirm,
   onCancel,
 }: RemoveConfirmDialogProps) {
+  const { t, plural } = useI18n();
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
     window.addEventListener('keydown', onKey);
@@ -32,20 +33,33 @@ export default function RemoveConfirmDialog({
   }, [onCancel]);
 
   const isDelete = action === 'delete';
-  const verb = isDelete ? 'Delete' : 'Archive';
   const Icon = isDelete ? Trash2 : Archive;
   const protectedCount = protectedEmails.length;
   const others = total - protectedCount;
-  const receiptWord = protectedCount === 1 ? 'the receipt' : 'the receipts';
 
   const primaryTone = isDelete ? 'bg-berry-200 hover:bg-berry-300' : 'bg-mint-200 hover:bg-mint-300';
   const button = 'w-full py-3.5 rounded-2xl text-lg font-display font-semibold text-ink border-2 border-ink/15 shadow-md transition';
 
   let title: string;
   if (protectedCount > 0 && others === 0) {
-    title = protectedCount === 1 ? `${verb} this receipt or invoice?` : `${verb} these ${protectedCount} receipts or invoices?`;
+    title = isDelete
+      ? plural(protectedCount, 'Delete this receipt or invoice?', 'Delete these {n} receipts or invoices?')
+      : plural(protectedCount, 'Archive this receipt or invoice?', 'Archive these {n} receipts or invoices?');
   } else {
-    title = `${verb} ${plural(total, 'email')}?`;
+    title = isDelete ? plural(total, 'Delete {n} email?', 'Delete {n} emails?') : plural(total, 'Archive {n} email?', 'Archive {n} emails?');
+  }
+
+  let primaryLabel: string;
+  if (protectedCount > 0 && others > 0) {
+    primaryLabel = isDelete
+      ? plural(protectedCount, 'Delete {others}, keep the receipt', 'Delete {others}, keep the receipts', { others })
+      : plural(protectedCount, 'Archive {others}, keep the receipt', 'Archive {others}, keep the receipts', { others });
+  } else if (protectedCount > 0) {
+    primaryLabel = isDelete
+      ? protectedCount === 1 ? t('Delete it anyway') : t('Delete them anyway')
+      : protectedCount === 1 ? t('Archive it') : t('Archive them');
+  } else {
+    primaryLabel = isDelete ? plural(total, 'Delete {n} email', 'Delete {n} emails') : plural(total, 'Archive {n} email', 'Archive {n} emails');
   }
 
   return (
@@ -67,13 +81,13 @@ export default function RemoveConfirmDialog({
           {title}
         </h2>
         <p className="text-ink/75 mb-4">
-          {isDelete ? "This can't be undone." : "They'll move to your Archive folder, so you can still find them."}
+          {isDelete ? t("This can't be undone.") : t("They'll move to your Archive folder, so you can still find them.")}
         </p>
 
         {importantCount > 0 && (
           <p className="flex items-start gap-2 text-sm bg-sunny-100 border-2 border-sunny-200 rounded-2xl p-3 mb-3 text-ink">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-sunny-800" />
-            <span>{plural(importantCount, 'email')} marked Important.</span>
+            <span>{plural(importantCount, '{n} email marked Important.', '{n} emails marked Important.')}</span>
           </p>
         )}
 
@@ -82,7 +96,7 @@ export default function RemoveConfirmDialog({
             <p className="flex items-center gap-2 font-semibold mb-1">
               <ShieldCheck className="w-4 h-4 text-mint-700" />
               <span>
-                {protectedCount === 1 ? 'This looks like a receipt or invoice:' : `${protectedCount} look like receipts or invoices:`}
+                {plural(protectedCount, 'This looks like a receipt or invoice:', '{n} look like receipts or invoices:')}
               </span>
             </p>
             <ul className="space-y-0.5 pl-6 list-disc">
@@ -92,7 +106,7 @@ export default function RemoveConfirmDialog({
                 </li>
               ))}
             </ul>
-            {protectedCount > 3 && <p className="pl-6 text-ink/70">and {(protectedCount - 3).toLocaleString()} more</p>}
+            {protectedCount > 3 && <p className="pl-6 text-ink/70">{t('and {n} more', { n: protectedCount - 3 })}</p>}
           </div>
         )}
 
@@ -100,21 +114,19 @@ export default function RemoveConfirmDialog({
           {protectedCount > 0 && others > 0 ? (
             <>
               <button autoFocus onClick={() => onConfirm(false)} className={`${button} ${primaryTone}`}>
-                {verb} {others.toLocaleString()}, keep {receiptWord}
+                {primaryLabel}
               </button>
-              <button onClick={() => onConfirm(true)} className={`${button} bg-white hover:bg-cream`}>
-                {verb} all {total.toLocaleString()}
+              <button onClick={() => onConfirm(true)} className={`${button} bg-berry-100 hover:bg-berry-200`}>
+                {isDelete ? t('Delete all {n}', { n: total }) : t('Archive all {n}', { n: total })}
               </button>
             </>
           ) : (
             <button autoFocus onClick={() => onConfirm(protectedCount > 0)} className={`${button} ${primaryTone}`}>
-              {protectedCount > 0
-                ? `${verb} ${protectedCount === 1 ? 'it' : 'them'}${isDelete ? ' anyway' : ''}`
-                : `${verb} ${plural(total, 'email')}`}
+              {primaryLabel}
             </button>
           )}
           <button onClick={onCancel} className="w-full py-3 rounded-2xl text-ink/75 hover:text-ink font-semibold">
-            Cancel
+            {t('Cancel')}
           </button>
         </div>
       </div>

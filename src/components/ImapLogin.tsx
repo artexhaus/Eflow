@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Mail, Lock, AlertCircle, ChevronLeft, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { t, tKnown, useI18n, type MessageKey } from '../lib/i18n';
 
 interface ImapLoginProps {
   provider: string;
@@ -9,7 +10,12 @@ interface ImapLoginProps {
   onBack: () => void;
 }
 
-const providerAppPasswordInstructions: Record<string, { steps: string[]; link: string; linkText: string }> = {
+// Setup steps, plus where the app password lives and a provider tip for
+// login errors (imap-connect reports the kind of failure as a code).
+const providerAppPasswordInstructions: Record<
+  string,
+  { steps: MessageKey[]; link: string; linkText: MessageKey; passwordPage: MessageKey; tip: MessageKey }
+> = {
   gmail: {
     steps: [
       'Go to your Google Account settings',
@@ -20,6 +26,8 @@ const providerAppPasswordInstructions: Record<string, { steps: string[]; link: s
     ],
     link: 'https://myaccount.google.com/apppasswords',
     linkText: 'Google App Passwords',
+    passwordPage: 'Google Account > Security > App passwords',
+    tip: 'IMAP must also be on: Gmail Settings > See all settings > Forwarding and POP/IMAP > Enable IMAP.',
   },
   yahoo: {
     steps: [
@@ -30,6 +38,8 @@ const providerAppPasswordInstructions: Record<string, { steps: string[]; link: s
     ],
     link: 'https://login.yahoo.com/account/security',
     linkText: 'Yahoo Account Security',
+    passwordPage: 'Yahoo Account Security > Generate app password',
+    tip: 'Two-step verification must be turned on before Yahoo lets you create an app password.',
   },
   outlook: {
     steps: [
@@ -40,6 +50,8 @@ const providerAppPasswordInstructions: Record<string, { steps: string[]; link: s
     ],
     link: 'https://account.live.com/proofs/manage/additional',
     linkText: 'Microsoft Account Security',
+    passwordPage: 'Microsoft account > Security > Advanced security options > App passwords',
+    tip: 'Two-step verification must be on. Some Outlook.com accounts no longer allow app passwords for mail apps.',
   },
   icloud: {
     steps: [
@@ -50,6 +62,8 @@ const providerAppPasswordInstructions: Record<string, { steps: string[]; link: s
     ],
     link: 'https://appleid.apple.com',
     linkText: 'Apple ID',
+    passwordPage: 'account.apple.com > Sign-In and Security > App-Specific Passwords',
+    tip: 'Use your full @icloud.com (or @me.com) address, not a Gmail or other address linked to your Apple Account.',
   },
 };
 
@@ -59,7 +73,21 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useI18n();
   const instructions = providerAppPasswordInstructions[provider];
+
+  // The login error in the user's language, from imap-connect's code.
+  const connectErrorMessage = (code: unknown, fallback: string) => {
+    const vars = { provider: providerName, page: t(instructions.passwordPage), tip: t(instructions.tip) };
+    if (code === 'auth_failed') {
+      return t("{provider} didn't accept that login. Please check: (1) your full {provider} email address, (2) you're using an app password ({page}), not your regular password, (3) it was copied without typos. {tip}", vars);
+    }
+    if (code === 'unreachable') return t("Could not reach {provider}'s mail server. Please try again.", vars);
+    if (code === 'rejected') {
+      return t('{provider} rejected the login. Please make sure you created an app password ({page}) and pasted it here instead of your regular {provider} password. {tip}', vars);
+    }
+    return tKnown(fallback);
+  };
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,16 +96,16 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
 
     try {
       if (!email || !appPassword) {
-        throw new Error('Please enter both your email and app password');
+        throw new Error(t('Please enter both your email and app password'));
       }
 
       // The mailbox is attached to the signed-in Eflow account (each person
       // has their own; there is no shared/demo account).
       const user = await getCurrentUser();
-      if (!user) throw new Error('Your session expired. Please sign in again, then connect your mailbox.');
+      if (!user) throw new Error(t('Your session expired. Please sign in again, then connect your mailbox.'));
 
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No session found');
+      if (!session) throw new Error(t('Your session expired. Please sign in again, then connect your mailbox.'));
 
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imap-connect`;
 
@@ -95,10 +123,10 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
       });
 
       if (!response.ok) {
-        let errorText = `Failed to connect to ${providerName}. Please check your credentials.`;
+        let errorText = t('Failed to connect to {provider}. Please check your credentials.', { provider: providerName });
         try {
           const errorData = await response.json();
-          if (errorData?.error) errorText = errorData.error;
+          if (errorData?.error) errorText = connectErrorMessage(errorData.code, errorData.error);
         } catch {
           try {
             const text = await response.text();
@@ -113,7 +141,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
       const result = await response.json();
 
       if (!result.success) {
-        throw new Error(result.error || 'Connection failed');
+        throw new Error(result.error ? tKnown(result.error) : t('Connection failed'));
       }
 
       onComplete();
@@ -147,7 +175,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
           className="mb-6 text-ink/75 hover:text-ink font-medium transition flex items-center space-x-1"
         >
           <ChevronLeft className="w-4 h-4" />
-          <span>Back to providers</span>
+          <span>{t('Back to providers')}</span>
         </button>
 
         <div className="bg-white rounded-3xl shadow-2xl p-8 border-2 border-ink/10">
@@ -156,19 +184,19 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
               <Mail className="w-8 h-8 text-ink" />
             </div>
             <h2 className="font-display text-2xl font-bold text-ink mb-2">
-              Connect {providerName}
+              {t('Connect {provider}', { provider: providerName })}
             </h2>
             <p className="text-ink/75 mb-4">
-              Sign in with an app-specific password (IMAP)
+              {t('Sign in with an app-specific password (IMAP)')}
             </p>
             <div className={`${accent.bg} border-2 border-ink/10 rounded-xl p-4 text-left`}>
               <div className="flex items-start space-x-2">
                 <AlertCircle className="w-5 h-5 text-ink/75 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-ink/85">
-                  <p className="font-semibold mb-1">Create an app password:</p>
+                  <p className="font-semibold mb-1">{t('Create an app password:')}</p>
                   <ol className="list-decimal list-inside space-y-1 text-xs">
                     {instructions.steps.map((step, i) => (
-                      <li key={i}>{step}</li>
+                      <li key={i}>{t(step)}</li>
                     ))}
                   </ol>
                   <a
@@ -177,7 +205,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
                     rel="noopener noreferrer"
                     className="inline-block mt-2 text-xs font-medium text-mint-600 hover:text-mint-700 underline"
                   >
-                    {instructions.linkText} →
+                    {t(instructions.linkText)} →
                   </a>
                 </div>
               </div>
@@ -187,13 +215,13 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
           <form onSubmit={handleConnect} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-ink/85 mb-2">
-                {providerName} Email
+                {t('{provider} email', { provider: providerName })}
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={`your-email@${provider === 'gmail' ? 'gmail' : provider === 'outlook' ? 'outlook' : provider === 'yahoo' ? 'yahoo' : 'icloud'}.com`}
+                placeholder={`${t('your-email')}@${provider === 'gmail' ? 'gmail' : provider === 'outlook' ? 'outlook' : provider === 'yahoo' ? 'yahoo' : 'icloud'}.com`}
                 required
                 className={`w-full px-4 py-3 border-2 border-ink/10 rounded-xl focus:ring-2 ${accent.ring} focus:border-transparent transition`}
               />
@@ -201,7 +229,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
 
             <div>
               <label className="block text-sm font-medium text-ink/85 mb-2">
-                App Password
+                {t('App password')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -209,7 +237,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
                   type="password"
                   value={appPassword}
                   onChange={(e) => setAppPassword(e.target.value)}
-                  placeholder="Enter your app password"
+                  placeholder={t('Enter your app password')}
                   required
                   className={`w-full pl-10 pr-4 py-3 border-2 border-ink/10 rounded-xl focus:ring-2 ${accent.ring} focus:border-transparent transition`}
                 />
@@ -232,14 +260,14 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
             >
               <span className="inline-flex items-center justify-center space-x-2">
                 {loading && <Loader2 className="w-5 h-5 animate-spin" />}
-                <span>{loading ? 'Connecting...' : `Connect ${providerName}`}</span>
+                <span>{loading ? t('Connecting...') : t('Connect {provider}', { provider: providerName })}</span>
               </span>
             </button>
           </form>
 
           <div className="mt-4 text-center">
             <p className="text-xs text-ink/70">
-              Your password is used to connect via IMAP and stored securely. We never use your regular password.
+              {t('Your password is used to connect via IMAP and stored securely. We never use your regular password.')}
             </p>
           </div>
         </div>

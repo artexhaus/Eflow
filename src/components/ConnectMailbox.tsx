@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import ProviderSelection from './ProviderSelection';
 import ImapLogin from './ImapLogin';
 import LegalLinks from './LegalLinks';
+import LanguageToggle from './LanguageToggle';
+import { useI18n } from '../lib/i18n';
 
 const providerNames: Record<string, string> = {
   gmail: 'Gmail',
@@ -23,14 +25,16 @@ interface ConnectMailboxProps {
 export default function ConnectMailbox({ onConnected }: ConnectMailboxProps) {
   const { user, signOut } = useAuth();
   const [provider, setProvider] = useState('');
+  const { t } = useI18n();
 
   return (
     <div className="relative">
       <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-end gap-3 px-4 py-3 text-sm text-ink/75">
-        <span className="truncate">Signed in as {user?.email}</span>
+        <span className="truncate min-w-0">{t('Signed in as {email}', { email: user?.email ?? '' })}</span>
+        <LanguageToggle />
         <button onClick={() => signOut()} className="flex items-center gap-1 font-semibold hover:text-ink flex-shrink-0">
           <LogOut className="w-4 h-4" />
-          <span>Sign out</span>
+          <span>{t('Sign out')}</span>
         </button>
       </div>
 

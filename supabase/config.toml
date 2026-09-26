@@ -21,11 +21,11 @@ enable_signup = true
 enable_confirmations = true
 
 [auth.email.template.confirmation]
-subject = "Confirm your Eflow account"
+subject = "{{ $es := false }}{{ with .Data }}{{ if eq (printf \"%v\" .lang) \"es\" }}{{ $es = true }}{{ end }}{{ end }}{{ if $es }}Confirma tu cuenta de Eflow{{ else }}Confirm your Eflow account{{ end }}"
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.recovery]
-subject = "Reset your Eflow password"
+subject = "{{ $es := false }}{{ with .Data }}{{ if eq (printf \"%v\" .lang) \"es\" }}{{ $es = true }}{{ end }}{{ end }}{{ if $es }}Restablece tu contraseña de Eflow{{ else }}Reset your Eflow password{{ end }}"
 content_path = "./supabase/templates/recovery.html"
 
 [functions.imap-connect]

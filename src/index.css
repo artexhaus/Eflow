@@ -3,11 +3,18 @@
 @tailwind utilities;
 
 @layer base {
-  /* Game-board background: soft cream with a faint dot grid. */
+  /* App-wide background: the same mint -> yellow -> pink wash as the sign-in
+     page, with the faint game-board dot grid on top. It stays put while the
+     page scrolls; the solid colour is the fallback. */
   body {
-    @apply bg-cream text-ink font-sans;
-    background-image: radial-gradient(rgb(59 51 85 / 0.07) 1.5px, transparent 1.5px);
-    background-size: 22px 22px;
+    @apply text-ink font-sans;
+    background-color: #fdfbe6;
+    background-image:
+      radial-gradient(rgb(59 51 85 / 0.06) 1.5px, transparent 1.5px),
+      linear-gradient(135deg, #d1f0c1 0%, #fdfed6 50%, #fce4e8 100%);
+    background-size: 22px 22px, 100% 100%;
+    background-attachment: fixed;
+    min-height: 100vh;
   }
 
   h1,

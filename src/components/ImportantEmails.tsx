@@ -8,6 +8,7 @@ import type { Email } from '../lib/types';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import RemoveConfirmDialog from './RemoveConfirmDialog';
 import { ScamBadge } from './ProtectedEmailControls';
+import { t, plural, tKnown, timeAgo, useI18n, type MessageKey } from '../lib/i18n';
 
 interface ImportantEmailsProps {
   emails: Email[];
@@ -21,7 +22,7 @@ interface ImportantEmailsProps {
 
 type CategoryKey = 'all' | 'verified' | 'orders' | 'dates' | 'security' | 'personal' | 'other';
 
-const CATEGORY_TABS: { key: CategoryKey; label: string; icon: typeof Tag }[] = [
+const CATEGORY_TABS: { key: CategoryKey; label: MessageKey; icon: typeof Tag }[] = [
   { key: 'all', label: 'All', icon: Tag },
   { key: 'verified', label: 'Paid & Verified', icon: ShieldCheck },
   { key: 'orders', label: 'Orders & Deliveries', icon: ShoppingBag },
@@ -73,15 +74,15 @@ function getVerifiedKind(email: Email): 'Receipt' | 'Order' | 'Invoice' {
 function downloadReceiptsCsv(rows: Email[]) {
   const cell = (value: string) => `"${value.replace(/"/g, '""')}"`;
   const lines = [
-    ['Date', 'From', 'Email address', 'Subject', 'Type', 'Attachment'].map(cell).join(','),
+    [t('Date'), t('From'), t('Email address'), t('Subject'), t('Type'), t('Attachment')].map(cell).join(','),
     ...rows.map((e) =>
       [
         new Date(e.timestamp).toISOString().slice(0, 10),
         e.sender_name || '',
         e.sender,
         e.subject,
-        getVerifiedKind(e),
-        e.has_attachment ? 'Yes' : 'No',
+        t(getVerifiedKind(e)),
+        e.has_attachment ? t('Yes') : t('No'),
       ]
         .map(cell)
         .join(',')
@@ -99,6 +100,7 @@ function downloadReceiptsCsv(rows: Email[]) {
 type BulkAction = 'mark_read' | 'archive' | 'delete';
 
 export default function ImportantEmails({ emails, verifiedEmails, initialTab = 'all', onBack, onRefresh }: ImportantEmailsProps) {
+  useI18n();
   const [showAll, setShowAll] = useState(false);
   const [filterUnread, setFilterUnread] = useState(false);
   const [activeCategory, setActiveCategory] = useState<CategoryKey>(initialTab);
@@ -150,7 +152,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
   const { requirePro } = useBilling();
 
   const toggleOne = (id: string) => {
-    if (!selected.has(id) && selected.size >= 1 && !requirePro('Selecting several emails')) return;
+    if (!selected.has(id) && selected.size >= 1 && !requirePro(t('Selecting several emails'))) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -160,7 +162,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
   };
 
   const toggleAllVisible = () => {
-    if (!allVisibleSelected && !requirePro('Select All')) return;
+    if (!allVisibleSelected && !requirePro(t('Select All'))) return;
     setSelected(allVisibleSelected ? new Set() : new Set(visibleEmails.map((e) => e.id)));
   };
 
@@ -182,34 +184,23 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
         { emailIds: targets.map((e) => e.email_id) },
         { allowProtected: includeProtected }
       );
-      const verb = action === 'delete' ? 'Deleted' : action === 'archive' ? 'Archived' : 'Marked as read:';
-      let text = `${verb} ${result.processed.toLocaleString()} email${result.processed === 1 ? '' : 's'}.`;
-      if (action === 'archive') text += ' You can find them in your Archive folder.';
-      if (kept > 0) text += ` Kept ${kept.toLocaleString()} ${kept === 1 ? 'receipt or invoice' : 'receipts and invoices'}.`;
+      let text =
+        action === 'delete'
+          ? plural(result.processed, 'Deleted {n} email.', 'Deleted {n} emails.')
+          : action === 'archive'
+            ? plural(result.processed, 'Archived {n} email.', 'Archived {n} emails.')
+            : plural(result.processed, 'Marked as read: {n} email.', 'Marked as read: {n} emails.');
+      if (action === 'archive') text += ` ${t('You can find them in your Archive folder.')}`;
+      if (kept > 0) text += ` ${plural(kept, 'Kept {n} receipt or invoice.', 'Kept {n} receipts and invoices.')}`;
       setNotice(text);
       setError(describePartialFailure(result));
       setSelected(new Set());
       await onRefresh();
     } catch (err) {
-      setError((err as Error).message);
+      setError(tKnown((err as Error).message));
     } finally {
       setActiveAction(null);
     }
-  };
-
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffHours < 1) return 'Just now';
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 30) return `${diffDays} days ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-    return `${Math.floor(diffDays / 365)} years ago`;
   };
 
   const getReasonBadgeColor = (reason: string | null) => {
@@ -230,27 +221,27 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
         className="flex items-center space-x-2 text-ink/75 hover:text-ink mb-6 transition"
       >
         <ChevronLeft className="w-5 h-5" />
-        <span className="font-medium">Back to Dashboard</span>
+        <span className="font-medium">{t('Back to Dashboard')}</span>
       </button>
 
       <div className="mb-8 flex items-start justify-between">
         <div>
-          <h2 className="font-display text-3xl font-bold text-ink mb-2">Important Emails</h2>
+          <h2 className="font-display text-3xl font-bold text-ink mb-2">{t('Important Emails')}</h2>
           <p className="text-ink/75">
-            {emails.length.toLocaleString()} emails flagged as important
+            {plural(emails.length, '{n} email flagged as important', '{n} emails flagged as important')}
           </p>
         </div>
         <button
           onClick={() => setFilterUnread(!filterUnread)}
           className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition ${
             filterUnread
-              ? 'bg-ocean-100 text-ocean-700'
-              : 'bg-gray-100 text-ink/85 hover:bg-gray-200'
+              ? 'bg-ocean-200 text-ink border-2 border-ink/10'
+              : 'bg-ocean-100 text-ink/85 hover:bg-ocean-200 border-2 border-ink/10'
           }`}
         >
           {filterUnread ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           <span className="font-medium text-sm">
-            {filterUnread ? 'Unread only' : 'All emails'}
+            {filterUnread ? t('Unread only') : t('All emails')}
           </span>
         </button>
       </div>
@@ -275,7 +266,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
             }`}
           >
             <Icon className="w-4 h-4 flex-shrink-0" />
-            <span className="font-medium text-sm">{label}</span>
+            <span className="font-medium text-sm">{t(label)}</span>
             <span
               className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
                 activeCategory === key
@@ -295,18 +286,18 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
             <ShieldCheck className="w-6 h-6 text-mint-600" />
           </div>
           <div className="flex-1">
-            <p className="font-semibold text-mint-900 text-lg">Your receipts and invoices are safely filed</p>
+            <p className="font-semibold text-mint-900 text-lg">{t('Your receipts and invoices are safely filed')}</p>
             <p className="text-mint-800">
-              Clean Up and bulk actions always skip these. To archive or delete some yourself, tick them below.
+              {t('Clean Up and bulk actions always skip these. To archive or delete some yourself, tick them below.')}
             </p>
           </div>
           {verifiedEmails.length > 0 && (
             <button
-              onClick={() => requirePro('Receipt export') && downloadReceiptsCsv(verifiedEmails)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-mint-100 text-ink rounded-2xl border-2 border-ink/10 shadow-sm font-semibold flex-shrink-0"
+              onClick={() => requirePro(t('Receipt export')) && downloadReceiptsCsv(verifiedEmails)}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-mint-200 hover:bg-mint-300 text-ink rounded-2xl border-2 border-ink/10 shadow-sm font-semibold flex-shrink-0"
             >
               <Download className="w-4 h-4" />
-              <span>Download list</span>
+              <span>{t('Download list')}</span>
             </button>
           )}
         </div>
@@ -317,7 +308,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
           <ShieldCheck className="w-5 h-5 text-mint-700 flex-shrink-0 mt-0.5" />
           <p className="flex-1 text-sm text-mint-900">{notice}</p>
           <button onClick={() => setNotice('')} className="text-sm font-medium text-mint-800">
-            Dismiss
+            {t('Dismiss')}
           </button>
         </div>
       )}
@@ -329,20 +320,20 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
       )}
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-12 text-center border-2 border-ink/10">
+        <div className="bg-white border-2 border-ocean-200 border-t-[10px] border-t-ocean-300 rounded-2xl shadow-sm p-12 text-center">
           <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-ink mb-2">
             {isVerifiedTab
-              ? 'No receipts or invoices yet'
-              : filterUnread ? 'No unread important emails' : 'No important emails'}
+              ? t('No receipts or invoices yet')
+              : filterUnread ? t('No unread important emails') : t('No important emails')}
           </h3>
           <p className="text-ink/75">
-            {isVerifiedTab ? "When a receipt or invoice arrives, it'll be filed here automatically." : "You're all caught up!"}
+            {isVerifiedTab ? t("When a receipt or invoice arrives, it'll be filed here automatically.") : t("You're all caught up!")}
           </p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm border-2 border-ink/10 sticky top-20 z-10 flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-ocean-100 rounded-2xl p-4 mb-4 shadow-sm border-2 border-ink/10 sticky top-20 z-10 flex flex-wrap items-center justify-between gap-3">
             <label className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -352,7 +343,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                 className="w-5 h-5 rounded border-gray-300 text-mint-600 focus:ring-mint-500"
               />
               <span className="font-medium text-ink/85">
-                {selectedList.length > 0 ? `${selectedList.length.toLocaleString()} selected` : 'Select All'}
+                {selectedList.length > 0 ? t('{n} selected', { n: selectedList.length }) : t('Select All')}
               </span>
             </label>
             {selectedList.length > 0 && (
@@ -363,7 +354,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                   className="flex items-center space-x-2 px-4 py-2 bg-sunny-300 hover:bg-sunny-400 text-sunny-900 rounded-xl border-2 border-ink/10 shadow-sm transition disabled:opacity-50"
                 >
                   {activeAction === 'mark_read' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
-                  <span className="font-medium">Mark as Read</span>
+                  <span className="font-medium">{t('Mark as Read')}</span>
                 </button>
                 <button
                   onClick={() => setPendingRemove('archive')}
@@ -371,7 +362,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                   className="flex items-center space-x-2 px-4 py-2 bg-mint-200 hover:bg-mint-300 text-ink rounded-xl border-2 border-ink/10 shadow-sm transition disabled:opacity-50"
                 >
                   {activeAction === 'archive' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
-                  <span className="font-medium">Archive</span>
+                  <span className="font-medium">{t('Archive')}</span>
                 </button>
                 <button
                   onClick={() => setPendingRemove('delete')}
@@ -379,7 +370,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                   className="flex items-center space-x-2 px-4 py-2 bg-berry-200 hover:bg-berry-300 text-ink rounded-xl border-2 border-ink/10 shadow-sm transition disabled:opacity-50"
                 >
                   {activeAction === 'delete' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                  <span className="font-medium">Delete</span>
+                  <span className="font-medium">{t('Delete')}</span>
                 </button>
               </div>
             )}
@@ -398,7 +389,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                     ? 'bg-mint-50 border-mint-300 shadow-mint-300'
                     : !email.is_read
                       ? 'bg-ocean-50 border-ocean-200'
-                      : 'bg-white border-ink/10 hover:border-ocean-300'
+                      : 'bg-white border-ocean-200 hover:border-ocean-300'
                 }`}
               >
                 <div className="flex items-start gap-4">
@@ -407,20 +398,20 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                   checked={selected.has(email.id)}
                   onChange={() => toggleOne(email.id)}
                   disabled={processing}
-                  aria-label={`Select ${email.subject}`}
+                  aria-label={t('Select {name}', { name: email.subject })}
                   className="w-5 h-5 mt-1 rounded border-gray-300 text-mint-600 focus:ring-mint-500 flex-shrink-0"
                 />
                 <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="font-semibold text-ink truncate">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
+                      <h3 className="font-semibold text-ink truncate max-w-full">
                         {email.sender_name || email.sender}
                       </h3>
                       {email.is_protected && (
                         <span className="flex items-center space-x-1 text-xs px-2 py-1 rounded-full font-semibold flex-shrink-0 bg-mint-100 text-mint-800">
                           <Receipt className="w-3.5 h-3.5" />
-                          <span>{getVerifiedKind(email)} · Safe</span>
+                          <span>{t(getVerifiedKind(email))} · {t('Safe')}</span>
                         </span>
                       )}
                       {email.importance_reason && !email.is_protected && (
@@ -429,7 +420,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                             email.importance_reason
                           )}`}
                         >
-                          {email.importance_reason}
+                          {tKnown(email.importance_reason)}
                         </span>
                       )}
                     </div>
@@ -437,7 +428,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-ink/70 flex-shrink-0 ml-4">
                     <Clock className="w-4 h-4" />
-                    <span>{formatTime(email.timestamp)}</span>
+                    <span>{timeAgo(email.timestamp)}</span>
                   </div>
                 </div>
 
@@ -449,12 +440,12 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                     {email.has_attachment && (
                       <div className="flex items-center space-x-1 text-sm text-ink/70">
                         <Paperclip className="w-4 h-4" />
-                        <span>Attachment</span>
+                        <span>{t('Attachment')}</span>
                       </div>
                     )}
                     {!email.is_read && (
                       <span className="text-xs bg-ocean-100 text-ocean-700 px-2 py-1 rounded-full font-medium">
-                        Unread
+                        {t('Unread')}
                       </span>
                     )}
                     {email.is_suspicious && <ScamBadge />}
@@ -472,7 +463,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                 onClick={() => setShowAll(true)}
                 className="text-ocean-600 hover:text-ocean-700 font-medium"
               >
-                Show all {filtered.length.toLocaleString()} emails
+                {t('Show all {n} emails', { n: filtered.length })}
               </button>
             </div>
           )}
@@ -482,7 +473,7 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
                 onClick={() => setShowAll(false)}
                 className="text-ink/75 hover:text-ink font-medium"
               >
-                Show fewer
+                {t('Show fewer')}
               </button>
             </div>
           )}

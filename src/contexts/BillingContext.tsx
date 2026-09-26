@@ -7,6 +7,7 @@ import { addMailActionListener } from '../lib/mailActions';
 import type { Subscription } from '../lib/types';
 import PricingModal, { type PricingReason } from '../components/PricingModal';
 import UpgradeNudge from '../components/UpgradeNudge';
+import { t, useI18n } from '../lib/i18n';
 
 // Free users get a small "N cleans left, upgrade now" popup each time their
 // monthly cleans pass another multiple of this (150, 300, 450).
@@ -35,6 +36,7 @@ type Notice = { tone: 'success' | 'info'; text: string } | null;
 
 export function BillingProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  useI18n();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [used, setUsed] = useState(0);
@@ -108,7 +110,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     window.history.replaceState({}, '', window.location.pathname);
 
     if (checkout === 'cancelled') {
-      setNotice({ tone: 'info', text: 'No worries - you were not charged. You can upgrade any time.' });
+      setNotice({ tone: 'info', text: t('No worries - you were not charged. You can upgrade any time.') });
       return;
     }
     if (portal) {
@@ -120,7 +122,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     (async () => {
       for (let attempt = 0; attempt < 10 && !cancelled; attempt++) {
         if (await refresh()) {
-          setNotice({ tone: 'success', text: 'Welcome to Pro! Unlimited cleaning is switched on.' });
+          setNotice({ tone: 'success', text: t('Welcome to Pro! Unlimited cleaning is switched on.') });
           return;
         }
         await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -128,7 +130,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
       if (!cancelled) {
         setNotice({
           tone: 'info',
-          text: 'Payment received! Your Pro plan is being switched on - refresh in a minute if it still says Free.',
+          text: t('Payment received! Your Pro plan is being switched on - refresh in a minute if it still says Free.'),
         });
       }
     })();
@@ -183,7 +185,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
           >
             {notice.tone === 'success' && <PartyPopper className="w-6 h-6 text-ink flex-shrink-0" />}
             <p className="flex-1 font-semibold text-ink">{notice.text}</p>
-            <button onClick={() => setNotice(null)} aria-label="Dismiss" className="text-ink/70 hover:text-ink">
+            <button onClick={() => setNotice(null)} aria-label={t('Dismiss')} className="text-ink/70 hover:text-ink">
               <X className="w-5 h-5" />
             </button>
           </div>

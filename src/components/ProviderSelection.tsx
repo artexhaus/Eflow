@@ -1,5 +1,6 @@
 import { Mail, ArrowRight } from 'lucide-react';
 import SpeedLogo from './SpeedLogo';
+import { useI18n } from '../lib/i18n';
 
 interface ProviderSelectionProps {
   onProviderSelect: (provider: string) => void;
@@ -33,6 +34,7 @@ const providers = [
 ];
 
 export default function ProviderSelection({ onProviderSelect }: ProviderSelectionProps) {
+  const { t } = useI18n();
   return (
     <div className="min-h-screen bg-gradient-to-br from-mint-100 via-sunny-100 to-berry-100 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full">
@@ -43,8 +45,8 @@ export default function ProviderSelection({ onProviderSelect }: ProviderSelectio
           <div className="mb-4">
             <SpeedLogo className="text-5xl -ml-[1.45em]" />
           </div>
-          <p className="text-xl text-ink/75 mb-2">Reset your inbox. Automatically.</p>
-          <p className="text-ink/70">Choose your email provider to get started</p>
+          <p className="text-xl text-ink/75 mb-2">{t('Reset your inbox. Automatically.')}</p>
+          <p className="text-ink/70">{t('Choose your email provider to get started')}</p>
         </div>
 
         <div className="bg-white rounded-3xl shadow-2xl p-8 border-2 border-ink/10">
@@ -61,7 +63,7 @@ export default function ProviderSelection({ onProviderSelect }: ProviderSelectio
                   </div>
                   <h3 className="text-xl font-bold text-ink mb-2">{provider.name}</h3>
                   <div className="flex items-center text-ink/70 transition-colors">
-                    <span className="text-sm font-medium">Connect securely</span>
+                    <span className="text-sm font-medium">{t('Connect securely')}</span>
                     <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
@@ -71,7 +73,7 @@ export default function ProviderSelection({ onProviderSelect }: ProviderSelectio
 
           <div className="mt-8 p-4 bg-sunny-100 rounded-2xl">
             <p className="text-sm text-ink/75 text-center">
-              Your data stays private.
+              {t('Your data stays private.')}
             </p>
           </div>
         </div>

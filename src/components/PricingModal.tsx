@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Loader2, X, Sparkles, Star, Blocks, Settings } from 'lucide-react';
 import { useBilling } from '../contexts/BillingContext';
+import { t, plural, tKnown, useI18n, type MessageKey } from '../lib/i18n';
 import { BillingError, FREE_MONTHLY_LIMIT, FREE_UNSUBSCRIBE_LIMIT, PRICES, formatResetDate, openBillingPortal, startCheckout, type Plan } from '../lib/billing';
 
 export type PricingReason =
@@ -17,14 +18,14 @@ interface PricingModalProps {
 // What each plan includes. Monthly and yearly Pro have the same features;
 // yearly is just cheaper. Receipt protection and scam warnings are safety
 // features and stay on every plan.
-const FREE_FEATURES = [
-  `Clean up to ${FREE_MONTHLY_LIMIT} emails a month`,
-  'One-tap Clean Up Unopened Junk',
-  `Unsubscribe from ${FREE_UNSUBSCRIBE_LIMIT} senders a month`,
-  'Receipt protection & scam warnings',
+const freeFeatures = () => [
+  t('Clean up to {n} emails a month', { n: FREE_MONTHLY_LIMIT }),
+  t('One-tap Clean Up Unopened Junk'),
+  t('Unsubscribe from {n} senders a month', { n: FREE_UNSUBSCRIBE_LIMIT }),
+  t('Receipt protection & scam warnings'),
 ];
 
-const PRO_FEATURES = [
+const PRO_FEATURES: MessageKey[] = [
   'Unlimited cleaning',
   'Unlimited unsubscribes',
   'Bulk actions: select many at once',
@@ -34,6 +35,7 @@ const PRO_FEATURES = [
 
 export default function PricingModal({ reason, onClose }: PricingModalProps) {
   const { isPro, subscription, used } = useBilling();
+  useI18n();
   const [busy, setBusy] = useState<Plan | 'portal' | null>(null);
   const [error, setError] = useState('');
 
@@ -49,7 +51,7 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
     try {
       await startCheckout(plan); // navigates to Stripe on success
     } catch (err) {
-      setError((err as Error).message);
+      setError(tKnown((err as Error).message));
       setBusy(null);
     }
   };
@@ -60,7 +62,7 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
     try {
       await openBillingPortal();
     } catch (err) {
-      setError(err instanceof BillingError ? err.message : 'Could not open subscription settings.');
+      setError(err instanceof BillingError ? tKnown(err.message) : t('Could not open subscription settings.'));
       setBusy(null);
     }
   };
@@ -69,20 +71,23 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
   const usedPct = Math.min(100, Math.round((used / FREE_MONTHLY_LIMIT) * 100));
   const resetsOn = formatResetDate();
 
-  let title = 'Pick your plan';
-  let subtitle = 'Keep your inbox tidy with a plan that fits.';
+  let title = t('Pick your plan');
+  let subtitle = t('Keep your inbox tidy with a plan that fits.');
   if (reason.kind === 'limit') {
-    title = reason.remaining === 0 ? `You've used all ${FREE_MONTHLY_LIMIT} free cleans this month` : `Only ${reason.remaining} free cleans left this month`;
+    title =
+      reason.remaining === 0
+        ? t("You've used all {n} free cleans this month", { n: FREE_MONTHLY_LIMIT })
+        : plural(reason.remaining, 'Only {n} free clean left this month', 'Only {n} free cleans left this month');
     subtitle =
       reason.requested && reason.remaining > 0
-        ? `That clean-up needs ${reason.requested.toLocaleString()}. Go Pro for unlimited cleaning, or wait until ${resetsOn}.`
-        : `Go Pro for unlimited cleaning, or your free cleans come back on ${resetsOn}.`;
+        ? t('That clean-up needs {n}. Go Pro for unlimited cleaning, or wait until {date}.', { n: reason.requested, date: resetsOn })
+        : t('Go Pro for unlimited cleaning, or your free cleans come back on {date}.', { date: resetsOn });
   } else if (reason.kind === 'unsubscribe_limit') {
-    title = `You've used your ${FREE_UNSUBSCRIBE_LIMIT} free unsubscribes this month`;
-    subtitle = `Go Pro to unsubscribe from as many senders as you like, or more free unsubscribes arrive on ${resetsOn}.`;
+    title = t("You've used your {n} free unsubscribes this month", { n: FREE_UNSUBSCRIBE_LIMIT });
+    subtitle = t('Go Pro to unsubscribe from as many senders as you like, or more free unsubscribes arrive on {date}.', { date: resetsOn });
   } else if (reason.kind === 'pro_feature') {
-    title = `${reason.feature} is a Pro feature`;
-    subtitle = 'On Free you can act on one email or sender at a time. Go Pro to select many at once and clean up in one go.';
+    title = t('{feature} is a Pro feature', { feature: reason.feature });
+    subtitle = t('On Free you can act on one email or sender at a time. Go Pro to select many at once and clean up in one go.');
   }
 
   // Free users: buy the plan in Checkout. Pro users: their current plan is
@@ -93,9 +98,9 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
     const isSwitch = isPro && !isCurrent;
     const working = isSwitch ? busy === 'portal' : busy === plan;
     let text = label;
-    if (isCurrent) text = 'Your plan';
-    else if (isSwitch) text = working ? 'Opening...' : `Switch to ${plan === 'annual' ? 'yearly' : 'monthly'}`;
-    else if (working) text = 'Opening checkout...';
+    if (isCurrent) text = t('Your plan');
+    else if (isSwitch) text = working ? t('Opening...') : plan === 'annual' ? t('Switch to yearly') : t('Switch to monthly');
+    else if (working) text = t('Opening checkout...');
 
     return (
       <button
@@ -124,7 +129,7 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
         <button
           onClick={onClose}
           autoFocus
-          aria-label="Close"
+          aria-label={t('Close')}
           className="absolute top-4 right-4 w-10 h-10 rounded-2xl bg-white border-2 border-ink/10 shadow-sm flex items-center justify-center text-ink hover:bg-sunny-100"
         >
           <X className="w-5 h-5" />
@@ -143,10 +148,8 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
         {!isPro && (
           <div className="max-w-md mx-auto mb-8">
             <div className="flex justify-between text-sm font-semibold text-ink/80 mb-1">
-              <span>This month</span>
-              <span>
-                {used.toLocaleString()} / {FREE_MONTHLY_LIMIT} cleaned
-              </span>
+              <span>{t('This month')}</span>
+              <span>{t('{used} / {limit} cleaned', { used, limit: FREE_MONTHLY_LIMIT })}</span>
             </div>
             <div className="h-4 bg-white rounded-full border-2 border-ink/10 overflow-hidden">
               <div
@@ -160,13 +163,13 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
           {/* Free */}
           <div className="flex flex-col bg-sunny-100 rounded-3xl border-2 border-ink/10 shadow-xl p-6">
-            <h3 className="text-2xl font-bold text-ink">Free</h3>
+            <h3 className="text-2xl font-bold text-ink">{t('Free')}</h3>
             <div className="mt-3 mb-5">
               <span className="font-display text-5xl font-bold text-ink">$0</span>
-              <span className="text-ink/70 ml-1">/ month</span>
+              <span className="text-ink/70 ml-1">/ {t('month')}</span>
             </div>
             <ul className="space-y-3 mb-6 flex-1">
-              {FREE_FEATURES.map((f) => (
+              {freeFeatures().map((f) => (
                 <li key={f} className="flex items-start gap-2 text-ink">
                   <Check className="w-5 h-5 text-sunny-800 flex-shrink-0 mt-0.5" />
                   <span>{f}</span>
@@ -175,9 +178,9 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
             </ul>
             <button
               onClick={onClose}
-              className="w-full py-4 rounded-2xl text-lg font-display font-semibold bg-white border-2 border-ink/15 shadow-lg text-ink hover:bg-sunny-50"
+              className="w-full py-4 rounded-2xl text-lg font-display font-semibold bg-sunny-200 border-2 border-ink/15 shadow-lg text-ink hover:bg-sunny-300"
             >
-              {currentPlan === 'free' ? 'Stay on Free' : 'Close'}
+              {currentPlan === 'free' ? t('Stay on Free') : t('Close')}
             </button>
           </div>
 
@@ -188,42 +191,42 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
             </h3>
             <div className="mt-3 mb-5">
               <span className="font-display text-5xl font-bold text-ink">{PRICES.monthly.amount}</span>
-              <span className="text-ink/70 ml-1">/ {PRICES.monthly.per}</span>
+              <span className="text-ink/70 ml-1">/ {t('month')}</span>
             </div>
             <ul className="space-y-3 mb-6 flex-1">
               {PRO_FEATURES.map((f) => (
                 <li key={f} className="flex items-start gap-2 text-ink">
                   <Check className="w-5 h-5 text-ocean-700 flex-shrink-0 mt-0.5" />
-                  <span>{f}</span>
+                  <span>{t(f)}</span>
                 </li>
               ))}
             </ul>
-            {planButton('monthly', 'Go Pro monthly', 'bg-ocean-200 hover:bg-ocean-300 text-ink')}
+            {planButton('monthly', t('Go Pro monthly'), 'bg-ocean-200 hover:bg-ocean-300 text-ink')}
           </div>
 
           {/* Pro annual - best value */}
           <div className="relative flex flex-col bg-mint-100 rounded-3xl border-2 border-mint-400 ring-4 ring-mint-200 shadow-xl p-6">
             <span className="absolute -top-4 right-6 rotate-3 bg-berry-200 text-ink font-display font-semibold px-4 py-1.5 rounded-2xl border-2 border-ink/10 shadow-md flex items-center gap-1">
-              <Star className="w-4 h-4" /> Best value
+              <Star className="w-4 h-4" /> {t('Best value')}
             </span>
             <h3 className="text-2xl font-bold text-ink flex items-center gap-2">
-              Pro yearly <Sparkles className="w-5 h-5 text-mint-700" />
+              {t('Pro yearly')} <Sparkles className="w-5 h-5 text-mint-700" />
             </h3>
             <div className="mt-3">
               <span className="font-display text-5xl font-bold text-ink">{PRICES.annual.amount}</span>
-              <span className="text-ink/70 ml-1">/ {PRICES.annual.per}</span>
+              <span className="text-ink/70 ml-1">/ {t('year')}</span>
             </div>
-            <p className="text-mint-800 font-semibold">Just $4.17 a month - save 40%</p>
-            <p className="text-sm text-ink/70 mb-5">Everything in Pro, billed once a year.</p>
+            <p className="text-mint-800 font-semibold">{t('Just $4.17 a month - save 40%')}</p>
+            <p className="text-sm text-ink/70 mb-5">{t('Everything in Pro, billed once a year.')}</p>
             <ul className="space-y-3 mb-6 flex-1">
               {PRO_FEATURES.map((f) => (
                 <li key={f} className="flex items-start gap-2 text-ink">
                   <Check className="w-5 h-5 text-mint-700 flex-shrink-0 mt-0.5" />
-                  <span>{f}</span>
+                  <span>{t(f)}</span>
                 </li>
               ))}
             </ul>
-            {planButton('annual', 'Go Pro yearly', 'bg-mint-200 hover:bg-mint-300 text-ink')}
+            {planButton('annual', t('Go Pro yearly'), 'bg-mint-200 hover:bg-mint-300 text-ink')}
           </div>
         </div>
 
@@ -236,13 +239,13 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
             <button
               onClick={manage}
               disabled={busy !== null}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white border-2 border-ink/15 shadow-md text-ink font-semibold hover:bg-ocean-50 disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-ocean-200 border-2 border-ink/15 shadow-md text-ink font-semibold hover:bg-ocean-300 disabled:opacity-60"
             >
               {busy === 'portal' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Settings className="w-5 h-5" />}
-              <span>Manage Subscription</span>
+              <span>{t('Manage Subscription')}</span>
             </button>
           )}
-          <p className="text-sm">Cancel any time. Payments are handled securely by Stripe.</p>
+          <p className="text-sm">{t('Cancel any time. Payments are handled securely by Stripe.')}</p>
         </div>
       </div>
     </div>

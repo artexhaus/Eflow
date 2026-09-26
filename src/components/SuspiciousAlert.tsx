@@ -3,6 +3,7 @@ import { ShieldAlert, Trash2, CheckCircle } from 'lucide-react';
 import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import RemoveConfirmDialog from './RemoveConfirmDialog';
 import type { Email } from '../lib/types';
+import { plural, tKnown, useI18n } from '../lib/i18n';
 
 interface SuspiciousAlertProps {
   emails: Email[];
@@ -16,6 +17,7 @@ export default function SuspiciousAlert({ emails, onRefresh }: SuspiciousAlertPr
   const suspicious = useMemo(() => emails.filter((e) => e.is_suspicious), [emails]);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const { t } = useI18n();
 
   if (suspicious.length === 0) {
     return result?.tone === 'success' ? (
@@ -23,7 +25,7 @@ export default function SuspiciousAlert({ emails, onRefresh }: SuspiciousAlertPr
         <CheckCircle className="w-5 h-5 text-mint-700 flex-shrink-0" />
         <p className="flex-1 text-mint-900">{result.text}</p>
         <button onClick={() => setResult(null)} className="text-sm font-medium text-mint-800">
-          Dismiss
+          {t('Dismiss')}
         </button>
       </div>
     ) : null;
@@ -36,16 +38,16 @@ export default function SuspiciousAlert({ emails, onRefresh }: SuspiciousAlertPr
       const res = await applyMailAction(
         'delete',
         { emailIds: suspicious.map((e) => e.email_id) },
-        { label: `${suspicious.length} suspicious email${suspicious.length === 1 ? '' : 's'}` }
+        { label: plural(suspicious.length, '{n} suspicious email', '{n} suspicious emails') }
       );
       setResult(
         res.failed > 0
           ? { tone: 'error', text: describePartialFailure(res) }
-          : { tone: 'success', text: `Deleted ${res.processed.toLocaleString()} suspicious email${res.processed === 1 ? '' : 's'}.` }
+          : { tone: 'success', text: plural(res.processed, 'Deleted {n} suspicious email.', 'Deleted {n} suspicious emails.') }
       );
       await onRefresh();
     } catch (err) {
-      setResult({ tone: 'error', text: (err as Error).message });
+      setResult({ tone: 'error', text: tKnown((err as Error).message) });
     }
   };
 
@@ -59,11 +61,10 @@ export default function SuspiciousAlert({ emails, onRefresh }: SuspiciousAlertPr
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-display text-xl font-bold text-ink">
-            {count === 1 ? '1 email looks like a scam' : `${count} emails look like scams`}
+            {plural(count, '{n} email looks like a scam', '{n} emails look like scams')}
           </h3>
           <p className="text-ink/80 mb-3">
-            Fake order confirmations and invoices, often from personal accounts. Don't open their attachments, click
-            their links or call any number in them.
+            {t("Fake order confirmations and invoices, often from personal accounts. Don't open their attachments, click their links or call any number in them.")}
           </p>
           <ul className="space-y-1 mb-4">
             {suspicious.slice(0, 3).map((e) => (
@@ -73,7 +74,7 @@ export default function SuspiciousAlert({ emails, onRefresh }: SuspiciousAlertPr
                 {e.subject}
               </li>
             ))}
-            {count > 3 && <li className="text-sm text-ink/70">and {(count - 3).toLocaleString()} more</li>}
+            {count > 3 && <li className="text-sm text-ink/70">{t('and {n} more', { n: count - 3 })}</li>}
           </ul>
           {result?.tone === 'error' && <p className="text-sm text-berry-800 mb-3">{result.text}</p>}
           <button
@@ -81,7 +82,7 @@ export default function SuspiciousAlert({ emails, onRefresh }: SuspiciousAlertPr
             className="inline-flex items-center gap-2 px-5 py-3 bg-berry-200 hover:bg-berry-300 text-ink rounded-2xl border-2 border-ink/15 shadow-md font-display font-semibold"
           >
             <Trash2 className="w-5 h-5" />
-            <span>{count === 1 ? 'Delete it' : 'Delete them all'}</span>
+            <span>{count === 1 ? t('Delete it') : t('Delete them all')}</span>
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { plural, t } from './i18n';
 
 export type MailAction = 'delete' | 'archive' | 'mark_read';
 
@@ -94,7 +95,7 @@ async function runMailAction(
   allowProtected: boolean
 ): Promise<MailActionResult> {
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Your session expired. Please sign in again.');
+  if (!session) throw new Error(t('Your session expired. Please sign in again.'));
 
   const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imap-apply-actions`, {
     method: 'POST',
@@ -107,12 +108,22 @@ async function runMailAction(
 
   const body = await response.json().catch(() => ({}));
   if (response.status === 402 && body.code === 'usage_limit') {
-    const error = new UsageLimitError(body.error, body.limit, body.used, body.remaining, body.requested);
+    // Worded here rather than taken from the server, so it's in the user's language.
+    const message =
+      body.remaining === 0
+        ? t("You've cleaned {n} emails this month, the Free plan limit. Upgrade to Pro for unlimited cleaning.", { n: body.limit })
+        : plural(
+            body.remaining,
+            'This would clean {requested} emails, but you have {n} free clean left this month. Upgrade to Pro for unlimited cleaning.',
+            'This would clean {requested} emails, but you have {n} free cleans left this month. Upgrade to Pro for unlimited cleaning.',
+            { requested: body.requested }
+          );
+    const error = new UsageLimitError(message, body.limit, body.used, body.remaining, body.requested);
     notify((l) => l.onUsageLimit?.(error));
     throw error;
   }
   if (!response.ok) {
-    throw new Error(body.error || 'Could not reach your mail server. Please try again.');
+    throw new Error(body.error || t('Could not reach your mail server. Please try again.'));
   }
 
   const result: MailActionResult = {
@@ -123,13 +134,15 @@ async function runMailAction(
   };
   if (action !== 'mark_read') notify((l) => l.onCleaned?.());
   if (result.failed > 0 && result.processed === 0) {
-    throw new Error('Your mail server rejected the request. Nothing was changed - please try again.');
+    throw new Error(t('Your mail server rejected the request. Nothing was changed - please try again.'));
   }
   return result;
 }
 
 export function describePartialFailure(result: MailActionResult): string {
   if (result.failed === 0) return '';
-  return `${result.processed.toLocaleString()} of ${result.total.toLocaleString()} emails were handled. ` +
-    `${result.failed.toLocaleString()} couldn't be processed by your mail server and are still shown - try again.`;
+  return t(
+    "{processed} of {total} emails were handled. {failed} couldn't be processed by your mail server and are still shown - try again.",
+    { processed: result.processed, total: result.total, failed: result.failed }
+  );
 }

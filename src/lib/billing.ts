@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getLanguage, locale, t } from './i18n';
 
 // Must match FREE_MONTHLY_LIMIT in supabase/functions/_shared/billing.ts. The
 // server enforces the limit; this copy is only for display.
@@ -36,7 +37,7 @@ export function nextResetDate(now = new Date()): Date {
 // The reset instant is midnight UTC on the 1st; format it in UTC so users west
 // of UTC see "October 1", not the local "September 30".
 export function formatResetDate(options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric' }): string {
-  return nextResetDate().toLocaleDateString(undefined, { ...options, timeZone: 'UTC' });
+  return nextResetDate().toLocaleDateString(locale(), { ...options, timeZone: 'UTC' });
 }
 
 export class BillingError extends Error {
@@ -47,7 +48,7 @@ export class BillingError extends Error {
 
 async function callBillingFunction(name: string, body: unknown): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new BillingError('Your session expired. Please sign in again.');
+  if (!session) throw new BillingError(t('Your session expired. Please sign in again.'));
 
   let response: Response;
   try {
@@ -63,21 +64,21 @@ async function callBillingFunction(name: string, body: unknown): Promise<string>
     // The request never got an answer: offline, or the function isn't
     // deployed (Supabase's "not found" reply is blocked by the browser).
     console.error(`Could not reach the ${name} edge function. Is it deployed? See scripts/setup-stripe.sh.`);
-    throw new BillingError("We couldn't reach the billing service just now. Please check your connection and try again.");
+    throw new BillingError(t("We couldn't reach the billing service just now. Please check your connection and try again."));
   }
   const result = await response.json().catch(() => ({}));
   if (!response.ok || !result.url) {
-    throw new BillingError(result.error || 'Something went wrong. Please try again.', result.code);
+    throw new BillingError(result.error || t('Something went wrong. Please try again.'), result.code);
   }
   return result.url;
 }
 
 // Sends the user to Stripe Checkout; they come back to /?checkout=success.
 export async function startCheckout(plan: Plan): Promise<void> {
-  window.location.assign(await callBillingFunction('create-checkout-session', { plan }));
+  window.location.assign(await callBillingFunction('create-checkout-session', { plan, locale: getLanguage() }));
 }
 
 // Sends the user to the Stripe Customer Portal (card, plan switch, cancel).
 export async function openBillingPortal(): Promise<void> {
-  window.location.assign(await callBillingFunction('create-portal-session', {}));
+  window.location.assign(await callBillingFunction('create-portal-session', { locale: getLanguage() }));
 }

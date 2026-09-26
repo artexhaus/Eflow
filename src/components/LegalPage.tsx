@@ -3,6 +3,8 @@ import { ChevronLeft, Mail } from 'lucide-react';
 import { LEGAL } from '../lib/legal';
 import { PRICES, FREE_MONTHLY_LIMIT, FREE_UNSUBSCRIBE_LIMIT } from '../lib/billing';
 import LegalLinks from './LegalLinks';
+import LanguageToggle from './LanguageToggle';
+import { useI18n, type MessageKey } from '../lib/i18n';
 
 export type LegalPageKind = 'privacy' | 'terms' | 'refunds';
 
@@ -56,7 +58,7 @@ function Privacy() {
           <><strong>Details about your emails:</strong> for messages in your inbox we store the sender&apos;s name and address, the subject line, the date, whether it&apos;s been read, whether it has an attachment, and mailing-list headers (such as unsubscribe links). We do <strong>not</strong> download or store the body of your emails or their attachments.</>,
           <><strong>What you do in {product}:</strong> which emails you clean up, senders you unsubscribe from, and how many emails you&apos;ve cleaned each month (used for the Free plan limit).</>,
           <><strong>Billing:</strong> if you subscribe, payments are handled by Stripe. We store your plan, subscription status and Stripe customer ID. We never see or store your card number.</>,
-          <><strong>Your browser:</strong> {product} remembers small preferences (like Simple view) in your browser&apos;s local storage. We don&apos;t use advertising or tracking cookies.</>,
+          <><strong>Your browser:</strong> {product} remembers small preferences (like Simple view and your language) in your browser&apos;s local storage. We don&apos;t use advertising or tracking cookies.</>,
         ]}
       />
 
@@ -232,35 +234,247 @@ function Refunds() {
   );
 }
 
-const PAGES: Record<LegalPageKind, { title: string; body: () => JSX.Element }> = {
-  privacy: { title: 'Privacy Policy', body: Privacy },
-  terms: { title: 'Terms of Service', body: Terms },
-  refunds: { title: 'Refund Policy', body: Refunds },
+
+// Spanish translations of the three documents. The English versions govern;
+// the note at the top of each Spanish page says so.
+function PrivacyEs() {
+  return (
+    <>
+      <P>
+        Esta política explica qué recopila {product} (&ldquo;{product}&rdquo;, &ldquo;nosotros&rdquo;), un producto de {company},
+        cuando usas {website}, por qué lo hace y qué opciones tienes. Creamos {product} para ordenar tu bandeja de entrada, no
+        para lucrar con tus datos: no vendemos tu información, no te mostramos anuncios y no usamos tus correos para entrenar
+        modelos de IA.
+      </P>
+
+      <H2>Qué recopilamos</H2>
+      <UL
+        items={[
+          <><strong>Tu cuenta de {product}:</strong> tu dirección de correo y tu contraseña. Nuestro proveedor de autenticación guarda las contraseñas como un hash irreversible; no podemos leerlas.</>,
+          <><strong>La conexión de tu buzón:</strong> la dirección del buzón que conectas, el proveedor que usa y la contraseña de aplicación que creas para {product}. La contraseña de aplicación se cifra antes de guardarse.</>,
+          <><strong>Datos sobre tus correos:</strong> de los mensajes de tu bandeja de entrada guardamos el nombre y la dirección del remitente, el asunto, la fecha, si se leyó, si tiene archivos adjuntos y los encabezados de listas de correo (como los enlaces para darse de baja). <strong>No</strong> descargamos ni guardamos el contenido de tus correos ni sus archivos adjuntos.</>,
+          <><strong>Lo que haces en {product}:</strong> qué correos limpias, de qué remitentes te das de baja y cuántos correos limpias cada mes (para el límite del plan Gratis).</>,
+          <><strong>Facturación:</strong> si te suscribes, los pagos los gestiona Stripe. Guardamos tu plan, el estado de tu suscripción y tu ID de cliente de Stripe. Nunca vemos ni guardamos el número de tu tarjeta.</>,
+          <><strong>Tu navegador:</strong> {product} recuerda pequeñas preferencias (como la vista simple o el idioma) en el almacenamiento local de tu navegador. No usamos cookies de publicidad ni de seguimiento.</>,
+        ]}
+      />
+
+      <H2>Cómo lo usamos</H2>
+      <UL
+        items={[
+          'Para ordenar tu bandeja de entrada (por ejemplo, en correos importantes, desorden, recibos y posibles estafas) y mostrarte los resultados.',
+          'Para realizar las acciones que eliges: archivar, eliminar o marcar correos como leídos en tu buzón, y enviar solicitudes de baja a los remitentes que elijas. Solo modificamos tu buzón cuando nos lo pides.',
+          'Para gestionar tu cuenta y tu suscripción, aplicar los límites de cada plan y enviarte correos esenciales de la cuenta (como el restablecimiento de contraseña).',
+          'Para mantener el servicio seguro, corregir problemas y mejorarlo.',
+        ]}
+      />
+
+      <H2>Con quién lo compartimos</H2>
+      <P>Solo compartimos información con los proveedores que hacen funcionar {product}, y solo lo que necesitan:</P>
+      <UL
+        items={[
+          <><strong>Supabase</strong>: nuestra base de datos, autenticación y funciones del servidor.</>,
+          <><strong>Stripe</strong>: procesamiento de pagos y gestión de suscripciones.</>,
+          <><strong>Vercel</strong>: alojamiento del sitio web de {product}.</>,
+          <><strong>Tu proveedor de correo</strong> (como Gmail, Yahoo, Outlook o iCloud): {product} se conecta a tu buzón con la contraseña de aplicación que nos das.</>,
+          <><strong>Los remitentes de los que te das de baja</strong>: cuando nos lo pides, les enviamos la solicitud de baja que ofrece su correo.</>,
+        ]}
+      />
+      <P>También podemos divulgar información si la ley lo exige, o para proteger los derechos y la seguridad de nuestros usuarios o de {company}.</P>
+
+      <H2>Cuánto tiempo lo guardamos</H2>
+      <P>
+        Guardamos tu información mientras tu cuenta esté abierta. <strong>Desconectar buzón</strong> (en Cuenta) elimina la
+        contraseña de aplicación guardada y todos los datos guardados de tus correos. <strong>Eliminar cuenta</strong> borra tu
+        cuenta y todo lo anterior. Stripe conserva los registros de pago que la ley le obliga a conservar. Las copias de
+        seguridad se sobrescriben de forma periódica.
+      </P>
+
+      <H2>Seguridad</H2>
+      <P>
+        Las conexiones con {product} y con tu buzón están cifradas en tránsito, y las contraseñas de aplicación se guardan
+        cifradas. Cada cuenta solo puede acceder a sus propios datos. También puedes revocar el acceso de {product} en cualquier
+        momento eliminando la contraseña de aplicación en la configuración de seguridad de tu proveedor de correo.
+      </P>
+
+      <H2>Tus opciones y derechos</H2>
+      <P>
+        Puedes ver y eliminar tus datos en la aplicación en cualquier momento. Según dónde vivas, puedes tener derecho a
+        acceder, corregir, exportar o eliminar tu información personal, o a oponerte a ciertos usos. Para hacer una solicitud,
+        escribe a <Contact />.
+      </P>
+
+      <H2>Menores</H2>
+      <P>{product} no está dirigido a menores de 13 años y no recopilamos su información a sabiendas.</P>
+
+      <H2>Cambios</H2>
+      <P>Si cambiamos esta política, actualizaremos la fecha de arriba y, si los cambios son importantes, te avisaremos en la aplicación o por correo.</P>
+
+      <H2>Contacto</H2>
+      <P>
+        {company} · <Contact />
+      </P>
+    </>
+  );
+}
+
+function TermsEs() {
+  return (
+    <>
+      <P>
+        Estos términos son un acuerdo entre tú y {company} (&ldquo;nosotros&rdquo;) sobre tu uso de {product} en {website}. Al
+        crear una cuenta o usar {product}, los aceptas.
+      </P>
+
+      <H2>Tu cuenta</H2>
+      <UL
+        items={[
+          'Debes tener al menos 13 años y, para comprar una suscripción, la edad necesaria para celebrar un contrato vinculante donde vives.',
+          'Mantén en privado tu contraseña y tus contraseñas de aplicación. Eres responsable de la actividad de tu cuenta.',
+          'Conecta solo buzones que te pertenezcan o que estés autorizado a gestionar.',
+        ]}
+      />
+
+      <H2>Lo que autorizas</H2>
+      <P>
+        Al conectar un buzón, autorizas a {product} a leer los datos de sus mensajes y a archivar, eliminar o marcar correos como
+        leídos, y a enviar solicitudes de baja, <strong>cuando tú lo elijas</strong>. Las acciones ocurren en tu buzón real: tu
+        proveedor puede borrar de forma permanente los correos eliminados.
+      </P>
+
+      <H2>La clasificación automática no es perfecta</H2>
+      <P>
+        {product} clasifica los correos automáticamente (por ejemplo, &ldquo;importante&rdquo;, &ldquo;innecesario&rdquo;,
+        &ldquo;recibo&rdquo; o &ldquo;parece una estafa&rdquo;). Estas etiquetas son estimaciones útiles, no garantías. Revisa lo que
+        archivas o eliminas; no somos responsables de los correos que elimines, incluidos los que se hayan etiquetado mal. Las
+        advertencias de estafa no sustituyen la protección contra spam de tu proveedor de correo.
+      </P>
+
+      <H2>Planes, facturación y cancelación</H2>
+      <UL
+        items={[
+          `Gratis: limpia hasta ${FREE_MONTHLY_LIMIT} correos y date de baja de hasta ${FREE_UNSUBSCRIBE_LIMIT} remitentes por mes calendario, actuando sobre un correo o remitente a la vez. La protección de recibos y las advertencias de estafa se incluyen en todos los planes.`,
+          `Pro: limpieza y bajas ilimitadas, acciones en bloque (seleccionar muchos correos o remitentes a la vez) y exportación de recibos, por ${PRICES.monthly.amount} al mes o ${PRICES.annual.amount} al año, más los impuestos que correspondan. Los planes mensual y anual incluyen las mismas funciones.`,
+          'Las suscripciones se renuevan automáticamente al final de cada periodo de facturación hasta que las canceles. Puedes cancelar en cualquier momento en Cuenta > Administrar suscripción; Pro sigue activo hasta el final del periodo que pagaste.',
+          'Podemos cambiar los precios avisándote antes de tu próxima renovación.',
+          <>Los reembolsos se rigen por nuestra <a href="/refunds" className="text-ocean-700 underline">Política de reembolsos</a>.</>,
+        ]}
+      />
+
+      <H2>Uso aceptable</H2>
+      <P>
+        No uses {product} para infringir la ley, acceder a buzones a los que no tienes permiso, interferir con el servicio ni
+        intentar eludir los límites de los planes o la seguridad.
+      </P>
+
+      <H2>Servicios de terceros</H2>
+      <P>
+        {product} depende de tu proveedor de correo y de servicios como Stripe y Supabase. Los proveedores pueden limitar lo que
+        ven las aplicaciones (por ejemplo, solo tus mensajes más recientes) o cambiar cómo funciona el acceso, lo que puede
+        afectar a {product}.
+      </P>
+
+      <H2>Cierre de tu cuenta</H2>
+      <P>
+        Puedes eliminar tu cuenta en cualquier momento en Cuenta. Podemos suspender o cerrar cuentas que incumplan estos
+        términos, y avisaremos cuando sea razonable.
+      </P>
+
+      <H2>Exenciones y responsabilidad</H2>
+      <P>
+        {product} se ofrece &ldquo;tal cual&rdquo;, sin garantías de ningún tipo, en la medida en que la ley lo permita. En la medida en
+        que la ley lo permita, {company} no es responsable de pérdidas indirectas o consecuentes, incluida la pérdida de correos o
+        datos, y nuestra responsabilidad total por cualquier reclamación se limita a lo que nos pagaste en los 12 meses
+        anteriores a la reclamación.
+      </P>
+
+      <H2>Ley aplicable</H2>
+      <P>Estos términos se rigen por las leyes de {governingLaw}, sin tener en cuenta sus normas sobre conflictos de leyes.</P>
+
+      <H2>Cambios</H2>
+      <P>Podemos actualizar estos términos. Actualizaremos la fecha de arriba y te avisaremos de los cambios importantes antes de que se apliquen.</P>
+
+      <H2>Contacto</H2>
+      <P>
+        {company} · <Contact />
+      </P>
+    </>
+  );
+}
+
+function RefundsEs() {
+  return (
+    <>
+      <P>Queremos que Eflow Pro valga la pena. Así funcionan las cancelaciones y los reembolsos.</P>
+
+      <H2>Cancela cuando quieras</H2>
+      <P>
+        Cancela en Cuenta &gt; Administrar suscripción. No se te volverá a cobrar, y Pro sigue activo hasta el final del periodo
+        de facturación que ya pagaste.
+      </P>
+
+      <H2>Periodos parciales</H2>
+      <P>No reembolsamos el tiempo no usado de un periodo mensual o anual después de cancelar.</P>
+
+      <H2>Errores que corregimos</H2>
+      <P>
+        Si se te cobró dos veces, se te cobró después de cancelar o se te cobró por error, escribe a <Contact /> dentro de los 30
+        días siguientes al cobro y te lo reembolsaremos. Si un plan anual se renovó y no querías mantenerlo, contáctanos dentro
+        de los 30 días y lo resolveremos contigo.
+      </P>
+
+      <H2>Tus derechos legales</H2>
+      <P>Esta política no limita los derechos de reembolso o cancelación que tengas según las leyes de donde vives.</P>
+
+      <H2>Contacto</H2>
+      <P>
+        {company} · <Contact />
+      </P>
+    </>
+  );
+}
+
+const PAGES: Record<LegalPageKind, { title: MessageKey; body: () => JSX.Element; bodyEs: () => JSX.Element }> = {
+  privacy: { title: 'Privacy Policy', body: Privacy, bodyEs: PrivacyEs },
+  terms: { title: 'Terms of Service', body: Terms, bodyEs: TermsEs },
+  refunds: { title: 'Refund Policy', body: Refunds, bodyEs: RefundsEs },
 };
 
 export default function LegalPage({ page }: { page: LegalPageKind }) {
-  const { title, body: Body } = PAGES[page];
+  const { lang, t, formatDate } = useI18n();
+  const { title, body, bodyEs } = PAGES[page];
+  const Body = lang === 'es' ? bodyEs : body;
   return (
     <div className="min-h-screen">
       <header className="bg-white border-b-2 border-ink/10">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
           <a href="/" className="flex items-center gap-2 font-display font-bold text-ink text-xl">
             <span className="w-9 h-9 bg-mint-200 rounded-2xl flex items-center justify-center">
               <Mail className="w-5 h-5" />
             </span>
             {product}
           </a>
-          <a href="/" className="flex items-center gap-1 text-sm font-semibold text-ink/75 hover:text-ink">
-            <ChevronLeft className="w-4 h-4" /> Back to {product}
-          </a>
+          <div className="flex items-center gap-3">
+            <LanguageToggle />
+            <a href="/" className="flex items-center gap-1 text-sm font-semibold text-ink/75 hover:text-ink">
+              <ChevronLeft className="w-4 h-4" /> <span className="hidden min-[400px]:inline">{t('Back to Eflow')}</span>
+              <span className="min-[400px]:hidden">{t('Back')}</span>
+            </a>
+          </div>
         </div>
       </header>
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
         <article className="bg-white rounded-3xl border-2 border-ink/10 shadow-lg p-6 sm:p-10">
-          <h1 className="font-display text-3xl sm:text-4xl font-bold text-ink mb-1">{title}</h1>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold text-ink mb-1">{t(title)}</h1>
           <p className="text-sm text-ink/60 mb-6">
-            {company} · Last updated {effectiveDate}
+            {company} · {t('Last updated {date}', { date: formatDate(`${effectiveDate}T12:00:00Z`) })}
           </p>
+          {lang === 'es' && (
+            <p className="text-sm bg-sunny-100 border-2 border-sunny-200 rounded-2xl p-3 mb-6 text-ink/80">
+              Esta traducción se ofrece para tu comodidad. Si hay alguna diferencia con la versión en inglés, prevalece la
+              versión en inglés.
+            </p>
+          )}
           <Body />
         </article>
         <LegalLinks className="mt-8" />

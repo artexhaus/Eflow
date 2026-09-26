@@ -3,6 +3,7 @@ import { ChevronLeft, Package, Trash2, Mail, Archive, AlertCircle, Loader2 } fro
 import { supabase } from '../lib/supabase';
 import { applyMailAction, describePartialFailure, type MailAction } from '../lib/mailActions';
 import type { Bundle, Email } from '../lib/types';
+import { t, tKnown, useI18n } from '../lib/i18n';
 
 interface BundlesListProps {
   bundles: Bundle[];
@@ -12,6 +13,7 @@ interface BundlesListProps {
 }
 
 export default function BundlesList({ bundles, emails, onBack, onRefresh }: BundlesListProps) {
+  useI18n();
   const [processing, setProcessing] = useState<{ bundleId: string; action: MailAction } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -43,7 +45,7 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
       await onRefresh();
     } catch (error) {
       console.error(`Error ${action}ing bundle:`, error);
-      setErrors((prev) => ({ ...prev, [bundleId]: (error as Error).message }));
+      setErrors((prev) => ({ ...prev, [bundleId]: tKnown((error as Error).message) }));
     } finally {
       setProcessing(null);
     }
@@ -56,19 +58,19 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
         className="flex items-center space-x-2 text-ink/75 hover:text-ink mb-6 transition"
       >
         <ChevronLeft className="w-5 h-5" />
-        <span className="font-medium">Back to Dashboard</span>
+        <span className="font-medium">{t('Back to Dashboard')}</span>
       </button>
 
       <div className="mb-8">
-        <h2 className="font-display text-3xl font-bold text-ink mb-2">Email Bundles</h2>
-        <p className="text-ink/75">Groups of similar emails you can clear out at once</p>
+        <h2 className="font-display text-3xl font-bold text-ink mb-2">{t('Email Bundles')}</h2>
+        <p className="text-ink/75">{t('Groups of similar emails you can clear out at once')}</p>
       </div>
 
       {bundles.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-12 text-center border-2 border-ink/10">
+        <div className="bg-white border-2 border-mint-200 border-t-[10px] border-t-mint-300 rounded-2xl shadow-sm p-12 text-center">
           <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-ink mb-2">No bundles found</h3>
-          <p className="text-ink/75">We'll group similar emails together for easy cleanup</p>
+          <h3 className="text-xl font-semibold text-ink mb-2">{t('No bundles found')}</h3>
+          <p className="text-ink/75">{t("We'll group similar emails together for easy cleanup")}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -79,25 +81,25 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
               : [];
 
             return (
-              <div key={bundle.id} className="bg-white rounded-2xl shadow-sm overflow-hidden border-2 border-ink/10">
+              <div key={bundle.id} className="bg-white rounded-2xl shadow-sm overflow-hidden border-2 border-mint-200">
                 <div className={`bg-gradient-to-r ${getBundleTypeColor(bundle.bundle_type)} p-6 text-ink`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <Package className="w-8 h-8" />
                       <div>
-                        <h3 className="text-xl font-bold">{bundle.bundle_type}</h3>
-                        <p className="text-sm opacity-90">from {bundle.sender}</p>
+                        <h3 className="text-xl font-bold">{tKnown(bundle.bundle_type)}</h3>
+                        <p className="text-sm opacity-90 break-all">{t('from {name}', { name: bundle.sender })}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="font-display text-3xl font-bold">{bundleEmails.length}</div>
-                      <div className="text-sm opacity-90">emails</div>
+                      <div className="text-sm opacity-90">{bundleEmails.length === 1 ? t('email') : t('emails')}</div>
                     </div>
                   </div>
                 </div>
 
                 <div className="p-6">
-                  <h4 className="font-semibold text-ink mb-3">Example subjects:</h4>
+                  <h4 className="font-semibold text-ink mb-3">{t('Example subjects:')}</h4>
                   <div className="space-y-2 mb-6">
                     {exampleSubjects.slice(0, 3).map((subject, idx) => (
                       <div key={idx} className="flex items-start space-x-2 text-sm text-ink/75">
@@ -127,14 +129,14 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
                       )}
                       <span>
                         {processing?.bundleId === bundle.id && processing.action === 'archive'
-                          ? 'Archiving...'
-                          : `Archive all ${bundleEmails.length}`}
+                          ? t('Archiving...')
+                          : t('Archive all {n}', { n: bundleEmails.length })}
                       </span>
                     </button>
                     <button
                       onClick={() => handleBundleAction(bundle.id, 'delete')}
                       disabled={processing !== null}
-                      className="flex items-center justify-center space-x-2 bg-white border border-berry-300 text-berry-600 hover:bg-berry-50 px-5 py-3 rounded-xl font-semibold transition disabled:opacity-50"
+                      className="flex items-center justify-center space-x-2 bg-berry-100 border border-berry-300 text-berry-600 hover:bg-berry-200 px-5 py-3 rounded-xl font-semibold transition disabled:opacity-50"
                     >
                       {processing?.bundleId === bundle.id && processing.action === 'delete' ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -143,8 +145,8 @@ export default function BundlesList({ bundles, emails, onBack, onRefresh }: Bund
                       )}
                       <span>
                         {processing?.bundleId === bundle.id && processing.action === 'delete'
-                          ? 'Deleting...'
-                          : 'Delete'}
+                          ? t('Deleting...')
+                          : t('Delete')}
                       </span>
                     </button>
                   </div>

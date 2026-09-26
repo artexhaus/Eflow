@@ -36,7 +36,9 @@ Deno.serve(async (req) => {
 
     // The client only says which plan it wants; the price is always resolved
     // here on the server, never taken from the request.
-    const { plan } = (await req.json()) as { plan?: string };
+    const { plan, locale } = (await req.json()) as { plan?: string; locale?: string };
+    // The app's language, for Stripe's checkout page and receipts.
+    const stripeLocale = locale === "es" ? "es" : "en";
     if (!isPlan(plan)) return json({ error: "Choose the monthly or annual plan." }, 400);
 
     const service = getServiceClient();
@@ -59,11 +61,12 @@ Deno.serve(async (req) => {
     let customerId = existing?.stripe_customer_id ?? null;
     if (customerId && user.email) {
       // Keep Stripe's receipts going to the account's current email.
-      await stripe.customers.update(customerId, { email: user.email });
+      await stripe.customers.update(customerId, { email: user.email, preferred_locales: [stripeLocale] });
     }
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
+        preferred_locales: [stripeLocale],
         metadata: { supabase_user_id: user.id },
       });
       customerId = customer.id;
@@ -81,6 +84,7 @@ Deno.serve(async (req) => {
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: { metadata: { supabase_user_id: user.id } },
       allow_promotion_codes: true,
+      locale: stripeLocale,
       success_url: `${appUrl}/?checkout=success`,
       cancel_url: `${appUrl}/?checkout=cancelled`,
     });

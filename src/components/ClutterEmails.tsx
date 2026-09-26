@@ -4,6 +4,7 @@ import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import { useBilling } from '../contexts/BillingContext';
 import type { Email } from '../lib/types';
 import { ScamBadge } from './ProtectedEmailControls';
+import { t, plural, tKnown, timeAgo, useI18n } from '../lib/i18n';
 
 interface ClutterEmailsProps {
   emails: Email[];
@@ -12,6 +13,7 @@ interface ClutterEmailsProps {
 }
 
 export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmailsProps) {
+  useI18n();
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   // Free plan: one email at a time; selecting several is a Pro feature.
   const { requirePro } = useBilling();
@@ -22,23 +24,8 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
 
   const visibleEmails = showAll ? emails : emails.slice(0, 50);
 
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffHours < 1) return 'Just now';
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 30) return `${diffDays} days ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-    return `${Math.floor(diffDays / 365)} years ago`;
-  };
-
   const toggleEmail = (id: string) => {
-    if (!selectedEmails.has(id) && selectedEmails.size >= 1 && !requirePro('Selecting several emails')) return;
+    if (!selectedEmails.has(id) && selectedEmails.size >= 1 && !requirePro(t('Selecting several emails'))) return;
     const newSelected = new Set(selectedEmails);
     if (newSelected.has(id)) {
       newSelected.delete(id);
@@ -52,7 +39,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
     if (selectedEmails.size === visibleEmails.length) {
       setSelectedEmails(new Set());
     } else {
-      if (!requirePro('Select All')) return;
+      if (!requirePro(t('Select All'))) return;
       setSelectedEmails(new Set(visibleEmails.map((e) => e.id)));
     }
   };
@@ -71,7 +58,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
       await onRefresh();
     } catch (err) {
       console.error(`Error ${action}ing emails:`, err);
-      setError((err as Error).message);
+      setError(tKnown((err as Error).message));
     } finally {
       setActiveAction(null);
     }
@@ -80,8 +67,8 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
   // Archive rather than delete: a misclassified email can still be found in
   // the Archive folder, so the one-click bulk action is always recoverable.
   const handleArchiveAll = async () => {
-    if (!requirePro('Archive All')) return;
-    const confirmMsg = `Move all ${emails.length.toLocaleString()} clutter emails to your Archive folder? You can still find them there later.`;
+    if (!requirePro(t('Archive All'))) return;
+    const confirmMsg = t('Move all {n} clutter emails to your Archive folder? You can still find them there later.', { n: emails.length });
     if (!confirm(confirmMsg)) return;
 
     setActiveAction('archive_all');
@@ -93,7 +80,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
       await onRefresh();
     } catch (err) {
       console.error('Error archiving all clutter:', err);
-      setError((err as Error).message);
+      setError(tKnown((err as Error).message));
     } finally {
       setActiveAction(null);
     }
@@ -106,14 +93,14 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
         className="flex items-center space-x-2 text-ink/75 hover:text-ink mb-6 transition"
       >
         <ChevronLeft className="w-5 h-5" />
-        <span className="font-medium">Back to Dashboard</span>
+        <span className="font-medium">{t('Back to Dashboard')}</span>
       </button>
 
       <div className="mb-8 flex items-start justify-between">
         <div>
-          <h2 className="font-display text-3xl font-bold text-ink mb-2">Clutter Emails</h2>
+          <h2 className="font-display text-3xl font-bold text-ink mb-2">{t('Clutter Emails')}</h2>
           <p className="text-ink/75">
-            {emails.length.toLocaleString()} low-value emails you can safely remove
+            {plural(emails.length, '{n} low-value email you can safely remove', '{n} low-value emails you can safely remove')}
           </p>
         </div>
         {emails.length > 0 && (
@@ -123,7 +110,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
             className="flex items-center space-x-2 px-4 py-2 bg-mint-200 hover:bg-mint-300 text-ink rounded-xl transition disabled:opacity-50 shadow-sm"
           >
             {activeAction === 'archive_all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
-            <span className="font-medium">{activeAction === 'archive_all' ? 'Archiving...' : 'Archive All'}</span>
+            <span className="font-medium">{activeAction === 'archive_all' ? t('Archiving...') : t('Archive All')}</span>
           </button>
         )}
       </div>
@@ -136,14 +123,14 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
       )}
 
       {emails.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-12 text-center border-2 border-ink/10">
+        <div className="bg-white border-2 border-berry-200 border-t-[10px] border-t-berry-300 rounded-2xl shadow-sm p-12 text-center">
           <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-ink mb-2">No clutter emails</h3>
-          <p className="text-ink/75">Your inbox is clean!</p>
+          <h3 className="text-xl font-semibold text-ink mb-2">{t('No clutter emails')}</h3>
+          <p className="text-ink/75">{t('Your inbox is clean!')}</p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm border-2 border-ink/10">
+          <div className="bg-berry-100 rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm border-2 border-ink/10">
             <div className="flex items-center space-x-4">
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -153,7 +140,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                   className="w-5 h-5 rounded border-gray-300 text-mint-600 focus:ring-mint-500"
                 />
                 <span className="font-medium text-ink/85">
-                  {selectedEmails.size > 0 ? `${selectedEmails.size} selected` : 'Select All'}
+                  {selectedEmails.size > 0 ? t('{n} selected', { n: selectedEmails.size }) : t('Select All')}
                 </span>
               </label>
             </div>
@@ -162,10 +149,10 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                 <button
                   onClick={() => applyAction('archive')}
                   disabled={processing}
-                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-ink/85 rounded-xl transition disabled:opacity-50"
+                  className="flex items-center space-x-2 px-4 py-2 bg-mint-200 hover:bg-mint-300 text-ink border-2 border-ink/10 shadow-sm rounded-xl transition disabled:opacity-50"
                 >
                   {activeAction === 'archive' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
-                  <span className="font-medium">{activeAction === 'archive' ? 'Archiving...' : 'Archive'}</span>
+                  <span className="font-medium">{activeAction === 'archive' ? t('Archiving...') : t('Archive')}</span>
                 </button>
                 <button
                   onClick={() => applyAction('delete')}
@@ -173,7 +160,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                   className="flex items-center space-x-2 px-4 py-2 bg-berry-200 hover:bg-berry-300 text-ink rounded-xl transition disabled:opacity-50"
                 >
                   {activeAction === 'delete' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                  <span className="font-medium">{activeAction === 'delete' ? 'Deleting...' : 'Delete'}</span>
+                  <span className="font-medium">{activeAction === 'delete' ? t('Deleting...') : t('Delete')}</span>
                 </button>
               </div>
             )}
@@ -183,10 +170,10 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
             {visibleEmails.map((email) => (
               <div
                 key={email.id}
-                className={`bg-white rounded-2xl p-6 transition border ${
+                className={`bg-white rounded-2xl p-6 transition border-2 shadow-sm ${
                   selectedEmails.has(email.id)
                     ? 'border-mint-500 shadow-md'
-                    : 'border-gray-100 hover:border-gray-300'
+                    : 'border-berry-200 hover:border-berry-300'
                 }`}
               >
                 <div className="flex items-start space-x-4">
@@ -206,7 +193,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                       </div>
                       <div className="flex items-center space-x-2 text-sm text-ink/70 flex-shrink-0 ml-4">
                         <Clock className="w-4 h-4" />
-                        <span>{formatTime(email.timestamp)}</span>
+                        <span>{timeAgo(email.timestamp)}</span>
                       </div>
                     </div>
                     <h4 className="text-lg font-medium text-ink mb-2 truncate">{email.subject}</h4>
@@ -214,7 +201,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                     <div className="flex flex-wrap items-center gap-2 mt-2">
                       {!email.is_read && (
                         <span className="inline-block text-xs bg-ocean-100 text-ocean-700 px-2 py-1 rounded-full font-medium">
-                          Unread
+                          {t('Unread')}
                         </span>
                       )}
                       {email.is_suspicious && <ScamBadge />}
@@ -231,7 +218,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                 onClick={() => setShowAll(true)}
                 className="text-mint-600 hover:text-mint-700 font-medium"
               >
-                Show all {emails.length.toLocaleString()} emails
+                {t('Show all {n} emails', { n: emails.length })}
               </button>
             </div>
           )}
@@ -241,7 +228,7 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
                 onClick={() => setShowAll(false)}
                 className="text-ink/75 hover:text-ink font-medium"
               >
-                Show fewer
+                {t('Show fewer')}
               </button>
             </div>
           )}

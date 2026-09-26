@@ -3,6 +3,7 @@ import { Sparkles, ShieldCheck, RefreshCw, CheckCircle, AlertCircle } from 'luci
 import { applyMailAction, describePartialFailure, type MailActionResult } from '../lib/mailActions';
 import { useBilling } from '../contexts/BillingContext';
 import type { Email } from '../lib/types';
+import { tKnown, useI18n } from '../lib/i18n';
 
 interface CleanUpJunkCardProps {
   emails: Email[];
@@ -35,6 +36,7 @@ export default function CleanUpJunkCard({ emails, onRefresh, onOpenVerified }: C
   const [result, setResult] = useState<MailActionResult | null>(null);
   const [error, setError] = useState('');
   const { isPro, remaining, openPricing } = useBilling();
+  const { t, plural } = useI18n();
 
   const junk = useMemo(() => selectUnopenedJunk(emails), [emails]);
   const verifiedCount = useMemo(() => emails.filter((e) => e.is_protected).length, [emails]);
@@ -52,7 +54,7 @@ export default function CleanUpJunkCard({ emails, onRefresh, onOpenVerified }: C
       setStep('done');
       await onRefresh();
     } catch (err) {
-      setError((err as Error).message);
+      setError(tKnown((err as Error).message));
       setStep('idle');
     }
   };
@@ -76,44 +78,44 @@ export default function CleanUpJunkCard({ emails, onRefresh, onOpenVerified }: C
             <div className="w-16 h-16 bg-white/80 rounded-2xl flex items-center justify-center mb-4 shadow-sm -rotate-6">
               <Sparkles className="w-9 h-9 text-ocean-700" />
             </div>
-            <div className="font-display text-3xl font-bold mb-2">Clean Up Unopened Junk</div>
+            <div className="font-display text-3xl font-bold mb-2">{t('Clean Up Unopened Junk')}</div>
             <div className="text-lg text-ink/80 mb-5">
-              Removes promotional emails and repetitive alerts you haven't looked at in {JUNK_AGE_DAYS} days
+              {t("Removes promotional emails and repetitive alerts you haven't looked at in {n} days", { n: JUNK_AGE_DAYS })}
             </div>
             <span className="inline-block bg-white/70 rounded-full px-4 py-2 text-lg font-semibold">
-              {junk.length.toLocaleString()} emails ready to clear
+              {plural(junk.length, '{n} email ready to clear', '{n} emails ready to clear')}
             </span>
           </button>
         ) : (
-          <div className="w-full bg-white rounded-3xl p-8 shadow-sm border-2 border-ink/10">
+          <div className="w-full bg-white border-2 border-mint-200 border-t-[10px] border-t-mint-300 rounded-3xl p-8 shadow-sm">
             <CheckCircle className="w-12 h-12 text-mint-500 mb-4" />
-            <div className="font-display text-2xl font-bold text-ink mb-2">Nothing to clean up right now</div>
+            <div className="font-display text-2xl font-bold text-ink mb-2">{t('Nothing to clean up right now')}</div>
             <div className="text-lg text-ink/75">
-              No unopened promos or alerts older than {JUNK_AGE_DAYS} days. Nice work!
+              {t('No unopened promos or alerts older than {n} days. Nice work!', { n: JUNK_AGE_DAYS })}
             </div>
           </div>
         ))}
 
       {step === 'confirm' && (
-        <div className="bg-white rounded-3xl p-8 shadow-xl border-2 border-mint-200">
+        <div className="bg-white border-2 border-sunny-200 border-t-[10px] border-t-sunny-300 rounded-3xl p-8 shadow-xl">
           <div className="font-display text-2xl font-bold text-ink mb-3">
-            Clear {junk.length.toLocaleString()} emails?
+            {plural(junk.length, 'Clear {n} email?', 'Clear {n} emails?')}
           </div>
           <p className="text-lg text-ink/75 mb-2">
-            They'll move to your Archive folder, so nothing is lost for good.
+            {t("They'll move to your Archive folder, so nothing is lost for good.")}
           </p>
           <p className="text-lg text-mint-700 font-medium mb-8 flex items-center space-x-2">
             <ShieldCheck className="w-5 h-5 flex-shrink-0" />
-            <span>Your receipts and invoices are never touched.</span>
+            <span>{t('Your receipts and invoices are never touched.')}</span>
           </p>
           {overLimit && (
             <div className="mb-6 bg-sunny-100 border-2 border-sunny-300 rounded-2xl p-4">
               <p className="text-lg font-semibold text-ink">
                 {remaining === 0
-                  ? "You've used this month's free cleans."
-                  : `That's more than your ${remaining.toLocaleString()} free cleans left this month.`}
+                  ? t("You've used this month's free cleans.")
+                  : plural(remaining, "That's more than your {n} free clean left this month.", "That's more than your {n} free cleans left this month.")}
               </p>
-              <p className="text-ink/75">Go Pro to clear everything in one go.</p>
+              <p className="text-ink/75">{t('Go Pro to clear everything in one go.')}</p>
             </div>
           )}
           <div className="flex flex-col sm:flex-row gap-3">
@@ -123,14 +125,14 @@ export default function CleanUpJunkCard({ emails, onRefresh, onOpenVerified }: C
                   onClick={() => openPricing({ kind: 'limit', remaining, requested: junk.length })}
                   className="flex-1 bg-ocean-200 hover:bg-ocean-300 text-ink py-5 rounded-2xl text-xl font-bold border-2 border-ink/10 shadow-lg"
                 >
-                  See Pro plans
+                  {t('See Pro plans')}
                 </button>
                 {remaining > 0 && (
                   <button
                     onClick={() => runCleanUp(junk.slice(-remaining))}
                     className="flex-1 bg-mint-200 hover:bg-mint-300 text-ink py-5 rounded-2xl text-xl font-bold border-2 border-ink/10 shadow-lg"
                   >
-                    Clean the oldest {remaining.toLocaleString()} free
+                    {t('Clean the oldest {n} free', { n: remaining })}
                   </button>
                 )}
               </>
@@ -139,38 +141,38 @@ export default function CleanUpJunkCard({ emails, onRefresh, onOpenVerified }: C
                 onClick={() => runCleanUp()}
                 className="flex-1 bg-mint-200 hover:bg-mint-300 text-ink py-5 rounded-2xl text-xl font-bold border-2 border-ink/10 shadow-lg"
               >
-                Yes, clean up
+                {t('Yes, clean up')}
               </button>
             )}
             <button
               onClick={() => setStep('idle')}
-              className="flex-1 bg-gray-100 hover:bg-gray-200 text-ink py-5 rounded-2xl text-xl font-semibold"
+              className="flex-1 bg-sunny-200 hover:bg-sunny-300 text-ink py-5 rounded-2xl text-xl font-semibold border-2 border-ink/10 shadow-lg"
             >
-              Not now
+              {t('Not now')}
             </button>
           </div>
         </div>
       )}
 
       {step === 'working' && (
-        <div className="bg-white rounded-3xl p-10 shadow-xl text-center border-2 border-ink/10">
+        <div className="bg-white border-2 border-ocean-200 border-t-[10px] border-t-ocean-300 rounded-3xl p-10 shadow-xl text-center">
           <RefreshCw className="w-12 h-12 text-mint-500 animate-spin mx-auto mb-4" />
-          <div className="font-display text-2xl font-bold text-ink mb-2">Cleaning up...</div>
-          <p className="text-lg text-ink/75">This can take a minute for big inboxes.</p>
+          <div className="font-display text-2xl font-bold text-ink mb-2">{t('Cleaning up...')}</div>
+          <p className="text-lg text-ink/75">{t('This can take a minute for big inboxes.')}</p>
         </div>
       )}
 
       {step === 'done' && result && (
-        <div className="bg-white rounded-3xl p-8 shadow-xl text-center border-2 border-mint-200">
+        <div className="bg-white border-2 border-mint-200 border-t-[10px] border-t-mint-300 rounded-3xl p-8 shadow-xl text-center">
           <CheckCircle className="w-16 h-16 text-mint-500 mx-auto mb-4" />
           <div className="font-display text-3xl font-bold text-ink mb-2">
-            {result.processed > 0 ? 'All clean!' : 'Nothing was moved'}
+            {result.processed > 0 ? t('All clean!') : t('Nothing was moved')}
           </div>
           <p className="text-lg text-ink/75 mb-2">
-            {result.processed.toLocaleString()} emails cleared from your inbox.
+            {plural(result.processed, '{n} email cleared from your inbox.', '{n} emails cleared from your inbox.')}
           </p>
           <p className="text-lg text-mint-700 font-medium mb-2">
-            Your {verifiedCount.toLocaleString()} receipts and invoices were kept safe.
+            {plural(verifiedCount, 'Your {n} receipt or invoice was kept safe.', 'Your {n} receipts and invoices were kept safe.')}
           </p>
           {verifiedCount > 0 && (
             <button
@@ -178,15 +180,15 @@ export default function CleanUpJunkCard({ emails, onRefresh, onOpenVerified }: C
               className="mt-4 inline-flex items-center gap-2 bg-mint-200 hover:bg-mint-300 text-ink px-6 py-3 rounded-2xl text-lg font-display font-semibold border-2 border-ink/10 shadow-lg"
             >
               <ShieldCheck className="w-5 h-5" />
-              <span>View receipts & invoices</span>
+              <span>{t('View receipts & invoices')}</span>
             </button>
           )}
           {result.failed > 0 && <p className="text-sunny-700 mb-2">{describePartialFailure(result)}</p>}
           <button
             onClick={() => setStep('idle')}
-            className="mt-6 bg-gray-100 hover:bg-gray-200 text-ink px-10 py-4 rounded-2xl text-lg font-semibold"
+            className="mt-6 bg-mint-200 hover:bg-mint-300 text-ink px-10 py-4 rounded-2xl text-lg font-semibold border-2 border-ink/10 shadow-lg"
           >
-            Done
+            {t('Done')}
           </button>
         </div>
       )}

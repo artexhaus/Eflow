@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { KeyRound, MailX, Trash2, Loader2, AlertCircle, CheckCircle, Mail } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { t, tKnown, useI18n } from '../lib/i18n';
 
 interface AccountControlsProps {
   onMailboxDisconnected: () => void;
@@ -32,6 +33,7 @@ function Message({ msg }: { msg: Msg }) {
 // connection (and the app password stored for it), and deleting everything.
 export default function AccountControls({ onMailboxDisconnected }: AccountControlsProps) {
   const { user, updatePassword, signOut } = useAuth();
+  useI18n();
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -62,16 +64,16 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPwMsg(null);
-    if (password.length < MIN_PASSWORD) return setPwMsg({ tone: 'error', text: `Passwords need at least ${MIN_PASSWORD} characters.` });
-    if (password !== confirm) return setPwMsg({ tone: 'error', text: "Those passwords don't match." });
+    if (password.length < MIN_PASSWORD) return setPwMsg({ tone: 'error', text: t('Passwords need at least {n} characters.', { n: MIN_PASSWORD }) });
+    if (password !== confirm) return setPwMsg({ tone: 'error', text: t("Those passwords don't match.") });
     setPwBusy(true);
     try {
       await updatePassword(password);
       setPassword('');
       setConfirm('');
-      setPwMsg({ tone: 'success', text: 'Password updated.' });
+      setPwMsg({ tone: 'success', text: t('Password updated.') });
     } catch (err) {
-      setPwMsg({ tone: 'error', text: (err as Error).message || 'Could not update your password.' });
+      setPwMsg({ tone: 'error', text: tKnown((err as Error).message) || t('Could not update your password.') });
     } finally {
       setPwBusy(false);
     }
@@ -101,7 +103,7 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
       await supabase.from('sender_actions').delete().eq('user_id', user.id);
       onMailboxDisconnected();
     } catch (err) {
-      setMailboxMsg({ tone: 'error', text: (err as Error).message || 'Could not disconnect your mailbox.' });
+      setMailboxMsg({ tone: 'error', text: tKnown((err as Error).message) || t('Could not disconnect your mailbox.') });
       setDisconnecting(false);
     }
   };
@@ -111,14 +113,14 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
     setDeleteMsg(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Your session expired. Please sign in again.');
+      if (!session) throw new Error(t('Your session expired. Please sign in again.'));
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-account`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ confirm: 'DELETE' }),
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || 'Could not delete your account.');
+      if (!response.ok) throw new Error(body.error ? tKnown(body.error) : t('Could not delete your account.'));
       await signOut();
     } catch (err) {
       setDeleteMsg({ tone: 'error', text: (err as Error).message });
@@ -131,16 +133,16 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
   return (
     <>
       {/* Sign-in & security */}
-      <section className="bg-white rounded-3xl border-2 border-ink/10 shadow-lg p-7">
+      <section className="bg-white border-2 border-sunny-200 border-t-[10px] border-t-sunny-300 rounded-3xl shadow-lg p-7">
         <h3 className="text-xl font-bold text-ink mb-1 flex items-center gap-2">
-          <KeyRound className="w-5 h-5" /> Sign-in & security
+          <KeyRound className="w-5 h-5" /> {t('Sign-in & security')}
         </h3>
-        <p className="text-ink/70 mb-4 break-all">You sign in as {user?.email}</p>
+        <p className="text-ink/70 mb-4 break-all">{t('You sign in as {email}', { email: user?.email ?? '' })}</p>
         <form onSubmit={changePassword} className="space-y-3 max-w-md">
           <input
             type="password"
             autoComplete="new-password"
-            placeholder="New password"
+            placeholder={t('New password')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className={inputClass}
@@ -148,7 +150,7 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
           <input
             type="password"
             autoComplete="new-password"
-            placeholder="Confirm new password"
+            placeholder={t('Confirm new password')}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             className={inputClass}
@@ -160,15 +162,15 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
             className="flex items-center gap-2 px-5 py-3 rounded-2xl font-display font-semibold text-ink bg-mint-200 hover:bg-mint-300 border-2 border-ink/15 shadow-md disabled:opacity-60"
           >
             {pwBusy && <Loader2 className="w-4 h-4 animate-spin" />}
-            <span>Change password</span>
+            <span>{t('Change password')}</span>
           </button>
         </form>
       </section>
 
       {/* Connected mailbox */}
-      <section className="bg-white rounded-3xl border-2 border-ink/10 shadow-lg p-7">
+      <section className="bg-white border-2 border-mint-200 border-t-[10px] border-t-mint-300 rounded-3xl shadow-lg p-7">
         <h3 className="text-xl font-bold text-ink mb-1 flex items-center gap-2">
-          <Mail className="w-5 h-5" /> Connected mailbox
+          <Mail className="w-5 h-5" /> {t('Connected mailbox')}
         </h3>
         {mailbox ? (
           <>
@@ -176,8 +178,7 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
               <span className="font-semibold">{providerNames[mailbox.provider] ?? mailbox.provider}</span> · {mailbox.address}
             </p>
             <p className="text-sm text-ink/70 mb-4">
-              Disconnecting removes the app password Eflow stored and everything Eflow saved about your emails. Your
-              actual mailbox isn't changed. You can reconnect any time.
+              {t("Disconnecting removes the app password Eflow stored and everything Eflow saved about your emails. Your actual mailbox isn't changed. You can reconnect any time.")}
             </p>
             <Message msg={mailboxMsg} />
             {confirmDisconnect ? (
@@ -188,39 +189,37 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
                   className="flex items-center gap-2 px-5 py-3 rounded-2xl font-display font-semibold text-ink bg-sunny-200 hover:bg-sunny-300 border-2 border-ink/15 shadow-md disabled:opacity-60"
                 >
                   {disconnecting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Yes, disconnect</span>
+                  <span>{t('Yes, disconnect')}</span>
                 </button>
                 <button onClick={() => setConfirmDisconnect(false)} className="px-4 py-3 font-semibold text-ink/75 hover:text-ink">
-                  Cancel
+                  {t('Cancel')}
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => setConfirmDisconnect(true)}
-                className="flex items-center gap-2 px-5 py-3 rounded-2xl font-display font-semibold text-ink bg-white hover:bg-sunny-50 border-2 border-ink/15 shadow-md"
+                className="flex items-center gap-2 px-5 py-3 rounded-2xl font-display font-semibold text-ink bg-sunny-200 hover:bg-sunny-300 border-2 border-ink/15 shadow-md"
               >
                 <MailX className="w-4 h-4" />
-                <span>Disconnect mailbox</span>
+                <span>{t('Disconnect mailbox')}</span>
               </button>
             )}
           </>
         ) : (
-          <p className="text-ink/70">No mailbox connected.</p>
+          <p className="text-ink/70">{t('No mailbox connected.')}</p>
         )}
       </section>
 
       {/* Delete account */}
-      <section className="bg-berry-50 rounded-3xl border-2 border-berry-200 p-7">
+      <section className="bg-white border-2 border-berry-200 border-t-[10px] border-t-berry-300 rounded-3xl shadow-lg p-7">
         <h3 className="text-xl font-bold text-berry-900 mb-1 flex items-center gap-2">
-          <Trash2 className="w-5 h-5" /> Delete account
+          <Trash2 className="w-5 h-5" /> {t('Delete account')}
         </h3>
         <p className="text-sm text-berry-900/80 mb-4">
-          Permanently deletes your Eflow account, the stored app password and everything Eflow saved. An active Pro
-          subscription is cancelled right away with no further charges. Your actual mailbox isn't changed. This can't be
-          undone.
+          {t("Permanently deletes your Eflow account, the stored app password and everything Eflow saved. An active Pro subscription is cancelled right away with no further charges. Your actual mailbox isn't changed. This can't be undone.")}
         </p>
         <label className="block max-w-md">
-          <span className="block text-sm font-semibold text-berry-900 mb-1">Type DELETE to confirm</span>
+          <span className="block text-sm font-semibold text-berry-900 mb-1">{t('Type DELETE to confirm')}</span>
           <input value={deleteText} onChange={(e) => setDeleteText(e.target.value)} className={inputClass} autoComplete="off" />
         </label>
         <div className="mt-3 max-w-md">
@@ -232,7 +231,7 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
           className="mt-3 flex items-center gap-2 px-5 py-3 rounded-2xl font-display font-semibold text-ink bg-berry-200 hover:bg-berry-300 border-2 border-ink/15 shadow-md disabled:opacity-50"
         >
           {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-          <span>Delete my account</span>
+          <span>{t('Delete my account')}</span>
         </button>
       </section>
     </>

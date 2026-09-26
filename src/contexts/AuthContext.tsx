@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { getLanguage, t, useI18n } from '../lib/i18n';
 
 export type SignUpResult = 'signed_in' | 'confirm_email';
 
@@ -41,8 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('Email link could not be verified:', error.message);
           setEmailLinkError(
             type === 'recovery'
-              ? 'That reset link has expired or was already used. Request a new one below.'
-              : 'That confirmation link has expired or was already used. Sign in, or create your account again to get a new link.'
+              ? t('That reset link has expired or was already used. Request a new one below.')
+              : t('That confirmation link has expired or was already used. Sign in, or create your account again to get a new link.')
           );
         }
         if (!error && type === 'recovery') setRecoveringPassword(true);
@@ -60,11 +61,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // The reset-password email link signs the user in with a recovery
       // session; ask for a new password before anything else.
       if (event === 'PASSWORD_RECOVERY') setRecoveringPassword(true);
-      setUser(session?.user ?? null);
+      // Token refreshes and profile updates hand back a new user object for
+      // the same person. Keep the existing one so screens that reload data
+      // when the user changes (and the dashboard's auto-scan) don't re-run.
+      const next = session?.user ?? null;
+      setUser((prev) => (prev && next && prev.id === next.id ? prev : next));
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Remember the chosen language on the account, so emails sent to the user
+  // (confirmation, password reset) come in the same language.
+  const { lang } = useI18n();
+  const savedLang = useRef<{ userId: string; lang: unknown } | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    if (savedLang.current?.userId !== user.id) savedLang.current = { userId: user.id, lang: user.user_metadata?.lang };
+    if (savedLang.current.lang === lang) return;
+    savedLang.current.lang = lang;
+    supabase.auth.updateUser({ data: { lang } }).then(({ error }) => {
+      if (error) console.error('Could not save language preference:', error.message);
+    });
+  }, [user, lang]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -77,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: window.location.origin, data: { lang: getLanguage() } },
     });
     if (error) throw error;
     // With email confirmation on, Supabase returns no session until the link

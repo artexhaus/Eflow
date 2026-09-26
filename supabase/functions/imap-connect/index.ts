@@ -96,18 +96,27 @@ Deno.serve(async (req) => {
       const errMsg = (imapError as Error).message || "Unknown error";
       console.error("IMAP raw error:", errMsg, "Code:", (imapError as any).code);
 
+      // code lets the app show this message in the user's language.
       let friendlyError: string;
+      let code: string;
       if (errMsg.includes("Authentication") || errMsg.toLowerCase().includes("auth") || errMsg.toLowerCase().includes("password") || errMsg.toLowerCase().includes("credentials") || errMsg.includes("INVALID")) {
         friendlyError = `${providerName} didn't accept that login. Please check: (1) your full ${providerName} email address, (2) you're using an app password (${help.passwordPage}), not your regular password, (3) it was copied without typos. ${help.tip}`;
+        code = "auth_failed";
       } else if (errMsg.includes("connect") || errMsg.includes("timeout") || errMsg.includes("ETIMEDOUT") || errMsg.includes("ECONNREFUSED")) {
         friendlyError = `Could not reach ${providerName}'s mail server. Please try again.`;
+        code = "unreachable";
       } else if (errMsg.includes("Command failed")) {
         friendlyError = `${providerName} rejected the login. Please make sure you created an app password (${help.passwordPage}) and pasted it here instead of your regular ${providerName} password. ${help.tip}`;
+        code = "rejected";
       } else {
         friendlyError = `Connection failed: ${errMsg}`;
+        code = "connection_failed";
       }
 
-      throw new Error(friendlyError);
+      return new Response(
+        JSON.stringify({ error: friendlyError, code }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const encryptedPassword = await encryptPassword(password);
