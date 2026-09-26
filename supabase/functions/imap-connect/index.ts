@@ -21,6 +21,11 @@ const providerHelp: Record<string, { name: string; passwordPage: string; tip: st
     passwordPage: "Yahoo Account Security > Generate app password",
     tip: "Two-step verification must be turned on before Yahoo lets you create an app password.",
   },
+  aol: {
+    name: "AOL",
+    passwordPage: "AOL Account Security > Generate app password",
+    tip: "Two-step verification must be turned on before AOL lets you create an app password.",
+  },
   outlook: {
     name: "Outlook",
     passwordPage: "Microsoft account > Security > Advanced security options > App passwords",
@@ -37,6 +42,7 @@ const imapHosts: Record<string, { host: string; port: number }> = {
   gmail: { host: "imap.gmail.com", port: 993 },
   outlook: { host: "outlook.office365.com", port: 993 },
   yahoo: { host: "imap.mail.yahoo.com", port: 993 },
+  aol: { host: "imap.aol.com", port: 993 },
   icloud: { host: "imap.mail.me.com", port: 993 },
 };
 

@@ -168,6 +168,12 @@ export const es = {
   'Yahoo Account Security > Generate app password': 'Seguridad de la cuenta de Yahoo > Generar contraseña de aplicación',
   'Two-step verification must be turned on before Yahoo lets you create an app password.':
     'Debes activar la verificación en dos pasos antes de que Yahoo te deje crear una contraseña de aplicación.',
+  'Go to AOL Account Security': 'Ve a Seguridad de la cuenta de AOL',
+  'Select "Generate app password" and create one for "Eflow"': 'Elige "Generar contraseña de aplicación" y crea una para "Eflow"',
+  'AOL Account Security': 'Seguridad de la cuenta de AOL',
+  'AOL Account Security > Generate app password': 'Seguridad de la cuenta de AOL > Generar contraseña de aplicación',
+  'Two-step verification must be turned on before AOL lets you create an app password.':
+    'Debes activar la verificación en dos pasos antes de que AOL te deje crear una contraseña de aplicación.',
   'Go to your Microsoft Account security settings': 'Ve a la configuración de seguridad de tu cuenta Microsoft',
   'Enable two-step verification': 'Activa la verificación en dos pasos',
   'Create an app password': 'Crea una contraseña de aplicación',

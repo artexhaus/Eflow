@@ -26,6 +26,12 @@ const providers = [
     iconColor: 'text-mint-700',
   },
   {
+    id: 'aol',
+    name: 'AOL Mail',
+    tile: 'bg-ocean-100 hover:bg-ocean-200',
+    iconColor: 'text-ocean-800',
+  },
+  {
     id: 'icloud',
     name: 'iCloud Mail',
     tile: 'bg-sunny-200 hover:bg-sunny-300',
@@ -55,7 +61,7 @@ export default function ProviderSelection({ onProviderSelect }: ProviderSelectio
               <button
                 key={provider.id}
                 onClick={() => onProviderSelect(provider.id)}
-                className={`group relative rounded-2xl p-6 text-left border-2 border-ink/10 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 ${provider.tile}`}
+                className={`group relative rounded-2xl p-6 text-left sm:last:odd:col-span-2 border-2 border-ink/10 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 ${provider.tile}`}
               >
                 <div className="relative">
                   <div className="w-14 h-14 bg-white/80 rounded-2xl flex items-center justify-center mb-4 shadow-sm group-hover:rotate-6 transition-transform">

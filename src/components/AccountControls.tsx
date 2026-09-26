@@ -9,7 +9,7 @@ interface AccountControlsProps {
 }
 
 const MIN_PASSWORD = 8;
-const providerNames: Record<string, string> = { gmail: 'Gmail', outlook: 'Outlook', yahoo: 'Yahoo Mail', icloud: 'iCloud Mail' };
+const providerNames: Record<string, string> = { gmail: 'Gmail', outlook: 'Outlook', yahoo: 'Yahoo Mail', aol: 'AOL Mail', icloud: 'iCloud Mail' };
 
 type Msg = { tone: 'error' | 'success'; text: string } | null;
 

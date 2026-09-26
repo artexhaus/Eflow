@@ -79,7 +79,7 @@ function Privacy() {
           <><strong>Supabase</strong> - our database, authentication and server functions.</>,
           <><strong>Stripe</strong> - payment processing and subscription management.</>,
           <><strong>Vercel</strong> - hosting for the {product} website.</>,
-          <><strong>Your email provider</strong> (such as Gmail, Yahoo, Outlook or iCloud) - {product} connects to your mailbox using the app password you provide.</>,
+          <><strong>Your email provider</strong> (such as Gmail, Yahoo, AOL, Outlook or iCloud) - {product} connects to your mailbox using the app password you provide.</>,
           <><strong>Senders you unsubscribe from</strong> - when you ask, we send them the unsubscribe request their email offers.</>,
         ]}
       />
@@ -276,7 +276,7 @@ function PrivacyEs() {
           <><strong>Supabase</strong>: nuestra base de datos, autenticación y funciones del servidor.</>,
           <><strong>Stripe</strong>: procesamiento de pagos y gestión de suscripciones.</>,
           <><strong>Vercel</strong>: alojamiento del sitio web de {product}.</>,
-          <><strong>Tu proveedor de correo</strong> (como Gmail, Yahoo, Outlook o iCloud): {product} se conecta a tu buzón con la contraseña de aplicación que nos das.</>,
+          <><strong>Tu proveedor de correo</strong> (como Gmail, Yahoo, AOL, Outlook o iCloud): {product} se conecta a tu buzón con la contraseña de aplicación que nos das.</>,
           <><strong>Los remitentes de los que te das de baja</strong>: cuando nos lo pides, les enviamos la solicitud de baja que ofrece su correo.</>,
         ]}
       />

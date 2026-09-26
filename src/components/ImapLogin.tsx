@@ -41,6 +41,18 @@ const providerAppPasswordInstructions: Record<
     passwordPage: 'Yahoo Account Security > Generate app password',
     tip: 'Two-step verification must be turned on before Yahoo lets you create an app password.',
   },
+  aol: {
+    steps: [
+      'Go to AOL Account Security',
+      'Enable 2-step verification',
+      'Select "Generate app password" and create one for "Eflow"',
+      'Use it below instead of your regular password',
+    ],
+    link: 'https://login.aol.com/account/security',
+    linkText: 'AOL Account Security',
+    passwordPage: 'AOL Account Security > Generate app password',
+    tip: 'Two-step verification must be turned on before AOL lets you create an app password.',
+  },
   outlook: {
     steps: [
       'Go to your Microsoft Account security settings',
@@ -158,7 +170,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
     return session?.user;
   };
 
-  const accentColor = provider === 'gmail' ? 'red' : provider === 'outlook' ? 'blue' : provider === 'yahoo' ? 'green' : 'cyan';
+  const accentColor = provider === 'gmail' ? 'red' : provider === 'outlook' ? 'blue' : provider === 'yahoo' ? 'green' : provider === 'aol' ? 'blue' : 'cyan';
   const accentClasses: Record<string, { bg: string; ring: string; gradient: string }> = {
     red: { bg: 'bg-berry-50', ring: 'focus:ring-berry-500', gradient: 'from-berry-200 to-berry-200' },
     blue: { bg: 'bg-ocean-50', ring: 'focus:ring-ocean-500', gradient: 'from-ocean-200 to-ocean-200' },
@@ -221,7 +233,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={`${t('your-email')}@${provider === 'gmail' ? 'gmail' : provider === 'outlook' ? 'outlook' : provider === 'yahoo' ? 'yahoo' : 'icloud'}.com`}
+                placeholder={`${t('your-email')}@${provider === 'gmail' ? 'gmail' : provider === 'outlook' ? 'outlook' : provider === 'yahoo' ? 'yahoo' : provider === 'aol' ? 'aol' : 'icloud'}.com`}
                 required
                 className={`w-full px-4 py-3 border-2 border-ink/10 rounded-xl focus:ring-2 ${accent.ring} focus:border-transparent transition`}
               />
