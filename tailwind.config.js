@@ -13,6 +13,17 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      // Indeterminate progress bar: a stripe sliding across while the mail
+      // server sign-in happens, before there's a real percentage to show.
+      keyframes: {
+        'progress-slide': {
+          '0%': { left: '-35%' },
+          '100%': { left: '100%' },
+        },
+      },
+      animation: {
+        'progress-slide': 'progress-slide 1.2s ease-in-out infinite',
+      },
       colors: {
         berry: {
           50: '#FFF3F5',

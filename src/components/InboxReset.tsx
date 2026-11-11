@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, Sparkles, Trash2, Archive, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { applyMailAction, describePartialFailure } from '../lib/mailActions';
+import { applyMailAction, describePartialFailure, type MailActionStatus } from '../lib/mailActions';
+import ActionProgressBar from './ActionProgressBar';
 import { t, plural, tKnown, useI18n } from '../lib/i18n';
 
 interface InboxResetProps {
@@ -25,11 +26,13 @@ export default function InboxReset({
   const [error, setError] = useState('');
   const [processedCount, setProcessedCount] = useState(0);
   const [partialFailure, setPartialFailure] = useState('');
+  const [status, setStatus] = useState<MailActionStatus | null>(null);
 
   const totalToRemove = clutterCount + bundleCount;
 
   const handleReset = async () => {
     setStep('processing');
+    setStatus(null);
     setError('');
     setProgress(
       action === 'delete'
@@ -38,7 +41,7 @@ export default function InboxReset({
     );
 
     try {
-      const result = await applyMailAction(action, { category: ['clutter', 'bundle'] }, { silent: true });
+      const result = await applyMailAction(action, { category: ['clutter', 'bundle'] }, { silent: true, onProgress: setStatus });
       setProcessedCount(result.processed);
       setPartialFailure(describePartialFailure(result));
       setStep('complete');
@@ -203,6 +206,7 @@ export default function InboxReset({
           </div>
           <h3 className="font-display text-2xl font-bold text-ink mb-2">{t('Cleaning up your inbox...')}</h3>
           <p className="text-ink/75">{progress}</p>
+          <ActionProgressBar status={status} className="max-w-md mx-auto mt-6" />
           <p className="text-sm text-ink/70 mt-2">{t('This may take a few minutes for large inboxes')}</p>
         </div>
       )}

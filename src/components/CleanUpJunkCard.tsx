@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Sparkles, ShieldCheck, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
-import { applyMailAction, describePartialFailure, type MailActionResult } from '../lib/mailActions';
+import { applyMailAction, describePartialFailure, type MailActionResult, type MailActionStatus } from '../lib/mailActions';
+import ActionProgressBar from './ActionProgressBar';
 import { useBilling } from '../contexts/BillingContext';
 import type { Email } from '../lib/types';
 import { tKnown, useI18n } from '../lib/i18n';
@@ -35,6 +36,7 @@ export default function CleanUpJunkCard({ emails, onRefresh, onOpenVerified }: C
   const [step, setStep] = useState<CleanUpStep>('idle');
   const [result, setResult] = useState<MailActionResult | null>(null);
   const [error, setError] = useState('');
+  const [status, setStatus] = useState<MailActionStatus | null>(null);
   const { isPro, remaining, openPricing } = useBilling();
   const { t, plural } = useI18n();
 
@@ -47,9 +49,10 @@ export default function CleanUpJunkCard({ emails, onRefresh, onOpenVerified }: C
 
   const runCleanUp = async (batch: Email[] = junk) => {
     setStep('working');
+    setStatus(null);
     setError('');
     try {
-      const res = await applyMailAction('archive', { emailIds: batch.map((e) => e.email_id) }, { silent: true });
+      const res = await applyMailAction('archive', { emailIds: batch.map((e) => e.email_id) }, { silent: true, onProgress: setStatus });
       setResult(res);
       setStep('done');
       await onRefresh();
@@ -159,6 +162,7 @@ export default function CleanUpJunkCard({ emails, onRefresh, onOpenVerified }: C
           <RefreshCw className="w-12 h-12 text-mint-500 animate-spin mx-auto mb-4" />
           <div className="font-display text-2xl font-bold text-ink mb-2">{t('Cleaning up...')}</div>
           <p className="text-lg text-ink/75">{t('This can take a minute for big inboxes.')}</p>
+          <ActionProgressBar status={status} className="max-w-md mx-auto mt-6" />
         </div>
       )}
 

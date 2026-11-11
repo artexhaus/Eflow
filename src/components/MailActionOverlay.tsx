@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Trash2, Archive, CheckCheck } from 'lucide-react';
-import { addMailActionListener, type MailActionProgress } from '../lib/mailActions';
+import { addMailActionListener, type MailActionProgress, type MailActionStatus } from '../lib/mailActions';
+import ActionProgressBar from './ActionProgressBar';
 import { useI18n, type MessageKey } from '../lib/i18n';
 
 // Centered "hold tight" window shown while any delete / archive / mark-read
@@ -24,6 +25,7 @@ const TIPS: MessageKey[] = [
 export default function MailActionOverlay() {
   const [progress, setProgress] = useState<MailActionProgress | null>(null);
   const [tip, setTip] = useState(0);
+  const [status, setStatus] = useState<MailActionStatus | null>(null);
   const { t, plural } = useI18n();
 
   useEffect(
@@ -31,9 +33,14 @@ export default function MailActionOverlay() {
       addMailActionListener({
         onStart: (p) => {
           setTip(0);
+          setStatus(null);
           setProgress(p);
         },
-        onFinish: () => setProgress(null),
+        onProgress: setStatus,
+        onFinish: () => {
+          setProgress(null);
+          setStatus(null);
+        },
       }),
     []
   );
@@ -75,6 +82,7 @@ export default function MailActionOverlay() {
         <p className="text-lg text-ink font-semibold mb-1">
           {t(verb, { what })}
         </p>
+        <ActionProgressBar status={status} className="mt-5 mb-3" />
         <p id="mail-action-tip" className="text-ink/70 min-h-[1.5rem]" aria-live="polite">
           {t(TIPS[tip])}
         </p>

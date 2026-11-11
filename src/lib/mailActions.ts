@@ -37,6 +37,14 @@ export interface MailActionProgress {
   label?: string;
 }
 
+// How far along a running action is, streamed from the server after each
+// batch. 'connecting' = signing in to the mail server, before any email moves.
+export interface MailActionStatus {
+  stage: 'connecting' | 'working';
+  done: number;
+  total: number;
+}
+
 export interface MailActionOptions {
   // Emails affected, when the caller knows it; shown in the progress popup.
   count?: number;
@@ -49,6 +57,9 @@ export interface MailActionOptions {
   // the user confirmed it. The server ignores this for category, sender and
   // bundle actions.
   allowProtected?: boolean;
+  // Called as the server reports progress, for screens with their own
+  // progress display (the global popup gets it through its listener).
+  onProgress?: (status: MailActionStatus) => void;
 }
 
 // Lets app-wide layers react to every mail action without each screen wiring
@@ -56,6 +67,7 @@ export interface MailActionOptions {
 // refreshing usage after a clean-up. Screens still show errors themselves.
 interface MailActionListener {
   onStart?: (progress: MailActionProgress) => void;
+  onProgress?: (status: MailActionStatus) => void;
   onFinish?: () => void;
   onUsageLimit?: (error: UsageLimitError) => void;
   onCleaned?: () => void;
@@ -83,7 +95,10 @@ export async function applyMailAction(
   const count = options.count ?? ('emailIds' in target ? target.emailIds.length : undefined);
   if (!options.silent) notify((l) => l.onStart?.({ action, count, label: options.label }));
   try {
-    return await runMailAction(action, target, options.allowProtected === true);
+    return await runMailAction(action, target, options.allowProtected === true, (status) => {
+      options.onProgress?.(status);
+      if (!options.silent) notify((l) => l.onProgress?.(status));
+    });
   } finally {
     if (!options.silent) notify((l) => l.onFinish?.());
   }
@@ -92,7 +107,8 @@ export async function applyMailAction(
 async function runMailAction(
   action: MailAction,
   target: MailActionTarget,
-  allowProtected: boolean
+  allowProtected: boolean,
+  onProgress: (status: MailActionStatus) => void
 ): Promise<MailActionResult> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error(t('Your session expired. Please sign in again.'));
@@ -103,10 +119,11 @@ async function runMailAction(
       Authorization: `Bearer ${session.access_token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ action, ...target, ...(allowProtected ? { allowProtected: true } : {}) }),
+    body: JSON.stringify({ action, ...target, ...(allowProtected ? { allowProtected: true } : {}), stream: true }),
   });
 
-  const body = await response.json().catch(() => ({}));
+  const streamed = response.ok && (response.headers.get('Content-Type') ?? '').includes('ndjson');
+  const body = streamed ? await readProgressStream(response, onProgress) : await response.json().catch(() => ({}));
   if (response.status === 402 && body.code === 'usage_limit') {
     // Worded here rather than taken from the server, so it's in the user's language.
     const message =
@@ -136,6 +153,56 @@ async function runMailAction(
   if (result.failed > 0 && result.processed === 0) {
     throw new Error(t('Your mail server rejected the request. Nothing was changed - please try again.'));
   }
+  return result;
+}
+
+// Reads the server's newline-delimited JSON: progress lines, then a final
+// result (or error) line. Returns the result in the same shape as the
+// non-streamed reply.
+async function readProgressStream(
+  response: Response,
+  onProgress: (status: MailActionStatus) => void
+): Promise<Record<string, unknown>> {
+  if (!response.body) return response.json();
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let final: Record<string, unknown> | null = null;
+
+  const handle = (line: string) => {
+    if (!line.trim()) return;
+    let msg: Record<string, unknown>;
+    try {
+      msg = JSON.parse(line);
+    } catch {
+      return;
+    }
+    if (msg.type === 'progress') {
+      onProgress({
+        stage: msg.stage === 'connecting' ? 'connecting' : 'working',
+        done: Number(msg.done) || 0,
+        total: Number(msg.total) || 0,
+      });
+    } else if (msg.type === 'result' || msg.type === 'error') {
+      final = msg;
+    }
+  };
+
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      handle(buffer.slice(0, nl));
+      buffer = buffer.slice(nl + 1);
+    }
+  }
+  handle(buffer + decoder.decode());
+
+  const result = final as Record<string, unknown> | null;
+  if (!result) throw new Error(t('Could not reach your mail server. Please try again.'));
+  if (result.type === 'error') throw new Error(String(result.error || t('Could not reach your mail server. Please try again.')));
   return result;
 }
 

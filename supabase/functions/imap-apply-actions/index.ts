@@ -130,13 +130,16 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) throw new Error("Invalid user");
 
-    const { action, emailIds, category, bundleId, sender, allowProtected } = (await req.json()) as {
+    const { action, emailIds, category, bundleId, sender, allowProtected, stream } = (await req.json()) as {
       action: Action;
       emailIds?: string[];
       category?: string | string[];
       bundleId?: string;
       sender?: string;
       allowProtected?: boolean;
+      // Ask for newline-delimited JSON progress updates instead of one reply,
+      // so the app can show a real progress bar. Older app versions omit it.
+      stream?: boolean;
     };
 
     if (!DB_UPDATE_FOR_ACTION[action]) {
@@ -228,81 +231,125 @@ Deno.serve(async (req) => {
       reserved = targetIds.length;
     }
 
-    let processed = 0;
-    let failed = 0;
+    const total = targetIds.length;
+    const userId = user.id;
+    const account: string = userData.connected_account_id;
 
-    try {
-      const client = new ImapFlow({
-        host,
-        port,
-        secure: true,
-        auth: { user: userData.connected_account_id, pass: password },
-        logger: false,
-        emitLogs: false,
-      });
-
-      await client.connect();
-
-      const archiveMailbox = action === "archive" ? await resolveArchiveMailbox(client) : null;
-      const lock = await client.getMailboxLock("INBOX");
+    // Runs the action on the mail server, reporting progress after each batch.
+    const run = async (
+      onProgress: (p: { stage: "connecting" | "working"; done: number; total: number }) => void,
+    ) => {
+      let processed = 0;
+      let failed = 0;
+      onProgress({ stage: "connecting", done: 0, total });
 
       try {
-        // Work in chunks, and only mark an email as handled in the database once
-        // the mail server confirmed it. If a chunk fails (or the function times
-        // out part way), those emails stay visible so the user can retry, rather
-        // than disappearing from Eflow while still sitting in their real inbox.
-        const CHUNK = 100;
-        for (let i = 0; i < targetIds.length; i += CHUNK) {
-          const chunk = targetIds.slice(i, i + CHUNK);
-          const uids = chunk.map((id) => parseInt(id, 10)).filter((u) => !isNaN(u));
-          failed += chunk.length - uids.length;
-          if (uids.length === 0) continue;
+        const client = new ImapFlow({
+          host,
+          port,
+          secure: true,
+          auth: { user: account, pass: password },
+          logger: false,
+          emitLogs: false,
+        });
 
-          let ok = false;
-          try {
-            if (action === "delete") {
-              ok = await client.messageDelete(uids, { uid: true });
-            } else if (action === "archive") {
-              ok = Boolean(await client.messageMove(uids, archiveMailbox!, { uid: true }));
-            } else {
-              ok = await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true });
+        await client.connect();
+
+        const archiveMailbox = action === "archive" ? await resolveArchiveMailbox(client) : null;
+        const lock = await client.getMailboxLock("INBOX");
+        onProgress({ stage: "working", done: 0, total });
+
+        try {
+          // Work in chunks, and only mark an email as handled in the database once
+          // the mail server confirmed it. If a chunk fails (or the function times
+          // out part way), those emails stay visible so the user can retry, rather
+          // than disappearing from Eflow while still sitting in their real inbox.
+          // Smaller chunks for small jobs, so the progress bar moves smoothly.
+          const CHUNK = Math.min(100, Math.max(10, Math.ceil(total / 25)));
+          for (let i = 0; i < targetIds.length; i += CHUNK) {
+            const chunk = targetIds.slice(i, i + CHUNK);
+            const uids = chunk.map((id) => parseInt(id, 10)).filter((u) => !isNaN(u));
+            failed += chunk.length - uids.length;
+            if (uids.length === 0) {
+              onProgress({ stage: "working", done: processed + failed, total });
+              continue;
             }
-          } catch (err) {
-            console.error(`Batch ${action} error:`, err);
+
+            let ok = false;
+            try {
+              if (action === "delete") {
+                ok = await client.messageDelete(uids, { uid: true });
+              } else if (action === "archive") {
+                ok = Boolean(await client.messageMove(uids, archiveMailbox!, { uid: true }));
+              } else {
+                ok = await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true });
+              }
+            } catch (err) {
+              console.error(`Batch ${action} error:`, err);
+            }
+
+            if (!ok) {
+              failed += uids.length;
+            } else {
+              const { error: dbError } = await supabase
+                .from("emails")
+                .update(DB_UPDATE_FOR_ACTION[action])
+                .eq("user_id", userId)
+                .in("email_id", uids.map(String));
+              if (dbError) console.error("Failed to record action in database:", dbError);
+              processed += uids.length;
+            }
+            onProgress({ stage: "working", done: processed + failed, total });
           }
-
-          if (!ok) {
-            failed += uids.length;
-            continue;
-          }
-
-          const { error: dbError } = await supabase
-            .from("emails")
-            .update(DB_UPDATE_FOR_ACTION[action])
-            .eq("user_id", user.id)
-            .in("email_id", uids.map(String));
-          if (dbError) console.error("Failed to record action in database:", dbError);
-
-          processed += uids.length;
+        } finally {
+          lock.release();
         }
+
+        await client.logout();
       } finally {
-        lock.release();
+        // Settle usage even if the mail server connection failed part way.
+        if (reserved > 0) {
+          await addCleanUsage(userId, -(reserved - processed));
+        } else if (countsTowardQuota) {
+          await addCleanUsage(userId, processed);
+        }
       }
 
-      await client.logout();
-    } finally {
-      // Settle usage even if the mail server connection failed part way.
-      if (reserved > 0) {
-        await addCleanUsage(user.id, -(reserved - processed));
-      } else if (countsTowardQuota) {
-        await addCleanUsage(user.id, processed);
-      }
+      return { success: true, action, processed, failed, total, protected_skipped: protectedSkipped };
+    };
+
+    if (stream) {
+      const encoder = new TextEncoder();
+      const body = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const send = (msg: unknown) => controller.enqueue(encoder.encode(JSON.stringify(msg) + "\n"));
+          try {
+            const result = await run((p) => send({ type: "progress", ...p }));
+            send({ type: "result", ...result });
+          } catch (err) {
+            console.error("IMAP apply actions error:", err);
+            send({ type: "error", error: (err as Error).message || "Failed to apply actions" });
+          } finally {
+            controller.close();
+          }
+        },
+      });
+      return new Response(body, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/x-ndjson",
+          "Cache-Control": "no-cache",
+          "X-Accel-Buffering": "no",
+        },
+      });
     }
 
-    return new Response(
-      JSON.stringify({ success: true, action, processed, failed, total: targetIds.length, protected_skipped: protectedSkipped }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const result = await run(() => {});
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
     console.error("IMAP apply actions error:", err);
     return new Response(
