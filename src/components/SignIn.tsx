@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Lock, Loader2, AlertCircle, CheckCircle, ChevronLeft } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, CheckCircle, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import SpeedLogo from './SpeedLogo';
 import LegalLinks from './LegalLinks';
@@ -10,6 +10,42 @@ import { t, tKnown, useI18n } from '../lib/i18n';
 type Mode = 'signin' | 'signup' | 'forgot';
 
 const MIN_PASSWORD = 8;
+
+// "Remember me" keeps only the email on this device. The password is never
+// stored by Eflow: we hand it to the browser's own password manager
+// (Keychain, Google Password Manager, 1Password...), which stores it encrypted.
+const REMEMBER_KEY = 'eflow:rememberedEmail';
+
+function readRememberedEmail(): string {
+  try {
+    return localStorage.getItem(REMEMBER_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function saveRememberedEmail(email: string | null) {
+  try {
+    if (email) localStorage.setItem(REMEMBER_KEY, email);
+    else localStorage.removeItem(REMEMBER_KEY);
+  } catch {
+    // Private mode or blocked storage: nothing to remember, sign-in still works.
+  }
+}
+
+type PasswordCredentialCtor = new (data: { id: string; password: string; name?: string }) => Credential;
+
+// Chrome and Edge show their "Save password?" prompt from this call. Other
+// browsers offer to save on their own when the sign-in form succeeds.
+async function offerToSavePassword(email: string, password: string) {
+  const Ctor = (window as unknown as { PasswordCredential?: PasswordCredentialCtor }).PasswordCredential;
+  if (!Ctor || !navigator.credentials?.store) return;
+  try {
+    await navigator.credentials.store(new Ctor({ id: email, password, name: email }));
+  } catch {
+    // The user dismissed it or the browser declined; nothing to do.
+  }
+}
 
 // Supabase's messages are technical; say what the user should do instead.
 function friendlyAuthError(message: string): string {
@@ -28,8 +64,10 @@ export default function SignIn() {
   const { signIn, signUp, sendPasswordReset, linkError } = useAuth();
   useI18n();
   const [mode, setMode] = useState<Mode>('signin');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(readRememberedEmail);
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(linkError ?? '');
   const [notice, setNotice] = useState('');
@@ -52,8 +90,12 @@ export default function SignIn() {
     try {
       if (mode === 'signin') {
         await signIn(email, password);
+        saveRememberedEmail(remember ? email.trim() : null);
+        if (remember) void offerToSavePassword(email.trim(), password);
       } else if (mode === 'signup') {
         const result = await signUp(email, password);
+        saveRememberedEmail(remember ? email.trim() : null);
+        if (remember) void offerToSavePassword(email.trim(), password);
         if (result === 'confirm_email') {
           setNotice(t('Almost there! We sent a confirmation link to {email}. Open it, then sign in here.', { email: email.trim() }));
           setMode('signin');
@@ -143,8 +185,10 @@ export default function SignIn() {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink/40" />
                 <input
                   type="email"
+                  id="email"
+                  name="email"
                   required
-                  autoComplete="email"
+                  autoComplete={mode === 'signup' ? 'email' : 'username'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={t('you@example.com')}
@@ -170,21 +214,49 @@ export default function SignIn() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink/40" />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
+                    id="password"
+                    name="password"
                     required
                     minLength={MIN_PASSWORD}
                     autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={mode === 'signup' ? t('At least {n} characters', { n: MIN_PASSWORD }) : t('Your password')}
-                    className="w-full pl-10 pr-4 py-3 border-2 border-ink/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-mint-400"
+                    className="w-full pl-10 pr-12 py-3 border-2 border-ink/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-mint-400"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? t('Hide password') : t('Show password')}
+                    aria-pressed={showPassword}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl text-ink/50 hover:text-ink hover:bg-cream"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
                 {mode === 'signup' && (
                   <span className="block text-xs text-ink/60 mt-1">
                     {t("This is your Eflow password - not your email account's password.")}
                   </span>
                 )}
+              </label>
+            )}
+
+            {mode !== 'forgot' && (
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="mt-0.5 w-5 h-5 rounded-md border-2 border-ink/20 text-mint-600 accent-mint-500 focus:ring-2 focus:ring-mint-400"
+                />
+                <span className="text-sm">
+                  <span className="block font-semibold text-ink/85">{t('Remember me')}</span>
+                  <span className="block text-xs text-ink/60">
+                    {t("Saves your email here, and lets your browser offer to save your password. Don't use on a shared computer.")}
+                  </span>
+                </span>
               </label>
             )}
 

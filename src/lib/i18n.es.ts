@@ -93,6 +93,10 @@ export const es = {
   'Forgot password?': '¿Olvidaste tu contraseña?',
   'At least {n} characters': 'Al menos {n} caracteres',
   'Your password': 'Tu contraseña',
+  'Show password': 'Mostrar contraseña',
+  'Hide password': 'Ocultar contraseña',
+  'Remember me': 'Recordarme',
+  "Saves your email here, and lets your browser offer to save your password. Don't use on a shared computer.": 'Guarda tu correo aquí y permite que tu navegador ofrezca guardar tu contraseña. No lo uses en una computadora compartida.',
   "This is your Eflow password - not your email account's password.":
     'Esta es tu contraseña de Eflow, no la de tu cuenta de correo.',
   'By creating an account you agree to the': 'Al crear una cuenta aceptas los',
