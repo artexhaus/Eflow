@@ -51,8 +51,15 @@ if [ "$MODE" = "live" ]; then
   [ "$ok" = "y" ] || [ "$ok" = "Y" ] || exit 1
 fi
 
-read -rp "Your site's address for production (press Enter to skip for local testing): " APP_URL
-APP_URL="${APP_URL%/}"
+while :; do
+  read -rp "Your site's address for production, e.g. https://www.eflowapp.org (press Enter to skip for local testing): " APP_URL
+  APP_URL="$(printf '%s' "$APP_URL" | tr -d '[:space:]')"
+  APP_URL="${APP_URL%/}"
+  [ -z "$APP_URL" ] && break
+  case "$APP_URL" in http://*|https://*) ;; *) APP_URL="https://$APP_URL" ;; esac
+  if [[ "$APP_URL" =~ ^https?://[A-Za-z0-9.-]+\.[A-Za-z]{2,}(:[0-9]+)?$ ]]; then break; fi
+  echo "That doesn't look like a site address. Type it like https://www.eflowapp.org"
+done
 
 # stripe METHOD PATH [curl -d args...]: calls the Stripe API, fails loudly.
 stripe() {

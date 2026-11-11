@@ -31,8 +31,9 @@ export function getStripe(): Stripe {
 // when set (production); otherwise the site the request came from, so local
 // development works with no extra setup.
 export function getAppUrl(req: Request): string {
-  const configured = Deno.env.get("APP_URL");
-  if (configured) return configured.replace(/\/$/, "");
+  const configured = (Deno.env.get("APP_URL") ?? "").trim().replace(/\/+$/, "");
+  if (/^https?:\/\/[^/\s]+$/i.test(configured)) return configured;
+  if (configured) console.error("APP_URL is not a site address like https://www.eflowapp.org; ignoring it.");
   const origin = req.headers.get("Origin");
   if (origin && /^https?:\/\/[^/]+$/.test(origin)) return origin;
   throw new Error("Server misconfigured: set the APP_URL secret to your site's address.");
