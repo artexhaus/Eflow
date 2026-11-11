@@ -8,8 +8,11 @@
 #      $6.99/month and $49.99/year, found later by their lookup keys.
 #   2. Creates the webhook that tells Eflow when someone subscribes/cancels.
 #   3. Creates the Customer Portal settings (update card, switch plan, cancel).
-#   4. Stores the secrets in your Supabase project.
-#   5. Applies database migrations and deploys every edge function.
+#   4. Clears saved subscriptions that belong to a different Stripe account or
+#      mode (after switching accounts, or from test to live), so nobody is
+#      left showing a Pro plan this Stripe account doesn't know about.
+#   5. Stores the secrets in your Supabase project.
+#   6. Applies database migrations and deploys every edge function.
 #
 # Safe to run again: everything is looked up before it is created. Re-running
 # replaces the webhook endpoint (its signing secret is only shown at creation).
@@ -147,6 +150,36 @@ else
   echo "Created portal settings $PORTAL"
 fi
 
+# ---- Subscriptions from another Stripe account ----------------------------------
+# Each saved subscription points at a Stripe customer. A customer this key
+# can't find was made by another account or in the other mode (test/live).
+# Those rows are deleted: those people go back to Free, and their next upgrade
+# starts fresh in this account. Rows this account knows are left alone.
+step "Checking saved subscriptions against this Stripe account..."
+SERVICE_KEY="$(supabase projects api-keys --project-ref "$PROJECT_REF" -o json 2>/dev/null \
+  | jq -r '.[] | select(.name=="service_role") | .api_key' | head -1)"
+[ -n "$SERVICE_KEY" ] || die "couldn't get the Supabase service key (is the supabase CLI logged in?)."
+REST="https://${PROJECT_REF}.supabase.co/rest/v1"
+rows="$(curl -sS -g "$REST/subscriptions?select=user_id,stripe_customer_id&stripe_customer_id=not.is.null" \
+  -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY")"
+jq -e 'type=="array"' >/dev/null <<<"$rows" || die "couldn't read the subscriptions table: $rows"
+cleared=0
+kept=0
+while IFS=$'\t' read -r user_id customer_id; do
+  [ -n "$customer_id" ] || continue
+  code="$(curl -sS -o /dev/null -w '%{http_code}' "https://api.stripe.com/v1/customers/$customer_id" -u "${STRIPE_SECRET_KEY}:")"
+  if [ "$code" = "404" ]; then
+    curl -sS -f -o /dev/null -X DELETE "$REST/subscriptions?user_id=eq.$user_id" \
+      -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" || die "couldn't clear an old subscription record."
+    cleared=$((cleared + 1))
+  elif [ "$code" = "200" ]; then
+    kept=$((kept + 1))
+  else
+    die "Stripe answered $code while checking a customer; nothing more was changed. Try again."
+  fi
+done < <(jq -r '.[] | [.user_id, .stripe_customer_id] | @tsv' <<<"$rows")
+echo "Kept $kept, cleared $cleared from another Stripe account or mode"
+
 # ---- Supabase -----------------------------------------------------------------
 step "Saving secrets to Supabase..."
 secrets_file="$(mktemp)"
@@ -167,7 +200,7 @@ supabase db push
 step "Deploying edge functions..."
 supabase functions deploy \
   imap-connect imap-fetch imap-apply-actions unsubscribe \
-  create-checkout-session create-portal-session stripe-webhook
+  create-checkout-session create-portal-session stripe-webhook delete-account
 
 step "All set! Stripe is connected in $MODE mode."
 cat <<EOF

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import SpeedLogo from './SpeedLogo';
 import LegalLinks from './LegalLinks';
 import LanguageToggle from './LanguageToggle';
+import SocialSignInButtons from './SocialSignInButtons';
 import { t, tKnown, useI18n } from '../lib/i18n';
 
 type Mode = 'signin' | 'signup' | 'forgot';
@@ -24,13 +25,13 @@ function friendlyAuthError(message: string): string {
 }
 
 export default function SignIn() {
-  const { signIn, signUp, sendPasswordReset, emailLinkError } = useAuth();
+  const { signIn, signUp, sendPasswordReset, linkError } = useAuth();
   useI18n();
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(emailLinkError ?? '');
+  const [error, setError] = useState(linkError ?? '');
   const [notice, setNotice] = useState('');
 
   const switchMode = (next: Mode) => {
@@ -125,6 +126,15 @@ export default function SignIn() {
                 ? t("Enter your email and we'll send you a link to choose a new password.")
                 : t('Sign in to keep tidying your inbox.')}
           </p>
+
+          {mode !== 'forgot' && (
+            <SocialSignInButtons
+              onError={(message) => {
+                setNotice('');
+                setError(message);
+              }}
+            />
+          )}
 
           <form onSubmit={submit} className="space-y-4">
             <label className="block">

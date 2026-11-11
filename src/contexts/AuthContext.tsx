@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode } fro
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { getLanguage, t, useI18n } from '../lib/i18n';
+import { readOAuthError } from '../lib/socialAuth';
 
 export type SignUpResult = 'signed_in' | 'confirm_email';
 
@@ -10,8 +11,9 @@ interface AuthContextType {
   loading: boolean;
   // True after the user opened a password-reset link: show "set a new password".
   recoveringPassword: boolean;
-  // Set when an email link was expired or already used, to explain on sign-in.
-  emailLinkError: string | null;
+  // Set when an email link was expired or already used, or a Google/Apple
+  // sign-in didn't complete, to explain on the sign-in screen.
+  linkError: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<SignUpResult>;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -26,7 +28,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [recoveringPassword, setRecoveringPassword] = useState(false);
-  const [emailLinkError, setEmailLinkError] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(() => {
+    const oauthError = readOAuthError();
+    if (oauthError === 'cancelled') return t('Sign-in was cancelled. Choose a way to sign in below.');
+    if (oauthError === 'failed') return t("That sign-in didn't go through. Please try again, or use your email and password.");
+    return null;
+  });
 
   useEffect(() => {
     // Email links point at our own domain (/auth/confirm?token_hash=...&type=...)
@@ -40,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.auth.verifyOtp({ token_hash: tokenHash, type }).then(({ data, error }) => {
         if (error) {
           console.error('Email link could not be verified:', error.message);
-          setEmailLinkError(
+          setLinkError(
             type === 'recovery'
               ? t('That reset link has expired or was already used. Request a new one below.')
               : t('That confirmation link has expired or was already used. Sign in, or create your account again to get a new link.')
@@ -138,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         recoveringPassword,
-        emailLinkError,
+        linkError,
         signIn,
         signUp,
         sendPasswordReset,

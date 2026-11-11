@@ -245,7 +245,9 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
               <span>{t('Manage Subscription')}</span>
             </button>
           )}
-          <p className="text-sm">{t('Cancel any time. Payments are handled securely by Stripe.')}</p>
+          <p className="text-sm max-w-2xl mx-auto">
+            {t('Pro renews automatically every month or year at the price shown until you cancel. Cancel any time in Manage Subscription, and Pro stays on until the end of the period you paid for. Payments are handled securely by Stripe.')}
+          </p>
         </div>
       </div>
     </div>

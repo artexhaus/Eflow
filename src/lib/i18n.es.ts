@@ -75,6 +75,13 @@ export const es = {
   'Sign in': 'Iniciar sesión',
   'Sign out': 'Cerrar sesión',
   'Back to sign in': 'Volver a iniciar sesión',
+  'Continue with Google': 'Continuar con Google',
+  'Continue with Apple': 'Continuar con Apple',
+  'or use your email': 'o usa tu correo',
+  'By continuing you agree to the': 'Al continuar aceptas los',
+  'Sign-in was cancelled. Choose a way to sign in below.': 'Se canceló el inicio de sesión. Elige cómo iniciar sesión abajo.',
+  "That sign-in didn't go through. Please try again, or use your email and password.":
+    'No se pudo iniciar sesión. Inténtalo de nuevo o usa tu correo y contraseña.',
   'Your Eflow account keeps your settings, receipts and plan in one place.':
     'Tu cuenta de Eflow guarda tu configuración, tus recibos y tu plan en un solo lugar.',
   "Enter your email and we'll send you a link to choose a new password.":
@@ -570,6 +577,8 @@ export const es = {
   'Go Pro yearly': 'Pro anual',
   'Manage Subscription': 'Administrar suscripción',
   'Cancel any time. Payments are handled securely by Stripe.': 'Cancela cuando quieras. Stripe procesa los pagos de forma segura.',
+  'Pro renews automatically every month or year at the price shown until you cancel. Cancel any time in Manage Subscription, and Pro stays on until the end of the period you paid for. Payments are handled securely by Stripe.':
+    'Pro se renueva automáticamente cada mes o cada año al precio indicado hasta que lo canceles. Cancela cuando quieras en Administrar suscripción, y Pro sigue activo hasta el final del periodo que pagaste. Stripe procesa los pagos de forma segura.',
   'Could not open subscription settings.': 'No se pudo abrir la configuración de la suscripción.',
   "We couldn't reach the billing service just now. Please check your connection and try again.":
     'No pudimos conectar con el servicio de pagos. Revisa tu conexión e inténtalo de nuevo.',
@@ -628,6 +637,11 @@ export const es = {
   'Eflow is available in English and Spanish.': 'Eflow está disponible en inglés y en español.',
   'Sign-in & security': 'Inicio de sesión y seguridad',
   'You sign in as {email}': 'Inicias sesión como {email}',
+  'You sign in with {provider} as {email}': 'Inicias sesión con {provider} como {email}',
+  'Optional: set a password to also sign in with your email.': 'Opcional: crea una contraseña para iniciar sesión también con tu correo.',
+  'Set password': 'Crear contraseña',
+  'Password set. You can also sign in with your email and this password.':
+    'Contraseña creada. También puedes iniciar sesión con tu correo y esta contraseña.',
   'Change password': 'Cambiar contraseña',
   'Connected mailbox': 'Buzón conectado',
   "Disconnecting removes the app password Eflow stored and everything Eflow saved about your emails. Your actual mailbox isn't changed. You can reconnect any time.":

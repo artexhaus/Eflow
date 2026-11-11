@@ -28,6 +28,26 @@ content_path = "./supabase/templates/confirmation.html"
 subject = "{{ $es := false }}{{ with .Data }}{{ if eq (printf \"%v\" .lang) \"es\" }}{{ $es = true }}{{ end }}{{ end }}{{ if $es }}Restablece tu contraseña de Eflow{{ else }}Reset your Eflow password{{ end }}"
 content_path = "./supabase/templates/recovery.html"
 
+# Continue with Google / Apple. Switched on by
+# ./scripts/setup-social-login.sh, which keeps the IDs and secrets in
+# supabase/.env on your computer (never committed). Push this file with
+# ./scripts/push-supabase-config.sh, never a bare `supabase config push`:
+# without those values loaded, Supabase gets placeholder text and these
+# sign-in buttons stop working. The callback URL to give Google and Apple is
+# https://xqskistgkihlewsxanib.supabase.co/auth/v1/callback
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+skip_nonce_check = false
+
+[auth.external.apple]
+enabled = false
+# The Services ID; the secret is a JWT made from your Apple key and renewed
+# by push-supabase-config.sh before it expires (Apple allows ~6 months).
+client_id = "env(SUPABASE_AUTH_EXTERNAL_APPLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
+
 [functions.imap-connect]
 verify_jwt = true
 

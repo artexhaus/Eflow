@@ -18,7 +18,7 @@ export function legalPageForPath(path: string): LegalPageKind | null {
   return PATHS[path.replace(/\/+$/, '') || '/'] ?? null;
 }
 
-const { company, product, contactEmail, governingLaw, effectiveDate, website } = LEGAL;
+const { company, product, contactEmail, governingLaw, governingLawEs, effectiveDate, website } = LEGAL;
 
 function H2({ children }: { children: ReactNode }) {
   return <h2 className="font-display text-xl font-bold text-ink mt-8 mb-2">{children}</h2>;
@@ -54,6 +54,7 @@ function Privacy() {
       <UL
         items={[
           <><strong>Your {product} account:</strong> your email address and password. Passwords are stored by our authentication provider as a one-way hash; we can&apos;t read them.</>,
+          <><strong>If you sign in with Google or Apple:</strong> they confirm who you are and share your name and email address with us (Apple may give us a private relay address instead). We never receive your Google or Apple password, and signing in this way doesn&apos;t give {product} access to your mailbox.</>,
           <><strong>Your mailbox connection:</strong> the email address of the mailbox you connect, which provider it uses, and the app password you create for {product}. The app password is encrypted before it is stored.</>,
           <><strong>Details about your emails:</strong> for messages in your inbox we store the sender&apos;s name and address, the subject line, the date, whether it&apos;s been read, whether it has an attachment, and mailing-list headers (such as unsubscribe links). We do <strong>not</strong> download or store the body of your emails or their attachments.</>,
           <><strong>What you do in {product}:</strong> which emails you clean up, senders you unsubscribe from, and how many emails you&apos;ve cleaned each month (used for the Free plan limit).</>,
@@ -79,6 +80,7 @@ function Privacy() {
           <><strong>Supabase</strong> - our database, authentication and server functions.</>,
           <><strong>Stripe</strong> - payment processing and subscription management.</>,
           <><strong>Vercel</strong> - hosting for the {product} website.</>,
+          <><strong>Google and Apple</strong> - only if you choose to sign in with them, to confirm who you are.</>,
           <><strong>Your email provider</strong> (such as Gmail, Yahoo, AOL, Outlook or iCloud) - {product} connects to your mailbox using the app password you provide.</>,
           <><strong>Senders you unsubscribe from</strong> - when you ask, we send them the unsubscribe request their email offers.</>,
         ]}
@@ -251,6 +253,7 @@ function PrivacyEs() {
       <UL
         items={[
           <><strong>Tu cuenta de {product}:</strong> tu dirección de correo y tu contraseña. Nuestro proveedor de autenticación guarda las contraseñas como un hash irreversible; no podemos leerlas.</>,
+          <><strong>Si inicias sesión con Google o Apple:</strong> confirman tu identidad y nos comparten tu nombre y tu dirección de correo (Apple puede darnos una dirección de reenvío privada en su lugar). Nunca recibimos tu contraseña de Google o Apple, y iniciar sesión así no le da a {product} acceso a tu buzón.</>,
           <><strong>La conexión de tu buzón:</strong> la dirección del buzón que conectas, el proveedor que usa y la contraseña de aplicación que creas para {product}. La contraseña de aplicación se cifra antes de guardarse.</>,
           <><strong>Datos sobre tus correos:</strong> de los mensajes de tu bandeja de entrada guardamos el nombre y la dirección del remitente, el asunto, la fecha, si se leyó, si tiene archivos adjuntos y los encabezados de listas de correo (como los enlaces para darse de baja). <strong>No</strong> descargamos ni guardamos el contenido de tus correos ni sus archivos adjuntos.</>,
           <><strong>Lo que haces en {product}:</strong> qué correos limpias, de qué remitentes te das de baja y cuántos correos limpias cada mes (para el límite del plan Gratis).</>,
@@ -276,6 +279,7 @@ function PrivacyEs() {
           <><strong>Supabase</strong>: nuestra base de datos, autenticación y funciones del servidor.</>,
           <><strong>Stripe</strong>: procesamiento de pagos y gestión de suscripciones.</>,
           <><strong>Vercel</strong>: alojamiento del sitio web de {product}.</>,
+          <><strong>Google y Apple</strong>: solo si eliges iniciar sesión con ellos, para confirmar tu identidad.</>,
           <><strong>Tu proveedor de correo</strong> (como Gmail, Yahoo, AOL, Outlook o iCloud): {product} se conecta a tu buzón con la contraseña de aplicación que nos das.</>,
           <><strong>Los remitentes de los que te das de baja</strong>: cuando nos lo pides, les enviamos la solicitud de baja que ofrece su correo.</>,
         ]}
@@ -389,7 +393,7 @@ function TermsEs() {
       </P>
 
       <H2>Ley aplicable</H2>
-      <P>Estos términos se rigen por las leyes de {governingLaw}, sin tener en cuenta sus normas sobre conflictos de leyes.</P>
+      <P>Estos términos se rigen por las leyes de {governingLawEs}, sin tener en cuenta sus normas sobre conflictos de leyes.</P>
 
       <H2>Cambios</H2>
       <P>Podemos actualizar estos términos. Actualizaremos la fecha de arriba y te avisaremos de los cambios importantes antes de que se apliquen.</P>

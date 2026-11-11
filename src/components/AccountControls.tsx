@@ -49,6 +49,12 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
   const [deleting, setDeleting] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState<Msg>(null);
 
+  // Accounts made with Google or Apple have no Eflow password; they can add
+  // one to also sign in with email and password.
+  const identityProviders = user?.identities?.map((identity) => identity.provider) ?? [];
+  const socialProvider = identityProviders.includes('google') ? 'Google' : identityProviders.includes('apple') ? 'Apple' : null;
+  const passwordless = socialProvider !== null && !identityProviders.includes('email');
+
   useEffect(() => {
     if (!user) return;
     supabase
@@ -71,7 +77,10 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
       await updatePassword(password);
       setPassword('');
       setConfirm('');
-      setPwMsg({ tone: 'success', text: t('Password updated.') });
+      setPwMsg({
+        tone: 'success',
+        text: passwordless ? t('Password set. You can also sign in with your email and this password.') : t('Password updated.'),
+      });
     } catch (err) {
       setPwMsg({ tone: 'error', text: tKnown((err as Error).message) || t('Could not update your password.') });
     } finally {
@@ -137,7 +146,14 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
         <h3 className="text-xl font-bold text-ink mb-1 flex items-center gap-2">
           <KeyRound className="w-5 h-5" /> {t('Sign-in & security')}
         </h3>
-        <p className="text-ink/70 mb-4 break-all">{t('You sign in as {email}', { email: user?.email ?? '' })}</p>
+        <p className="text-ink/70 mb-4 break-all">
+          {socialProvider
+            ? t('You sign in with {provider} as {email}', { provider: socialProvider, email: user?.email ?? '' })
+            : t('You sign in as {email}', { email: user?.email ?? '' })}
+        </p>
+        {passwordless && (
+          <p className="text-sm text-ink/70 mb-3">{t('Optional: set a password to also sign in with your email.')}</p>
+        )}
         <form onSubmit={changePassword} className="space-y-3 max-w-md">
           <input
             type="password"
@@ -162,7 +178,7 @@ export default function AccountControls({ onMailboxDisconnected }: AccountContro
             className="flex items-center gap-2 px-5 py-3 rounded-2xl font-display font-semibold text-ink bg-mint-200 hover:bg-mint-300 border-2 border-ink/15 shadow-md disabled:opacity-60"
           >
             {pwBusy && <Loader2 className="w-4 h-4 animate-spin" />}
-            <span>{t('Change password')}</span>
+            <span>{passwordless ? t('Set password') : t('Change password')}</span>
           </button>
         </form>
       </section>
