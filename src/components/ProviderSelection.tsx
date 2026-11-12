@@ -1,6 +1,8 @@
-import { Mail, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { Mail, ArrowRight, Clock } from 'lucide-react';
 import SpeedLogo from './SpeedLogo';
 import { useI18n } from '../lib/i18n';
+import { track } from '../lib/analytics';
 
 interface ProviderSelectionProps {
   onProviderSelect: (provider: string) => void;
@@ -12,12 +14,6 @@ const providers = [
     name: 'Gmail',
     tile: 'bg-berry-200 hover:bg-berry-300',
     iconColor: 'text-berry-700',
-  },
-  {
-    id: 'outlook',
-    name: 'Outlook',
-    tile: 'bg-ocean-200 hover:bg-ocean-300',
-    iconColor: 'text-ocean-700',
   },
   {
     id: 'yahoo',
@@ -41,6 +37,10 @@ const providers = [
 
 export default function ProviderSelection({ onProviderSelect }: ProviderSelectionProps) {
   const { t } = useI18n();
+  // Microsoft turned off app passwords for Outlook, Hotmail and Microsoft 365
+  // mail apps; they now require "Sign in with Microsoft", which Eflow doesn't
+  // support yet. Clicks are counted to measure demand.
+  const [outlookNote, setOutlookNote] = useState(false);
   return (
     <div className="min-h-screen bg-gradient-to-br from-mint-100 via-sunny-100 to-berry-100 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full">
@@ -75,6 +75,35 @@ export default function ProviderSelection({ onProviderSelect }: ProviderSelectio
                 </div>
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                if (!outlookNote) track('outlook_interest');
+                setOutlookNote(true);
+              }}
+              aria-expanded={outlookNote}
+              className="rounded-2xl p-6 text-left sm:col-span-2 border-2 border-dashed border-ink/15 bg-cream hover:bg-white transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0">
+                  <Mail className="w-7 h-7 text-ocean-700/60" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-xl font-bold text-ink/70 flex flex-wrap items-center gap-2">
+                    <span>Outlook / Hotmail</span>
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold bg-sunny-200 text-ink rounded-full px-2.5 py-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {t('Coming soon')}
+                    </span>
+                  </h3>
+                  {outlookNote && (
+                    <p className="text-sm text-ink/75 mt-2" role="status">
+                      {t('Microsoft now requires "Sign in with Microsoft" for mail apps, and we\'re adding it. Thanks for letting us know you want it!')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </button>
           </div>
 
           <div className="mt-8 p-4 bg-sunny-100 rounded-2xl">

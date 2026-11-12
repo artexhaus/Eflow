@@ -8,6 +8,7 @@ import type { Subscription } from '../lib/types';
 import PricingModal, { type PricingReason } from '../components/PricingModal';
 import UpgradeNudge from '../components/UpgradeNudge';
 import { t, useI18n } from '../lib/i18n';
+import { track } from '../lib/analytics';
 
 // Free users get a small "N cleans left, upgrade now" popup each time their
 // monthly cleans pass another multiple of this (150, 300, 450).
@@ -109,6 +110,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     if (!checkout && !portal) return;
     window.history.replaceState({}, '', window.location.pathname);
 
+    if (checkout) track(checkout === 'cancelled' ? 'checkout_cancelled' : 'checkout_completed');
     if (checkout === 'cancelled') {
       setNotice({ tone: 'info', text: t('No worries - you were not charged. You can upgrade any time.') });
       return;
@@ -150,7 +152,10 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     unsubscribesUsed,
     unsubscribeLimit: FREE_UNSUBSCRIBE_LIMIT,
     refresh,
-    openPricing: (reason = { kind: 'upgrade' }) => setPricingReason(reason),
+    openPricing: (reason = { kind: 'upgrade' }) => {
+      track('pricing_opened', { reason: reason.kind });
+      setPricingReason(reason);
+    },
     requirePro: (feature: string) => {
       if (isPro) return true;
       setPricingReason({ kind: 'pro_feature', feature });

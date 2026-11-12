@@ -114,3 +114,32 @@
     transform: scaleX(0.8);
   }
 }
+
+/* Sign-in page illustrations.
+   Phones / upright tablets: src/assets/signin-background.jpg (1199x1312) sits
+   between the logo and the form; colours below are sampled from its edges.
+   Wide screens: src/assets/signin-background-desktop.jpg (16:9) fills the page,
+   the character on the left and the shredder on the right of the form. */
+.signin-page {
+  background:
+    linear-gradient(180deg, transparent 0, transparent 45%, #efe4d0 80%),
+    linear-gradient(90deg, #bde8bd 0%, #d4edc5 45%, #ecf2ca 75%, #fdf4c6 100%);
+}
+.signin-scene {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 8%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 8%, #000 84%, transparent 100%);
+}
+@media (min-width: 768px) and (min-aspect-ratio: 5/4) {
+  .signin-page {
+    background: #e9eecb;
+  }
+  /* Pinned to the window, so a form taller than the screen scrolls over the
+     picture instead of stretching (and zooming) it. */
+  .signin-page::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: url('./assets/signin-background-desktop.jpg') center 40% / cover no-repeat;
+  }
+}

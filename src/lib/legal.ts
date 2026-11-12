@@ -12,5 +12,5 @@ export const LEGAL = {
   governingLawEs: 'el Estado de California, Estados Unidos',
   // "Last updated" date shown on every legal page (YYYY-MM-DD; shown in the
   // reader's language).
-  effectiveDate: '2026-11-10',
+  effectiveDate: '2026-11-11',
 } as const;

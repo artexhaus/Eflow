@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from './App.tsx';
 import './index.css';
+import { initAnalytics } from './lib/analytics';
+
+initAnalytics();
 
 // App does its own routing (sign-in, onboarding, dashboard, and the public
 // /privacy, /terms and /refunds pages), so every path renders it. App also

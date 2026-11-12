@@ -13,6 +13,11 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      // Sign-in page: landscape screens use the wide illustration behind the
+      // form; phones and upright tablets use the stacked portrait layout.
+      screens: {
+        wide: { raw: '(min-width: 768px) and (min-aspect-ratio: 5/4)' },
+      },
       // Indeterminate progress bar: a stripe sliding across while the mail
       // server sign-in happens, before there's a real percentage to show.
       keyframes: {

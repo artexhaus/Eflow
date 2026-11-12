@@ -60,6 +60,7 @@ function Privacy() {
           <><strong>What you do in {product}:</strong> which emails you clean up, senders you unsubscribe from, and how many emails you&apos;ve cleaned each month (used for the Free plan limit).</>,
           <><strong>Billing:</strong> if you subscribe, payments are handled by Stripe. We store your plan, subscription status and Stripe customer ID. We never see or store your card number.</>,
           <><strong>Your browser:</strong> {product} remembers small preferences (like Simple view and your language) in your browser&apos;s local storage. We don&apos;t use advertising or tracking cookies.</>,
+          <><strong>Usage and error data:</strong> to see which features help and to fix problems, we record events such as &quot;mailbox connected&quot;, &quot;emails cleaned&quot; (counts only) or &quot;upgrade started&quot;, plus error reports, your browser type and approximate location. These are linked to a random account ID, never your email address, and never include your emails&apos; senders, subjects or content. We don&apos;t record your screen. If your browser sends a &quot;Do Not Track&quot; signal, we don&apos;t collect this at all.</>,
         ]}
       />
 
@@ -80,6 +81,7 @@ function Privacy() {
           <><strong>Supabase</strong> - our database, authentication and server functions.</>,
           <><strong>Stripe</strong> - payment processing and subscription management.</>,
           <><strong>Vercel</strong> - hosting for the {product} website.</>,
+          <><strong>PostHog</strong> - the usage and error data described above, to help us improve {product}.</>,
           <><strong>Google and Apple</strong> - only if you choose to sign in with them, to confirm who you are.</>,
           <><strong>Your email provider</strong> (such as Gmail, Yahoo, AOL, Outlook or iCloud) - {product} connects to your mailbox using the app password you provide.</>,
           <><strong>Senders you unsubscribe from</strong> - when you ask, we send them the unsubscribe request their email offers.</>,
@@ -259,6 +261,7 @@ function PrivacyEs() {
           <><strong>Lo que haces en {product}:</strong> qué correos limpias, de qué remitentes te das de baja y cuántos correos limpias cada mes (para el límite del plan Gratis).</>,
           <><strong>Facturación:</strong> si te suscribes, los pagos los gestiona Stripe. Guardamos tu plan, el estado de tu suscripción y tu ID de cliente de Stripe. Nunca vemos ni guardamos el número de tu tarjeta.</>,
           <><strong>Tu navegador:</strong> {product} recuerda pequeñas preferencias (como la vista simple o el idioma) en el almacenamiento local de tu navegador. No usamos cookies de publicidad ni de seguimiento.</>,
+          <><strong>Datos de uso y errores:</strong> para saber qué funciones ayudan y corregir problemas, registramos eventos como &quot;buzón conectado&quot;, &quot;correos limpiados&quot; (solo cantidades) o &quot;mejora iniciada&quot;, además de informes de errores, el tipo de navegador y la ubicación aproximada. Se vinculan a un ID de cuenta aleatorio, nunca a tu dirección de correo, y nunca incluyen remitentes, asuntos ni contenido de tus correos. No grabamos tu pantalla. Si tu navegador envía la señal &quot;No rastrear&quot; (Do Not Track), no recopilamos nada de esto.</>,
         ]}
       />
 
@@ -278,6 +281,7 @@ function PrivacyEs() {
         items={[
           <><strong>Supabase</strong>: nuestra base de datos, autenticación y funciones del servidor.</>,
           <><strong>Stripe</strong>: procesamiento de pagos y gestión de suscripciones.</>,
+          <><strong>PostHog</strong>: los datos de uso y errores descritos arriba, para ayudarnos a mejorar {product}.</>,
           <><strong>Vercel</strong>: alojamiento del sitio web de {product}.</>,
           <><strong>Google y Apple</strong>: solo si eliges iniciar sesión con ellos, para confirmar tu identidad.</>,
           <><strong>Tu proveedor de correo</strong> (como Gmail, Yahoo, AOL, Outlook o iCloud): {product} se conecta a tu buzón con la contraseña de aplicación que nos das.</>,

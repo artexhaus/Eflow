@@ -93,6 +93,8 @@ export const es = {
   'Forgot password?': '¿Olvidaste tu contraseña?',
   'At least {n} characters': 'Al menos {n} caracteres',
   'Your password': 'Tu contraseña',
+  'Coming soon': 'Próximamente',
+  'Microsoft now requires "Sign in with Microsoft" for mail apps, and we\'re adding it. Thanks for letting us know you want it!': 'Microsoft ahora exige "Iniciar sesión con Microsoft" para las apps de correo, y lo estamos agregando. ¡Gracias por decirnos que lo quieres!',
   'Connecting to your mail server...': 'Conectando con tu servidor de correo...',
   '{done} of {total} emails': '{done} de {total} correos',
   'About {n} second left': 'Falta aproximadamente {n} segundo',

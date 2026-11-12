@@ -3,6 +3,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { getLanguage, t, useI18n } from '../lib/i18n';
 import { readOAuthError } from '../lib/socialAuth';
+import { track, identifyUser, resetAnalytics } from '../lib/analytics';
 
 export type SignUpResult = 'signed_in' | 'confirm_email';
 
@@ -92,6 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [user, lang]);
 
+  // Link analytics to the account id (never the email), and forget it on sign-out.
+  useEffect(() => {
+    if (user) identifyUser(user.id, { signup_method: user.app_metadata?.provider ?? 'email', lang: getLanguage() });
+  }, [user]);
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) throw error;
@@ -124,6 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    track('signed_out');
+    resetAnalytics();
     try {
       const { data: { session } } = await supabase.auth.getSession();
 

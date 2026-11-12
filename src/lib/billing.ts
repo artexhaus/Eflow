@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { getLanguage, locale, t } from './i18n';
+import { track } from './analytics';
 
 // Must match FREE_MONTHLY_LIMIT in supabase/functions/_shared/billing.ts. The
 // server enforces the limit; this copy is only for display.
@@ -75,6 +76,7 @@ async function callBillingFunction(name: string, body: unknown): Promise<string>
 
 // Sends the user to Stripe Checkout; they come back to /?checkout=success.
 export async function startCheckout(plan: Plan): Promise<void> {
+  track('checkout_started', { plan });
   window.location.assign(await callBillingFunction('create-checkout-session', { plan, locale: getLanguage() }));
 }
 

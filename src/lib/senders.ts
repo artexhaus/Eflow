@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { Email } from './types';
 import { t } from './i18n';
+import { track } from './analytics';
 
 export interface SenderGroup {
   key: string;
@@ -89,6 +90,7 @@ export async function requestOneClickUnsubscribe(sender: string): Promise<Unsubs
   });
 
   const body = await response.json().catch(() => ({}));
+  track('unsubscribe_requested', { result: response.status === 402 ? 'limit' : response.ok ? String(body.status ?? 'unknown') : 'error' });
   if (response.status === 402 && body.code === 'unsubscribe_limit') return { status: 'limit' };
   if (!response.ok) throw new Error(body.error || t('Could not unsubscribe. Please try again.'));
 

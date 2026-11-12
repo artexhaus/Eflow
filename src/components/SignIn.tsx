@@ -6,6 +6,13 @@ import LegalLinks from './LegalLinks';
 import LanguageToggle from './LanguageToggle';
 import SocialSignInButtons from './SocialSignInButtons';
 import { t, tKnown, useI18n } from '../lib/i18n';
+import { track } from '../lib/analytics';
+import signInBackground from '../assets/signin-background.jpg';
+
+// Matches the `wide` screen in tailwind.config.js.
+const WIDE_MEDIA = '(min-width: 768px) and (min-aspect-ratio: 5/4)';
+// A 1px transparent image: lets wide screens skip downloading the portrait art.
+const BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 type Mode = 'signin' | 'signup' | 'forgot';
 
@@ -90,10 +97,12 @@ export default function SignIn() {
     try {
       if (mode === 'signin') {
         await signIn(email, password);
+        track('signed_in', { method: 'email', remember: remember });
         saveRememberedEmail(remember ? email.trim() : null);
         if (remember) void offerToSavePassword(email.trim(), password);
       } else if (mode === 'signup') {
         const result = await signUp(email, password);
+        track('signed_up', { method: 'email', needs_confirmation: result === 'confirm_email' });
         saveRememberedEmail(remember ? email.trim() : null);
         if (remember) void offerToSavePassword(email.trim(), password);
         if (result === 'confirm_email') {
@@ -108,6 +117,7 @@ export default function SignIn() {
         setNotice(t('If an account exists for {email}, a reset link is on its way. Check your inbox (and spam).', { email: email.trim() }));
       }
     } catch (err) {
+      track('auth_failed', { mode });
       setError(friendlyAuthError((err as Error).message));
     } finally {
       setBusy(false);
@@ -118,19 +128,36 @@ export default function SignIn() {
   const button = mode === 'signup' ? t('Create account') : mode === 'forgot' ? t('Send reset link') : t('Sign in');
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-mint-100 via-sunny-100 to-berry-100 flex items-center justify-center p-4 pt-16">
-      <LanguageToggle className="absolute top-4 right-4" />
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-mint-200 rounded-3xl mb-4 shadow-2xl">
-            <Mail className="w-8 h-8 text-ink" />
+    <div className="signin-page relative isolate min-h-screen overflow-x-hidden">
+      <LanguageToggle className="absolute top-4 right-4 z-20" />
+      <div className="relative flex flex-col items-center px-4 pt-14 pb-8 wide:min-h-screen wide:pt-5 wide:pb-[5vh]">
+        <div className="text-center w-full max-w-md">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-mint-200 rounded-2xl mb-2 shadow-2xl">
+            <Mail className="w-6 h-6 text-ink" />
           </div>
           <div>
             <SpeedLogo className="text-4xl -ml-[1.4em]" />
           </div>
-          <p className="text-lg text-ink/75 mt-2">{t('Reset your inbox. Automatically.')}</p>
+          <p className="text-lg text-ink/80 mt-1 [text-shadow:0_1px_10px_rgb(255_255_255_/_0.9)]">
+            {t('Reset your inbox. Automatically.')}
+          </p>
         </div>
 
+        {/* Phones and upright tablets: the portrait illustration as a picture
+            between the logo and the form. Wide screens show the landscape
+            illustration as the page background instead (see index.css). */}
+        <picture className="contents wide:hidden">
+          <source media={WIDE_MEDIA} srcSet={BLANK_GIF} />
+          <img
+            src={signInBackground}
+            alt=""
+            aria-hidden="true"
+            decoding="async"
+            className="signin-scene block w-screen max-w-none"
+          />
+        </picture>
+
+        <div className="relative z-10 w-full max-w-md -mt-[20vw] wide:mt-auto wide:pt-6">
         <div className="bg-white rounded-3xl shadow-2xl border-2 border-ink/10 p-6 sm:p-8">
           {mode !== 'forgot' && (
             <div className="grid grid-cols-2 gap-2 p-1 bg-cream rounded-2xl border-2 border-ink/10 mb-6" role="tablist">
@@ -292,7 +319,8 @@ export default function SignIn() {
           )}
         </div>
 
-        <LegalLinks className="mt-6" />
+        <LegalLinks className="mt-6 mx-auto w-fit rounded-2xl bg-white/60 backdrop-blur-md px-4 py-2" />
+        </div>
       </div>
     </div>
   );

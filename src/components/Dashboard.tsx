@@ -19,6 +19,7 @@ import SuspiciousAlert from './SuspiciousAlert';
 import { useBilling } from '../contexts/BillingContext';
 import LanguageToggle from './LanguageToggle';
 import { tKnown, useI18n, type MessageKey } from '../lib/i18n';
+import { track, trackError } from '../lib/analytics';
 
 type Screen = 'dashboard' | 'important' | 'clutter' | 'bundles' | 'reset' | 'unread' | 'senders' | 'account';
 
@@ -265,11 +266,14 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
             bundle_groups: result.bundle_groups || 0,
           });
         }
+        track('inbox_scanned', { provider: userData.email_provider, emails: result?.scanned_so_far ?? 0 });
       }
 
       await loadData();
     } catch (error) {
       console.error('Error during scan:', error);
+      track('inbox_scan_failed');
+      trackError(error, 'inbox_scan');
       setScanError(tKnown((error as Error).message));
     } finally {
       setScanning(false);

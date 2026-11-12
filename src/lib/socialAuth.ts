@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { getLanguage } from './i18n';
+import { track } from './analytics';
 
 export type SocialProvider = 'google' | 'apple';
 
@@ -24,6 +25,7 @@ export function fetchEnabledProviders(): Promise<Record<SocialProvider, boolean>
 // Sends the browser to Google or Apple; Supabase brings it back here signed
 // in (or with an error in the address, see readOAuthError).
 export async function signInWithProvider(provider: SocialProvider) {
+  track('social_sign_in_started', { provider });
   const { error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { plural, t } from './i18n';
+import { track } from './analytics';
 
 export type MailAction = 'delete' | 'archive' | 'mark_read';
 
@@ -136,10 +137,12 @@ async function runMailAction(
             { requested: body.requested }
           );
     const error = new UsageLimitError(message, body.limit, body.used, body.remaining, body.requested);
+    track('usage_limit_hit', { action, requested: body.requested, remaining: body.remaining });
     notify((l) => l.onUsageLimit?.(error));
     throw error;
   }
   if (!response.ok) {
+    track('mail_action_failed', { action, status: response.status });
     throw new Error(body.error || t('Could not reach your mail server. Please try again.'));
   }
 
@@ -149,6 +152,13 @@ async function runMailAction(
     total: body.total ?? 0,
     protectedSkipped: body.protected_skipped ?? 0,
   };
+  track('emails_cleaned', {
+    action,
+    target: Object.keys(target)[0],
+    processed: result.processed,
+    failed: result.failed,
+    protected_skipped: result.protectedSkipped,
+  });
   if (action !== 'mark_read') notify((l) => l.onCleaned?.());
   if (result.failed > 0 && result.processed === 0) {
     throw new Error(t('Your mail server rejected the request. Nothing was changed - please try again.'));

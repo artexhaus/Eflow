@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Mail, Lock, AlertCircle, ChevronLeft, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { t, tKnown, useI18n, type MessageKey } from '../lib/i18n';
+import { track } from '../lib/analytics';
 
 interface ImapLoginProps {
   provider: string;
@@ -105,6 +106,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
     e.preventDefault();
     setError('');
     setLoading(true);
+    let failureCode = 'other';
 
     try {
       if (!email || !appPassword) {
@@ -120,6 +122,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
       if (!session) throw new Error(t('Your session expired. Please sign in again, then connect your mailbox.'));
 
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imap-connect`;
+      track('mailbox_connect_attempted', { provider });
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -138,6 +141,7 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
         let errorText = t('Failed to connect to {provider}. Please check your credentials.', { provider: providerName });
         try {
           const errorData = await response.json();
+          failureCode = errorData?.code ?? `http_${response.status}`;
           if (errorData?.error) errorText = connectErrorMessage(errorData.code, errorData.error);
         } catch {
           try {
@@ -156,9 +160,11 @@ export default function ImapLogin({ provider, providerName, onComplete, onBack }
         throw new Error(result.error ? tKnown(result.error) : t('Connection failed'));
       }
 
+      track('mailbox_connected', { provider });
       onComplete();
     } catch (err) {
       console.error('IMAP connection error:', err);
+      track('mailbox_connect_failed', { provider, code: failureCode });
       setError((err as Error).message);
     } finally {
       setLoading(false);
