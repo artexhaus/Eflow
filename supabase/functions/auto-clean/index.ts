@@ -3,6 +3,7 @@ import { ImapFlow } from "npm:imapflow";
 import { readImapPassword } from "../_shared/credentials.ts";
 import { addCleanUsage, getServiceClient } from "../_shared/billing.ts";
 import { classifyEmail, parseListHeaders, parseSender } from "../_shared/classify.ts";
+import { buildSummaryEmail, sendSummaryEmail } from "../_shared/summary_email.ts";
 
 // Automatic cleanup (Pro yearly). Called only by the database scheduler
 // (dispatch_auto_clean, every 10 minutes), once per person whose cleanup is
@@ -76,7 +77,7 @@ Deno.serve(async (req) => {
 
   const { data: settings } = await service
     .from("auto_clean_settings")
-    .select("enabled, frequency, catching_up, last_run_cleaned, total_cleaned")
+    .select("enabled, frequency, catching_up, last_run_cleaned, total_cleaned, summary_emails, language, last_run_senders")
     .eq("user_id", userId)
     .maybeSingle();
   if (!settings?.enabled) return json({ skipped: "disabled" });
@@ -94,6 +95,16 @@ Deno.serve(async (req) => {
 
   const intervalMs = (INTERVAL_DAYS[settings.frequency] ?? 7) * 86_400_000;
   const previouslyCleaned = settings.catching_up ? settings.last_run_cleaned ?? 0 : 0;
+  // Who was cleared, summed across catch-up passes, for the summary email.
+  const senderTally = new Map<string, number>();
+  if (settings.catching_up && Array.isArray(settings.last_run_senders)) {
+    for (const s of settings.last_run_senders as { name: string; count: number }[]) senderTally.set(s.name, s.count);
+  }
+  const topSenders = () =>
+    [...senderTally.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
 
   const finish = async (fields: Record<string, unknown>) => {
     const { error } = await service
@@ -129,6 +140,7 @@ Deno.serve(async (req) => {
     await client.connect();
     let moreRemain = false;
     let toArchive: number[] = [];
+    const nameByUid = new Map<number, string>();
     try {
       const archiveMailbox = await resolveArchiveMailbox(client);
       const lock = await client.getMailboxLock("INBOX");
@@ -165,6 +177,7 @@ Deno.serve(async (req) => {
         const senderCounts: Record<string, number> = {};
         for (const m of messages) senderCounts[m.from.toLowerCase()] = (senderCounts[m.from.toLowerCase()] ?? 0) + 1;
 
+        for (const m of messages) nameByUid.set(m.uid, m.name);
         toArchive = messages
           .filter((m) => {
             const { category } = classifyEmail(
@@ -193,6 +206,10 @@ Deno.serve(async (req) => {
           const moved = await client.messageMove(chunk, archiveMailbox, { uid: true });
           if (!moved) continue;
           processed += chunk.length;
+          for (const uid of chunk) {
+            const name = nameByUid.get(uid) ?? "";
+            senderTally.set(name, (senderTally.get(name) ?? 0) + 1);
+          }
           await service
             .from("emails")
             .update({ is_archived: true })
@@ -208,9 +225,11 @@ Deno.serve(async (req) => {
 
     if (processed > 0) await addCleanUsage(userId, processed);
 
+    const cycleCleaned = previouslyCleaned + processed;
     await finish({
       last_run_at: new Date().toISOString(),
-      last_run_cleaned: previouslyCleaned + processed,
+      last_run_cleaned: cycleCleaned,
+      last_run_senders: topSenders(),
       last_run_status: "ok",
       last_error: null,
       total_cleaned: (settings.total_cleaned ?? 0) + processed,
@@ -218,7 +237,28 @@ Deno.serve(async (req) => {
       next_run_at: new Date(moreRemain ? Date.now() : Date.now() + intervalMs).toISOString(),
     });
 
-    return json({ ok: true, archived: processed, more: moreRemain });
+    // One summary per cleanup, once any backlog is fully worked through, and
+    // only when something was actually cleared.
+    let emailed = false;
+    if (!moreRemain && cycleCleaned > 0 && settings.summary_emails !== false) {
+      const { data: account } = await service.auth.admin.getUserById(userId);
+      const to = account?.user?.email;
+      if (to) {
+        const appUrl = (Deno.env.get("APP_URL") ?? "https://www.eflowapp.org").trim().replace(/\/+$/, "");
+        emailed = await sendSummaryEmail(
+          to,
+          buildSummaryEmail({
+            lang: settings.language === "es" ? "es" : "en",
+            cleaned: cycleCleaned,
+            frequency: settings.frequency === "biweekly" ? "biweekly" : "weekly",
+            senders: topSenders(),
+            appUrl,
+          }),
+        );
+      }
+    }
+
+    return json({ ok: true, archived: processed, more: moreRemain, emailed });
   } catch (err) {
     console.error("auto-clean failed:", err);
     if (processed > 0) await addCleanUsage(userId, processed);
@@ -228,6 +268,7 @@ Deno.serve(async (req) => {
     await finish({
       last_run_at: new Date().toISOString(),
       last_run_cleaned: previouslyCleaned + processed,
+      last_run_senders: topSenders(),
       last_run_status: "failed",
       last_error: describeError(err),
       total_cleaned: (settings.total_cleaned ?? 0) + processed,

@@ -78,7 +78,17 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
   const { user, signOut } = useAuth();
   const billing = useBilling();
   const { t, plural, formatNumber } = useI18n();
-  const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
+  // ?open=account (the button in the automatic cleanup summary email) lands
+  // straight on Account; the parameter is removed so a refresh starts fresh.
+  const [currentScreen, setCurrentScreen] = useState<Screen>(() => {
+    const open = new URLSearchParams(window.location.search).get('open');
+    if (open !== 'account') return 'dashboard';
+    const params = new URLSearchParams(window.location.search);
+    params.delete('open');
+    const rest = params.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`);
+    return 'account';
+  });
   const [emails, setEmails] = useState<Email[]>([]);
   const [bundles, setBundles] = useState<Bundle[]>([]);
   const [loading, setLoading] = useState(true);

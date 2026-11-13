@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, CalendarCheck, Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { AlertCircle, CalendarCheck, Loader2, Lock, Mail, ShieldCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useBilling } from '../contexts/BillingContext';
@@ -18,6 +18,7 @@ interface AutoCleanSettings {
   last_error: string | null;
   total_cleaned: number;
   catching_up: boolean;
+  summary_emails: boolean;
 }
 
 // Automatic cleanup, included with Pro yearly. The schedule runs on the
@@ -26,7 +27,7 @@ interface AutoCleanSettings {
 export default function AutoCleanCard() {
   const { user } = useAuth();
   const { isPro, subscription, openPricing } = useBilling();
-  const { t, plural, formatDate, formatNumber } = useI18n();
+  const { t, plural, formatDate, formatNumber, lang } = useI18n();
   const [settings, setSettings] = useState<AutoCleanSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,7 +39,7 @@ export default function AutoCleanCard() {
     if (!user) return;
     const { data } = await supabase
       .from('auto_clean_settings')
-      .select('enabled, frequency, next_run_at, last_run_at, last_run_cleaned, last_run_status, last_error, total_cleaned, catching_up')
+      .select('enabled, frequency, next_run_at, last_run_at, last_run_cleaned, last_run_status, last_error, total_cleaned, catching_up, summary_emails')
       .eq('user_id', user.id)
       .maybeSingle();
     setSettings((data as AutoCleanSettings | null) ?? null);
@@ -49,10 +50,16 @@ export default function AutoCleanCard() {
     load();
   }, [load]);
 
-  const save = async (enabled: boolean, frequency: Frequency) => {
+  const save = async (enabled: boolean, frequency: Frequency, summaryEmails?: boolean) => {
     setSaving(true);
     setError('');
-    const { data, error: rpcError } = await supabase.rpc('set_auto_clean', { p_enabled: enabled, p_frequency: frequency });
+    // The app language goes along each time, so the summary email matches it.
+    const { data, error: rpcError } = await supabase.rpc('set_auto_clean', {
+      p_enabled: enabled,
+      p_frequency: frequency,
+      p_language: lang,
+      ...(summaryEmails === undefined ? {} : { p_summary_emails: summaryEmails }),
+    });
     setSaving(false);
     if (rpcError) {
       setError(t('Something went wrong. Please try again.'));
@@ -139,6 +146,23 @@ export default function AutoCleanCard() {
               </button>
             ))}
           </div>
+
+          <label className="mt-4 flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-1 w-5 h-5 accent-mint-600"
+              checked={settings?.summary_emails ?? true}
+              disabled={saving}
+              onChange={(e) => save(true, frequency, e.target.checked)}
+            />
+            <span className="text-ink/80">
+              <span className="font-semibold text-ink inline-flex items-center gap-1.5">
+                <Mail className="w-4 h-4" /> {t('Email me a summary')}
+              </span>
+              <br />
+              {t('A short email after each cleanup with how many emails were cleared and from whom.')}
+            </span>
+          </label>
         </div>
       )}
 

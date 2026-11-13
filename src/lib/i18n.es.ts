@@ -600,6 +600,8 @@ export const es = {
   'Every 2 weeks': 'Cada 2 semanas',
   'Receipts, invoices and personal emails are never touched, and nothing is deleted.': 'Nunca se tocan los recibos, las facturas ni los correos personales, y no se elimina nada.',
   'Saving...': 'Guardando...',
+  'Email me a summary': 'Enviarme un resumen por correo',
+  'A short email after each cleanup with how many emails were cleared and from whom.': 'Un correo breve después de cada limpieza con cuántos correos se limpiaron y de quién.',
   'Working through your older emails now. This can take a few hours for a big inbox.': 'Estamos revisando tus correos más antiguos. En una bandeja grande puede tardar unas horas.',
   'Next cleanup: {date}': 'Próxima limpieza: {date}',
   'Your first cleanup starts within the next 10 minutes.': 'Tu primera limpieza empieza en los próximos 10 minutos.',

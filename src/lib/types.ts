@@ -6,7 +6,7 @@ export type Database = {
     Functions: {
       // Turns automatic cleanup on/off and sets how often (Pro yearly only).
       set_auto_clean: {
-        Args: { p_enabled: boolean; p_frequency: 'weekly' | 'biweekly' };
+        Args: { p_enabled: boolean; p_frequency: 'weekly' | 'biweekly'; p_language?: 'en' | 'es'; p_summary_emails?: boolean };
         Returns: Database['public']['Tables']['auto_clean_settings']['Row'];
       };
     };
@@ -173,6 +173,9 @@ export type Database = {
           last_error: string | null;
           total_cleaned: number;
           catching_up: boolean;
+          summary_emails: boolean;
+          language: 'en' | 'es';
+          last_run_senders: { name: string; count: number }[];
           created_at: string;
           updated_at: string;
         };
