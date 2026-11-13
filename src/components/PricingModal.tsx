@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Loader2, X, Sparkles, Star, Blocks, Settings } from 'lucide-react';
+import { Check, Loader2, X, Star, Crown, Settings, Mail, CalendarCheck } from 'lucide-react';
 import { useBilling } from '../contexts/BillingContext';
 import { t, plural, tKnown, useI18n, type MessageKey } from '../lib/i18n';
 import { BillingError, FREE_MONTHLY_LIMIT, FREE_UNSUBSCRIBE_LIMIT, PRICES, formatResetDate, openBillingPortal, startCheckout, type Plan } from '../lib/billing';
@@ -137,7 +137,7 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
 
         <div className="text-center mb-8 px-8">
           <div className="inline-flex w-16 h-16 bg-sunny-200 rounded-2xl items-center justify-center border-2 border-ink/10 shadow-md -rotate-6 mb-4">
-            <Blocks className="w-9 h-9 text-sunny-800" />
+            <Crown className="w-9 h-9 text-sunny-800" />
           </div>
           <h2 id="pricing-title" className="text-3xl sm:text-4xl font-bold text-ink mb-2">
             {title}
@@ -163,7 +163,7 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
           {/* Free */}
           <div className="flex flex-col bg-sunny-100 rounded-3xl border-2 border-ink/10 shadow-xl p-6">
-            <h3 className="text-2xl font-bold text-ink">{t('Free')}</h3>
+            <h3 className="flex items-center gap-2 text-2xl font-bold text-ink"><Mail className="w-6 h-6 text-sunny-800" />{t('Free')}</h3>
             <div className="mt-3 mb-5">
               <span className="font-display text-5xl font-bold text-ink">$0</span>
               <span className="text-ink/70 ml-1">/ {t('month')}</span>
@@ -186,9 +186,7 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
 
           {/* Pro monthly */}
           <div className="flex flex-col bg-ocean-100 rounded-3xl border-2 border-ink/10 shadow-xl p-6">
-            <h3 className="text-2xl font-bold text-ink flex items-center gap-2">
-              Pro <Sparkles className="w-5 h-5 text-ocean-700" />
-            </h3>
+            <h3 className="flex items-center gap-2 text-2xl font-bold text-ink"><Crown className="w-6 h-6 text-ocean-700" />Pro</h3>
             <div className="mt-3 mb-5">
               <span className="font-display text-5xl font-bold text-ink">{PRICES.monthly.amount}</span>
               <span className="text-ink/70 ml-1">/ {t('month')}</span>
@@ -209,9 +207,7 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
             <span className="absolute -top-4 right-6 rotate-3 bg-berry-200 text-ink font-display font-semibold px-4 py-1.5 rounded-2xl border-2 border-ink/10 shadow-md flex items-center gap-1">
               <Star className="w-4 h-4" /> {t('Best value')}
             </span>
-            <h3 className="text-2xl font-bold text-ink flex items-center gap-2">
-              {t('Pro yearly')} <Sparkles className="w-5 h-5 text-mint-700" />
-            </h3>
+            <h3 className="flex items-center gap-2 text-2xl font-bold text-ink"><CalendarCheck className="w-6 h-6 text-mint-800" />{t('Pro yearly')}</h3>
             <div className="mt-3">
               <span className="font-display text-5xl font-bold text-ink">{PRICES.annual.amount}</span>
               <span className="text-ink/70 ml-1">/ {t('year')}</span>

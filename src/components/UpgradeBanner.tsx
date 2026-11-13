@@ -1,4 +1,4 @@
-import { Sparkles, ChevronRight } from 'lucide-react';
+import { Crown, ChevronRight } from 'lucide-react';
 import { useBilling } from '../contexts/BillingContext';
 import { PRICES } from '../lib/billing';
 import { useI18n } from '../lib/i18n';
@@ -18,7 +18,7 @@ export default function UpgradeBanner() {
       className="w-full text-left bg-sunny-200 hover:bg-sunny-300 rounded-3xl p-6 border-2 border-ink/10 shadow-xl transition flex flex-col sm:flex-row sm:items-center gap-5"
     >
       <div className="w-14 h-14 bg-white/80 rounded-2xl flex items-center justify-center border-2 border-ink/10 shadow-sm rotate-6 flex-shrink-0">
-        <Sparkles className="w-8 h-8 text-sunny-800" />
+        <Crown className="w-8 h-8 text-sunny-800" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="font-display text-2xl font-bold text-ink">{t('Go Pro for unlimited cleaning')}</div>

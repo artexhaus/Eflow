@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Sparkles, PartyPopper } from 'lucide-react';
+import { Crown, PartyPopper } from 'lucide-react';
 import { PRICES } from '../lib/billing';
 import { useI18n } from '../lib/i18n';
 
@@ -60,7 +60,7 @@ export default function UpgradeNudge({ used, limit, onUpgrade, onDismiss }: Upgr
           onClick={onUpgrade}
           className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-lg font-display font-semibold bg-ocean-200 hover:bg-ocean-300 text-ink border-2 border-ink/15 shadow-lg"
         >
-          <Sparkles className="w-5 h-5" />
+          <Crown className="w-5 h-5" />
           <span>{t('Upgrade now')}</span>
         </button>
         <p className="text-sm text-ink/70 mt-2">

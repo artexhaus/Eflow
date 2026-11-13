@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, Sparkles, Trash2, Archive, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { ChevronLeft, Inbox, Trash2, Archive, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { applyMailAction, describePartialFailure, type MailActionStatus } from '../lib/mailActions';
 import ActionProgressBar from './ActionProgressBar';
 import { t, plural, tKnown, useI18n } from '../lib/i18n';
@@ -70,7 +70,7 @@ export default function InboxReset({
 
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-mint-200 rounded-2xl mb-4 shadow-lg">
-              <Sparkles className="w-8 h-8 text-ink" />
+              <Inbox className="w-8 h-8 text-ink" />
             </div>
             <h2 className="font-display text-3xl font-bold text-ink mb-2">{t('Clean Up Inbox')}</h2>
             <p className="text-ink/75">{t('Delete all clutter and bundled emails from your mail server')}</p>

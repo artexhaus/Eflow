@@ -1,10 +1,9 @@
-import { useState } from 'react';
-import { ChevronLeft, Crown, Languages, Loader2, Settings, Sparkles, AlertCircle, UserRound } from 'lucide-react';
+import { ChevronLeft, Crown, CreditCard, Languages, Loader2, AlertCircle, UserRound } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useBilling } from '../contexts/BillingContext';
 import AccountControls from './AccountControls';
-import { FREE_MONTHLY_LIMIT, PRICES, formatResetDate, openBillingPortal } from '../lib/billing';
-import { tKnown, useI18n } from '../lib/i18n';
+import { FREE_MONTHLY_LIMIT, PRICES, formatResetDate } from '../lib/billing';
+import { useI18n } from '../lib/i18n';
 import LanguageToggle from './LanguageToggle';
 
 interface AccountScreenProps {
@@ -16,20 +15,6 @@ export default function AccountScreen({ onBack, onMailboxDisconnected }: Account
   const { user } = useAuth();
   const { isPro, subscription, used, loading, openPricing, unsubscribesUsed, unsubscribeLimit } = useBilling();
   const { t, formatDate, formatNumber } = useI18n();
-  const [openingPortal, setOpeningPortal] = useState(false);
-  const [error, setError] = useState('');
-
-  const manage = async () => {
-    setOpeningPortal(true);
-    setError('');
-    try {
-      await openBillingPortal(); // navigates to Stripe on success
-    } catch (err) {
-      setError(tKnown((err as Error).message));
-      setOpeningPortal(false);
-    }
-  };
-
   const status = subscription?.subscription_status;
   const planName = isPro ? (subscription?.plan === 'annual' ? t('Pro yearly') : t('Pro monthly')) : t('Free');
   const planPrice = isPro
@@ -72,7 +57,7 @@ export default function AccountScreen({ onBack, onMailboxDisconnected }: Account
                 <p className="text-ink/80 font-semibold">{planPrice}</p>
               </div>
               <div className="w-14 h-14 bg-white/80 rounded-2xl flex items-center justify-center border-2 border-ink/10 shadow-sm rotate-6">
-                <Sparkles className={`w-8 h-8 ${isPro ? 'text-mint-700' : 'text-sunny-700'}`} />
+                <CreditCard className={`w-8 h-8 ${isPro ? 'text-mint-700' : 'text-sunny-700'}`} />
               </div>
             </div>
 
@@ -90,34 +75,19 @@ export default function AccountScreen({ onBack, onMailboxDisconnected }: Account
               </p>
             )}
 
-            <div className="mt-6 flex flex-col sm:flex-row gap-3">
-              {!isPro && (
-                <button
-                  onClick={() => openPricing()}
-                  className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-lg font-display font-semibold bg-ocean-200 hover:bg-ocean-300 text-ink border-2 border-ink/15 shadow-lg"
-                >
-                  <Sparkles className="w-5 h-5" />
-                  <span>{t('See Pro plans')}</span>
-                </button>
-              )}
-              {canManage && (
-                <button
-                  onClick={manage}
-                  disabled={openingPortal}
-                  className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-lg font-display font-semibold bg-ocean-200 hover:bg-ocean-300 text-ink border-2 border-ink/15 shadow-lg disabled:opacity-60"
-                >
-                  {openingPortal ? <Loader2 className="w-5 h-5 animate-spin" /> : <Settings className="w-5 h-5" />}
-                  <span>{openingPortal ? t('Opening...') : t('Manage Subscription')}</span>
-                </button>
-              )}
-            </div>
+            {/* One way in: the plans side by side, with Manage Subscription
+                (card, receipts, switching, cancelling) at the bottom of it. */}
+            <button
+              onClick={() => openPricing()}
+              className="mt-6 w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-lg font-display font-semibold text-ink bg-ocean-200 hover:bg-ocean-300 border-2 border-ink/15 shadow-lg"
+            >
+              {canManage ? <CreditCard className="w-5 h-5" /> : <Crown className="w-5 h-5" />}
+              <span>{canManage ? t('Plans & billing') : t('See Pro plans')}</span>
+            </button>
             {canManage && (
               <p className="mt-3 text-sm text-ink/70">
                 {t('Update your card, switch between monthly and yearly, see receipts, or cancel.')}
               </p>
-            )}
-            {error && (
-              <p className="mt-4 bg-berry-100 text-berry-800 rounded-2xl p-3 border-2 border-berry-200">{error}</p>
             )}
           </div>
 

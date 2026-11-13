@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Sparkles, ShieldCheck, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { Trash2, ShieldCheck, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { applyMailAction, describePartialFailure, type MailActionResult, type MailActionStatus } from '../lib/mailActions';
 import ActionProgressBar from './ActionProgressBar';
 import { useBilling } from '../contexts/BillingContext';
@@ -79,7 +79,7 @@ export default function CleanUpJunkCard({ emails, onRefresh, onOpenVerified }: C
             className="w-full text-left bg-ocean-200 hover:bg-ocean-300 text-ink rounded-3xl p-8 border-2 border-ink/10 shadow-2xl transition"
           >
             <div className="w-16 h-16 bg-white/80 rounded-2xl flex items-center justify-center mb-4 shadow-sm -rotate-6">
-              <Sparkles className="w-9 h-9 text-ocean-700" />
+              <Trash2 className="w-9 h-9 text-ocean-700" />
             </div>
             <div className="font-display text-3xl font-bold mb-2">{t('Clean Up Unopened Junk')}</div>
             <div className="text-lg text-ink/80 mb-5">

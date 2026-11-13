@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Mail, Sparkles, Trash2, Package, LogOut, RefreshCw, CheckCircle, AlertCircle, ChevronRight, LayoutGrid, Smile, Crown } from 'lucide-react';
+import { Mail, Inbox, Trash2, Package, LogOut, RefreshCw, CheckCircle, AlertCircle, ChevronRight, LayoutGrid, Smile, Crown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { Email, Bundle } from '../lib/types';
@@ -386,7 +386,7 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
                 onClick={() => billing.openPricing()}
                 className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl border-2 border-ink/10 shadow-sm font-display font-semibold text-sm text-ink bg-ocean-200 hover:bg-ocean-300 transition"
               >
-                <Sparkles className="w-4 h-4" />
+                <Crown className="w-4 h-4" />
                 <span>{t('Upgrade')}</span>
               </button>
             )}
@@ -605,7 +605,7 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
                       onClick={() => billing.requirePro(t('Inbox Reset')) && setCurrentScreen('reset')}
                       className="flex items-center gap-2 px-4 py-2 bg-mint-200 hover:bg-mint-300 text-ink rounded-xl border-2 border-ink/10 shadow-sm font-medium transition"
                     >
-                      <Sparkles className="w-4 h-4" />
+                      <Inbox className="w-4 h-4" />
                       <span>{t('Inbox Reset')}</span>
                     </button>
                   </div>

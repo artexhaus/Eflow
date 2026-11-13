@@ -297,6 +297,7 @@ export const es = {
   "That's more than your {n} free cleans left this month.": 'Eso es más que las {n} limpiezas gratis que te quedan este mes.',
   'Go Pro to clear everything in one go.': 'Hazte Pro para limpiar todo de una vez.',
   'See Pro plans': 'Ver planes Pro',
+  'Plans & billing': 'Planes y facturación',
   'Clean the oldest {n} free': 'Limpiar gratis los {n} más antiguos',
   'Yes, clean up': 'Sí, limpiar',
   'Not now': 'Ahora no',
