@@ -72,5 +72,10 @@ verify_jwt = true
 [functions.stripe-webhook]
 verify_jwt = false
 
+# Called only by the database scheduler (dispatch_auto_clean), which sends a
+# secret header the function checks against Vault - there's no user session.
+[functions.auto-clean]
+verify_jwt = false
+
 [functions.delete-account]
 verify_jwt = true

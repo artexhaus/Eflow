@@ -68,7 +68,7 @@ function Privacy() {
       <UL
         items={[
           'To sort your inbox (for example into important emails, clutter, receipts and likely scams) and show you the results.',
-          'To carry out the actions you choose: archiving, deleting or marking emails as read in your mailbox, and sending unsubscribe requests to senders you pick. We only change your mailbox when you ask us to.',
+          'To carry out the actions you choose: archiving, deleting or marking emails as read in your mailbox, and sending unsubscribe requests to senders you pick. We only change your mailbox when you ask us to, or on the schedule you set if you turn on Automatic cleanup (Pro yearly), which archives unopened junk at least 7 days old and never deletes anything.',
           'To run your account and subscription, enforce plan limits, and send essential account emails (like password resets).',
           'To keep the service secure, fix problems and improve it.',
         ]}
@@ -146,6 +146,12 @@ function Terms() {
         When you connect a mailbox, you authorize {product} to read message details in it and to archive, delete or mark
         emails as read, and send unsubscribe requests, <strong>when you choose to</strong>. Actions happen in your real
         mailbox: deleted emails may be permanently removed by your provider.
+      </P>
+      <P>
+        If you turn on <strong>Automatic cleanup</strong> (included with Pro yearly), you also authorize {product} to sign in to
+        your mailbox on the schedule you pick (every week or every 2 weeks) and move unread emails it sorts as junk, at least 7
+        days old, to your Archive folder. It never deletes emails and skips anything it sorts as important, such as receipts and
+        invoices. Sorting can be wrong, so check your Archive folder now and then. You can turn it off any time in Account.
       </P>
 
       <H2>Automatic sorting isn&apos;t perfect</H2>
@@ -269,7 +275,7 @@ function PrivacyEs() {
       <UL
         items={[
           'Para ordenar tu bandeja de entrada (por ejemplo, en correos importantes, desorden, recibos y posibles estafas) y mostrarte los resultados.',
-          'Para realizar las acciones que eliges: archivar, eliminar o marcar correos como leídos en tu buzón, y enviar solicitudes de baja a los remitentes que elijas. Solo modificamos tu buzón cuando nos lo pides.',
+          'Para realizar las acciones que eliges: archivar, eliminar o marcar correos como leídos en tu buzón, y enviar solicitudes de baja a los remitentes que elijas. Solo modificamos tu buzón cuando nos lo pides, o según el horario que elijas si activas la Limpieza automática (Pro anual), que archiva los correos innecesarios sin abrir de al menos 7 días y nunca elimina nada.',
           'Para gestionar tu cuenta y tu suscripción, aplicar los límites de cada plan y enviarte correos esenciales de la cuenta (como el restablecimiento de contraseña).',
           'Para mantener el servicio seguro, corregir problemas y mejorarlo.',
         ]}
@@ -348,6 +354,13 @@ function TermsEs() {
         Al conectar un buzón, autorizas a {product} a leer los datos de sus mensajes y a archivar, eliminar o marcar correos como
         leídos, y a enviar solicitudes de baja, <strong>cuando tú lo elijas</strong>. Las acciones ocurren en tu buzón real: tu
         proveedor puede borrar de forma permanente los correos eliminados.
+      </P>
+      <P>
+        Si activas la <strong>Limpieza automática</strong> (incluida con Pro anual), también autorizas a {product} a iniciar sesión
+        en tu buzón según el horario que elijas (cada semana o cada 2 semanas) y mover a tu carpeta Archivo los correos sin leer
+        que clasifique como innecesarios y que tengan al menos 7 días. Nunca elimina correos y omite lo que clasifica como
+        importante, como recibos y facturas. La clasificación puede equivocarse, así que revisa tu carpeta Archivo de vez en
+        cuando. Puedes desactivarla en cualquier momento en Cuenta.
       </P>
 
       <H2>La clasificación automática no es perfecta</H2>

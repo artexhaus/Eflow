@@ -3,7 +3,13 @@ export type Database = {
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     Views: {};
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-    Functions: {};
+    Functions: {
+      // Turns automatic cleanup on/off and sets how often (Pro yearly only).
+      set_auto_clean: {
+        Args: { p_enabled: boolean; p_frequency: 'weekly' | 'biweekly' };
+        Returns: Database['public']['Tables']['auto_clean_settings']['Row'];
+      };
+    };
     Tables: {
       users: {
         Row: {
@@ -150,6 +156,26 @@ export type Database = {
           updated_at: string;
         };
         // Written only by edge functions (service role); users can read.
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      // Changed only through set_auto_clean and the auto-clean edge function.
+      auto_clean_settings: {
+        Row: {
+          user_id: string;
+          enabled: boolean;
+          frequency: 'weekly' | 'biweekly';
+          next_run_at: string | null;
+          last_run_at: string | null;
+          last_run_cleaned: number;
+          last_run_status: 'ok' | 'failed' | null;
+          last_error: string | null;
+          total_cleaned: number;
+          catching_up: boolean;
+          created_at: string;
+          updated_at: string;
+        };
         Insert: never;
         Update: never;
         Relationships: [];

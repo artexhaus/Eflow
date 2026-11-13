@@ -213,8 +213,13 @@ export default function PricingModal({ reason, onClose }: PricingModalProps) {
               <span className="text-ink/70 ml-1">/ {t('year')}</span>
             </div>
             <p className="text-mint-800 font-semibold">{t('Just $4.17 a month - save 40%')}</p>
-            <p className="text-sm text-ink/70 mb-5">{t('Everything in Pro, billed once a year.')}</p>
+            <p className="text-sm text-ink/70 mb-5">{t('Everything in Pro, plus automatic cleanup. Billed once a year.')}</p>
             <ul className="space-y-3 mb-6 flex-1">
+              {/* The one thing only the yearly plan has. */}
+              <li className="flex items-start gap-2 text-ink font-semibold bg-white/70 rounded-xl px-2 py-1.5 -mx-2 border-2 border-mint-300">
+                <CalendarCheck className="w-5 h-5 text-mint-700 flex-shrink-0 mt-0.5" />
+                <span>{t('Automatic weekly cleanup')}</span>
+              </li>
               {PRO_FEATURES.map((f) => (
                 <li key={f} className="flex items-start gap-2 text-ink">
                   <Check className="w-5 h-5 text-mint-700 flex-shrink-0 mt-0.5" />

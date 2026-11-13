@@ -5,6 +5,7 @@ import AccountControls from './AccountControls';
 import { FREE_MONTHLY_LIMIT, PRICES, formatResetDate } from '../lib/billing';
 import { useI18n } from '../lib/i18n';
 import LanguageToggle from './LanguageToggle';
+import AutoCleanCard from './AutoCleanCard';
 
 interface AccountScreenProps {
   onBack: () => void;
@@ -90,6 +91,8 @@ export default function AccountScreen({ onBack, onMailboxDisconnected }: Account
               </p>
             )}
           </div>
+
+          <AutoCleanCard />
 
           {/* Usage block */}
           <div className="bg-white border-2 border-ocean-200 border-t-[10px] border-t-ocean-300 rounded-3xl shadow-lg p-7">
