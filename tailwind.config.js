@@ -25,9 +25,15 @@ export default {
           '0%': { left: '-35%' },
           '100%': { left: '100%' },
         },
+        // A newly sorted email sliding into the live scan list.
+        'scan-in': {
+          '0%': { opacity: '0', transform: 'translateY(-6px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'progress-slide': 'progress-slide 1.2s ease-in-out infinite',
+        'scan-in': 'scan-in 0.35s ease-out both',
       },
       colors: {
         berry: {

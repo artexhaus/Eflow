@@ -18,13 +18,61 @@ const imapHosts: Record<string, { host: string; port: number }> = {
   icloud: { host: "imap.mail.me.com", port: 993 },
 };
 
-// Each invocation only fetches/classifies/inserts a bounded chunk of messages.
+// Each invocation only fetches/classifies/inserts a bounded amount of mail.
 // Supabase Edge Functions have hard limits (256MB memory, 2s CPU time, 150s wall
 // clock on the free plan) and trying to pull an entire multi-thousand message
 // mailbox in one call throws WORKER_RESOURCE_LIMIT and aborts with nothing saved.
-// Progress (scan_cursor / scan_total / scan_sender_counts) is persisted on the
-// users row so the frontend can call this function repeatedly until `done: true`.
+// Progress (scan_remaining_uids / scan_total / scan_sender_counts) is persisted
+// on the users row so the frontend can call this function repeatedly until
+// `done: true`.
+//
+// Within one call, mail is fetched FETCH_CHUNK_SIZE messages at a time over the
+// same mail-server connection, up to the batch size the app asks for (at most
+// MAX_PER_CALL), and no new chunk starts after CALL_TIME_BUDGET_MS. Signing in
+// to the mail server is the slowest step of a call, so doing up to three chunks
+// per sign-in roughly halves a full scan. The app asks for smaller batches
+// after a failed call, so a slow server still gets through.
 const FETCH_CHUNK_SIZE = 150;
+const MAX_PER_CALL = 450;
+const CALL_TIME_BUDGET_MS = 10_000;
+
+const hasSeenFlag = (flags: unknown) =>
+  flags instanceof Set ? flags.has("\\Seen") : Array.isArray(flags) ? flags.includes("\\Seen") : false;
+
+// Every email row Eflow already has for this user (from the last scan), for an
+// update-only rescan. Paged: PostgREST caps a select at 1000 rows.
+async function selectKnownEmails(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ email_id: string; sender: string; is_read: boolean }[]> {
+  const PAGE = 1000;
+  const rows: { email_id: string; sender: string; is_read: boolean }[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("emails")
+      .select("email_id, sender, is_read")
+      .eq("user_id", userId)
+      .order("id")
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`Failed to read saved emails: ${error.message}`);
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < PAGE) break;
+  }
+  return rows;
+}
+
+async function updateInChunks(
+  supabase: SupabaseClient,
+  userId: string,
+  ids: string[],
+  apply: (ids: string[]) => PromiseLike<{ error: unknown }>,
+) {
+  for (let i = 0; i < ids.length; i += 500) {
+    const { error } = await apply(ids.slice(i, i + 500));
+    if (error) console.error("Rescan update failed:", error);
+  }
+}
 
 async function selectAllRows<T>(
   supabase: SupabaseClient,
@@ -93,9 +141,22 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) throw new Error("Invalid user");
 
+    const startedAt = Date.now();
+
+    // Optional request options (older app versions send no body):
+    // - batch: how many emails to fetch in this call (the app lowers it
+    //   after a failed call).
+    // - full: re-download and re-sort the whole inbox even when an
+    //   update-only rescan is possible.
+    const options = (await req.json().catch(() => ({}))) as { batch?: number; full?: boolean };
+    const batchLimit = Math.max(
+      50,
+      Math.min(MAX_PER_CALL, Number.isFinite(options.batch) ? Math.floor(options.batch!) : MAX_PER_CALL),
+    );
+
     const { data: userData } = await supabase
       .from("users")
-      .select("email_provider, connected_account_id, encrypted_password, scan_remaining_uids, scan_total, scan_uid_validity, scan_sender_counts")
+      .select("email_provider, connected_account_id, encrypted_password, last_scan, last_uid_validity, scan_remaining_uids, scan_total, scan_uid_validity, scan_sender_counts, scan_mode")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -115,7 +176,7 @@ Deno.serve(async (req) => {
     // previous chunked call. UIDs (not sequence numbers) are used because
     // sequence numbers renumber as the mailbox changes mid-scan (new mail
     // arrives / gets expunged), which silently skips messages when a large
-    // mailbox needs dozens of chunked calls spread over several minutes.
+    // mailbox needs many chunked calls spread over several minutes.
     const isResuming = userData.scan_remaining_uids != null && userData.scan_total != null;
 
     const client = new ImapFlow({
@@ -133,18 +194,22 @@ Deno.serve(async (req) => {
 
     let totalMessages: number;
     let remainingUids: number[];
-    let uidValidity: bigint;
+    let senderCounts: Record<string, number>;
+    let mode: "full" | "update";
+    let removed = 0;
 
     const currentStatus = await client.status("INBOX", { messages: true, uidNext: true, uidValidity: true });
-    uidValidity = (currentStatus.uidValidity as unknown as bigint) ?? 0n;
+    const uidValidity = ((currentStatus as { uidValidity?: bigint }).uidValidity as unknown as bigint) ?? 0n;
 
     if (isResuming && userData.scan_uid_validity != null && BigInt(userData.scan_uid_validity) === uidValidity) {
       totalMessages = userData.scan_total!;
       remainingUids = (userData.scan_remaining_uids as number[]) || [];
+      senderCounts = (userData.scan_sender_counts as Record<string, number>) || {};
+      mode = userData.scan_mode === "update" ? "update" : "full";
     } else {
-      totalMessages = currentStatus.messages || 0;
+      const allUids = ((await client.search({ all: true }, { uid: true })) || []) as number[];
 
-      if (totalMessages === 0) {
+      if (allUids.length === 0) {
         lock.release();
         await client.logout();
 
@@ -152,53 +217,106 @@ Deno.serve(async (req) => {
         await supabase.from("bundles").delete().eq("user_id", user.id);
         await supabase.from("users").update({
           last_scan: new Date().toISOString(),
+          last_uid_validity: uidValidity.toString(),
           scan_uid_low: null,
           scan_total: null,
           scan_uid_validity: null,
           scan_sender_counts: null,
           scan_remaining_uids: null,
+          scan_mode: null,
         }).eq("id", user.id);
 
         return new Response(
-          JSON.stringify({ success: true, done: true, fetched: 0, total_in_inbox: 0, emails: 0, important: 0, clutter: 0, bundles: 0, bundle_groups: 0 }),
+          JSON.stringify({ success: true, done: true, mode: "full", fetched: 0, total_in_inbox: 0, scanned_so_far: 0, emails: 0, important: 0, clutter: 0, bundles: 0, bundle_groups: 0, preview: [] }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // Starting a brand-new scan (or UIDVALIDITY changed): resolve the exact
-      // set of UIDs currently in the mailbox with a single SEARCH ALL, rather
-      // than walking every UID number from the highest ever assigned down to
-      // 1. Mailboxes with a long history of deletions can have huge gaps of
-      // unused UIDs below the real messages - walking raw UID ranges would
-      // waste thousands of empty round trips paging through those gaps
-      // (observed: a 10,000-message inbox needed 3,000+ extra empty chunk
-      // calls to walk down through ~490,000 unused historical UIDs). Sorting
-      // descending means newest mail is processed first, matching prior
-      // behavior.
-      const allUids = (await client.search({ all: true }, { uid: true })) as number[];
-      remainingUids = [...allUids].sort((a, b) => b - a);
+      // Update-only rescan: when this inbox was fully scanned before and its
+      // UIDs are still valid (UIDVALIDITY unchanged), keep what Eflow already
+      // sorted and only (1) drop emails no longer in the inbox, (2) refresh
+      // read/unread, (3) fetch and sort the emails that are new. A rescan then
+      // takes seconds instead of re-downloading thousands of emails.
+      const canUpdate =
+        options.full !== true &&
+        userData.last_scan != null &&
+        userData.last_uid_validity != null &&
+        userData.last_uid_validity === uidValidity.toString();
+
+      if (canUpdate) {
+        mode = "update";
+        const known = await selectKnownEmails(supabase, user.id);
+        const inInbox = new Set(allUids);
+        const knownUids = new Set<number>();
+        const gone: string[] = [];
+        const kept: typeof known = [];
+        for (const row of known) {
+          const uid = Number(row.email_id);
+          knownUids.add(uid);
+          if (inInbox.has(uid)) kept.push(row);
+          else gone.push(row.email_id);
+        }
+
+        removed = gone.length;
+        await updateInChunks(supabase, user.id, gone, (ids) =>
+          supabase.from("emails").delete().eq("user_id", user.id).in("email_id", ids)
+        );
+
+        // Read/unread changes since the last scan (one light FETCH of flags,
+        // no headers). Clean Up relies on this to never sweep opened mail.
+        if (kept.length > 0) {
+          const readNow = new Set<number>();
+          for await (const msg of client.fetch(kept.map((k) => Number(k.email_id)), { uid: true, flags: true }, { uid: true })) {
+            if (hasSeenFlag((msg as { flags?: unknown }).flags)) readNow.add(msg.uid);
+          }
+          const becameRead = kept.filter((k) => !k.is_read && readNow.has(Number(k.email_id))).map((k) => k.email_id);
+          const becameUnread = kept.filter((k) => k.is_read && !readNow.has(Number(k.email_id))).map((k) => k.email_id);
+          await updateInChunks(supabase, user.id, becameRead, (ids) =>
+            supabase.from("emails").update({ is_read: true }).eq("user_id", user.id).in("email_id", ids)
+          );
+          await updateInChunks(supabase, user.id, becameUnread, (ids) =>
+            supabase.from("emails").update({ is_read: false }).eq("user_id", user.id).in("email_id", ids)
+          );
+        }
+
+        // How often each sender mails this inbox, so new mail is sorted with
+        // the same "frequent sender" signal as a full scan.
+        senderCounts = {};
+        for (const row of kept) {
+          const key = row.sender.toLowerCase();
+          senderCounts[key] = (senderCounts[key] || 0) + 1;
+        }
+
+        remainingUids = allUids.filter((uid) => !knownUids.has(uid)).sort((a, b) => b - a);
+      } else {
+        // Full scan: resolve the exact set of UIDs currently in the mailbox
+        // with a single SEARCH ALL, rather than walking every UID number from
+        // the highest ever assigned down to 1 (mailboxes with a long history
+        // of deletions have huge gaps of unused UIDs). Newest first.
+        mode = "full";
+        remainingUids = [...allUids].sort((a, b) => b - a);
+        senderCounts = {};
+
+        await supabase.from("emails").delete().eq("user_id", user.id);
+        await supabase.from("bundles").delete().eq("user_id", user.id);
+      }
+
       // Progress is measured against the messages this scan will actually
       // read. The folder's STATUS count can differ (Yahoo reported a flat
-      // 10,000 for a folder whose list held ~3,000), which left the bar
-      // stuck at a third even after the scan had finished.
+      // 10,000 for a folder whose list held ~3,000).
       totalMessages = remainingUids.length;
-
-      // Starting a brand-new scan (or UIDVALIDITY changed): wipe previous results
-      await supabase.from("emails").delete().eq("user_id", user.id);
-      await supabase.from("bundles").delete().eq("user_id", user.id);
     }
 
-    const senderCounts: Record<string, number> = (userData.scan_sender_counts as Record<string, number>) || {};
-
-    // Fetch one bounded chunk from the front of the remaining-UID list (already
-    // real, existing UIDs - no wasted round trips on gaps).
-    const chunkUids = remainingUids.slice(0, FETCH_CHUNK_SIZE);
-    const nextRemainingUids = remainingUids.slice(FETCH_CHUNK_SIZE);
-
+    // Fetch up to batchLimit emails from the front of the remaining list, in
+    // FETCH_CHUNK_SIZE pieces over this one connection.
     const chunkMessages: FetchedMessage[] = [];
+    let taken = 0;
+    while (taken < remainingUids.length && taken < batchLimit) {
+      if (taken > 0 && Date.now() - startedAt > CALL_TIME_BUDGET_MS) break;
+      const piece = remainingUids.slice(taken, Math.min(taken + FETCH_CHUNK_SIZE, batchLimit));
+      taken += piece.length;
 
-    if (chunkUids.length > 0) {
-    for await (const msg of client.fetch(chunkUids, {
+      for await (const msg of client.fetch(piece, {
         envelope: true,
         uid: true,
         internalDate: true,
@@ -213,17 +331,13 @@ Deno.serve(async (req) => {
         const { email: senderEmail, name: senderName } = parseSender(msg.envelope);
         const subject = msg.envelope?.subject || "(no subject)";
         const internalDate = new Date(msg.internalDate ?? Date.now()).toISOString();
-        const flags = (msg as any).flags;
-        const isRead = flags instanceof Set
-          ? flags.has("\\Seen")
-          : Array.isArray(flags)
-            ? flags.includes("\\Seen")
-            : false;
 
         let hasAttachment = false;
         if (msg.bodyStructure) {
+          // deno-lint-ignore no-explicit-any
           const bs = msg.bodyStructure as any;
           if (bs.childNodes && bs.childNodes.length > 1) {
+            // deno-lint-ignore no-explicit-any
             hasAttachment = bs.childNodes.some((node: any) =>
               node.disposition === "attachment" ||
               (node.type && node.type.includes("application/"))
@@ -232,18 +346,19 @@ Deno.serve(async (req) => {
         }
 
         chunkMessages.push({
-        uid: msg.uid,
-        subject,
-        from: senderEmail,
-        fromName: senderName || senderEmail,
-        date: internalDate,
-        snippet: subject.slice(0, 120),
-        hasAttachment,
-        isRead,
-        ...parseListHeaders(msg.headers),
-      });
+          uid: msg.uid,
+          subject,
+          from: senderEmail,
+          fromName: senderName || senderEmail,
+          date: internalDate,
+          snippet: subject.slice(0, 120),
+          hasAttachment,
+          isRead: hasSeenFlag((msg as { flags?: unknown }).flags),
+          ...parseListHeaders(msg.headers),
+        });
+      }
     }
-    }
+    const nextRemainingUids = remainingUids.slice(taken);
 
     lock.release();
     await client.logout();
@@ -293,16 +408,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    const done = nextRemainingUids.length === 0;
+    // A few of the emails just sorted (newest first), so the app can show
+    // mail arriving while the scan runs. Only the person's own data, which
+    // was just saved to their rows anyway.
+    const preview = emailsToInsert.slice(0, 4).map((e) => ({
+      sender_name: (e.sender_name || e.sender).slice(0, 80),
+      subject: e.subject.slice(0, 120),
+      category: e.category,
+    }));
 
-    // Track progress by counting rows actually persisted so far (accurate even
-    // though UID space isn't perfectly contiguous with message count when mail
-    // has been deleted in the past), rather than doing UID arithmetic.
-    const { count: scannedSoFarCount } = await supabase
-      .from("emails")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id);
-    const scannedSoFar = scannedSoFarCount ?? chunkMessages.length;
+    const done = nextRemainingUids.length === 0;
+    const scannedSoFar = totalMessages - nextRemainingUids.length;
 
     if (done) {
       // Final chunk: rebuild bundles from all bundled emails now in the DB
@@ -350,30 +466,38 @@ Deno.serve(async (req) => {
 
       await supabase.from("users").update({
         last_scan: new Date().toISOString(),
+        last_uid_validity: uidValidity.toString(),
         scan_uid_low: null,
         scan_total: null,
         scan_uid_validity: null,
         scan_sender_counts: null,
         scan_remaining_uids: null,
+        scan_mode: null,
       }).eq("id", user.id);
 
-      const [importantRes, clutterRes, bundleRes] = await Promise.all([
+      const [importantRes, clutterRes, bundleRes, allRes] = await Promise.all([
         supabase.from("emails").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("category", "important"),
         supabase.from("emails").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("category", "clutter"),
         supabase.from("emails").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("category", "bundle"),
+        supabase.from("emails").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       ]);
 
       return new Response(
         JSON.stringify({
           success: true,
           done: true,
+          mode,
           fetched: chunkMessages.length,
           total_in_inbox: totalMessages,
           scanned_so_far: scannedSoFar,
+          inbox_emails: allRes.count ?? null,
+          removed,
           important: importantRes.count ?? importantAdded,
           clutter: clutterRes.count ?? clutterAdded,
           bundles: bundleRes.count ?? bundleAdded,
           bundle_groups: bundlesToInsert.length,
+          chunk: { important: importantAdded, clutter: clutterAdded, bundles: bundleAdded },
+          preview,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -386,19 +510,24 @@ Deno.serve(async (req) => {
       scan_uid_validity: uidValidity.toString(),
       scan_sender_counts: senderCounts,
       scan_remaining_uids: nextRemainingUids,
+      scan_mode: mode,
     }).eq("id", user.id);
 
     return new Response(
       JSON.stringify({
         success: true,
         done: false,
+        mode,
         fetched: chunkMessages.length,
         total_in_inbox: totalMessages,
         scanned_so_far: scannedSoFar,
+        removed,
         important: importantAdded,
         clutter: clutterAdded,
         bundles: bundleAdded,
         bundle_groups: 0,
+        chunk: { important: importantAdded, clutter: clutterAdded, bundles: bundleAdded },
+        preview,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

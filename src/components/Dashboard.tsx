@@ -18,13 +18,17 @@ import TopSendersPanel from './TopSendersPanel';
 import SuspiciousAlert from './SuspiciousAlert';
 import { useBilling } from '../contexts/BillingContext';
 import LanguageToggle from './LanguageToggle';
-import { tKnown, useI18n, type MessageKey } from '../lib/i18n';
+import { tKnown, useI18n } from '../lib/i18n';
+import ScanProgressPanel, { type LiveScan, type ScanPreviewEmail } from './ScanProgressPanel';
 import { track, trackError } from '../lib/analytics';
 
 type Screen = 'dashboard' | 'important' | 'clutter' | 'bundles' | 'reset' | 'unread' | 'senders' | 'account';
 
 interface ScanResult {
+  mode: 'full' | 'update';
+  // Full scan: emails fetched. Update: new emails found.
   fetched: number;
+  removed: number;
   important: number;
   clutter: number;
   bundles: number;
@@ -41,6 +45,11 @@ interface ScanChunkResponse {
   clutter: number;
   bundles: number;
   bundle_groups: number;
+  // Added with update-only rescans; older server versions leave them out.
+  mode?: 'full' | 'update';
+  removed?: number;
+  chunk?: { important: number; clutter: number; bundles: number };
+  preview?: ScanPreviewEmail[];
 }
 
 const SIMPLE_MODE_KEY = 'eflow:simpleMode';
@@ -56,19 +65,6 @@ function readSimpleMode(): boolean {
 }
 
 // Friendly lines shown (in rotation) while a scan runs.
-const SCAN_TIPS: MessageKey[] = [
-  'Hang tight - fetching all your mail...',
-  'Sorting the keepers from the clutter...',
-  'Spotting receipts to keep safe...',
-  'Stacking up your senders...',
-  'Big inboxes take a few minutes - thanks for waiting!',
-];
-
-interface ScanProgress {
-  scannedSoFar: number;
-  totalInInbox: number;
-}
-
 interface DashboardProps {
   // Called after the user disconnects their mailbox in Account settings.
   onMailboxDisconnected: () => void;
@@ -95,13 +91,12 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [scanError, setScanError] = useState('');
-  const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+  const [liveScan, setLiveScan] = useState<LiveScan | null>(null);
   // True when picking up a scan that was left unfinished (e.g. the tab closed).
   const [resumingScan, setResumingScan] = useState(false);
   // Set while a slow/failed scan step is being retried, so the banner can say
   // "still working" instead of looking frozen.
   const [scanRetrying, setScanRetrying] = useState(false);
-  const [scanTip, setScanTip] = useState(0);
   const [simpleMode, setSimpleMode] = useState(readSimpleMode);
   const [importantStartTab, setImportantStartTab] = useState<'all' | 'verified'>('all');
 
@@ -147,13 +142,6 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
 
     checkAndAutoScan();
   }, [user, loading]);
-
-  // Rotate the friendly scanning lines every few seconds.
-  useEffect(() => {
-    if (!scanning) return;
-    const timer = setInterval(() => setScanTip((t) => t + 1), 4000);
-    return () => clearInterval(timer);
-  }, [scanning]);
 
   // Closing the tab pauses a scan, so ask first while one is running.
   useEffect(() => {
@@ -220,7 +208,7 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
     setScanning(true);
     setScanError('');
     setScanResult(null);
-    setScanProgress(null);
+    setLiveScan(null);
 
     try {
       const { data: userData } = await supabase
@@ -241,14 +229,23 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
         let result: ScanChunkResponse | null = null;
         let done = false;
         let consecutiveFailures = 0;
+        let chunks = 0;
+        let previewKey = 0;
+        // Emails per call. The server fetches up to three batches per mail
+        // server sign-in; after a failed call ask for one batch at a time so a
+        // slow server still gets through.
+        let batch = 450;
+        const found = { important: 0, clutter: 0, bundles: 0 };
+        let recent: LiveScan['recent'] = [];
 
         while (!done) {
           try {
-            result = await fetchProviderEmailsChunk();
+            result = await fetchProviderEmailsChunk(batch);
             consecutiveFailures = 0;
             setScanRetrying(false);
           } catch (chunkError) {
             consecutiveFailures++;
+            batch = 150;
             setScanRetrying(true);
             console.error(`Scan chunk failed (attempt ${consecutiveFailures}):`, chunkError);
             if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
@@ -261,15 +258,36 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
           if (!result) break;
 
           done = result.done;
-          setScanProgress({
+          chunks++;
+          const chunk = result.chunk ?? (done ? null : { important: result.important, clutter: result.clutter, bundles: result.bundles });
+          if (chunk) {
+            found.important += chunk.important;
+            found.clutter += chunk.clutter;
+            found.bundles += chunk.bundles;
+          }
+          const incoming = (result.preview ?? []).map((e) => ({ ...e, key: `p${previewKey++}` }));
+          recent = [...incoming, ...recent].slice(0, 5);
+          setLiveScan({
+            mode: result.mode ?? 'full',
             scannedSoFar: result.scanned_so_far,
-            totalInInbox: result.total_in_inbox,
+            total: result.total_in_inbox,
+            found: { ...found },
+            recent,
           });
+
+          // A full scan rebuilds the dashboard from scratch, so refresh it as
+          // mail lands (after the first call, then every third) instead of
+          // showing the old numbers until the very end.
+          if (!done && result.mode !== 'update' && (chunks === 1 || chunks % 3 === 0)) {
+            loadData();
+          }
         }
 
         if (result) {
           setScanResult({
+            mode: result.mode ?? 'full',
             fetched: result.scanned_so_far || 0,
+            removed: result.removed || 0,
             important: result.important || 0,
             clutter: result.clutter || 0,
             bundles: result.bundles || 0,
@@ -289,11 +307,11 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
       setScanning(false);
       setResumingScan(false);
       setScanRetrying(false);
-      setScanProgress(null);
+      setLiveScan(null);
     }
   };
 
-  const fetchProviderEmailsChunk = async (): Promise<ScanChunkResponse | null> => {
+  const fetchProviderEmailsChunk = async (batch: number): Promise<ScanChunkResponse | null> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
 
@@ -308,6 +326,7 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
         'Authorization': `Bearer ${session.access_token}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ batch }),
       signal: AbortSignal.timeout(90_000),
     });
 
@@ -474,7 +493,11 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
               <CheckCircle className="w-5 h-5 text-mint-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="font-medium text-mint-900">
-                  {t('Scan complete: {n} emails fetched from your entire inbox', { n: scanResult.fetched })}
+                  {scanResult.mode === 'update'
+                    ? scanResult.fetched === 0
+                      ? t("You're up to date - no new emails since your last scan.")
+                      : plural(scanResult.fetched, 'Inbox updated: {n} new email sorted.', 'Inbox updated: {n} new emails sorted.')
+                    : t('Scan complete: {n} emails fetched from your entire inbox', { n: scanResult.fetched })}
                 </p>
                 <div className="flex flex-wrap gap-4 mt-2 text-sm text-mint-700">
                   <span>{t('{n} important', { n: scanResult.important })}</span>
@@ -492,42 +515,7 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
             </div>
           )}
 
-          {scanning && (
-            <div className="mb-6 bg-ocean-50 border border-ocean-200 rounded-2xl p-6">
-              <div className="flex items-center space-x-3 mb-3">
-                <RefreshCw className="w-5 h-5 text-ocean-600 animate-spin" />
-                <p className="font-medium text-ocean-900">
-                  {scanRetrying
-                    ? t('Hang tight - your mail is taking a little longer, still fetching...')
-                    : resumingScan && scanTip === 0
-                      ? t('Picking up your scan where it left off...')
-                      : t(SCAN_TIPS[scanTip % SCAN_TIPS.length])}
-                </p>
-              </div>
-              <p className="text-sm font-semibold text-ocean-900 mb-2">
-                {t('Keep this tab open until it finishes. You can keep using Eflow meanwhile.')}
-              </p>
-              {scanProgress && scanProgress.totalInInbox > 0 ? (
-                <>
-                  <div className="w-full bg-ocean-100 rounded-full h-2 mb-2 overflow-hidden">
-                    <div
-                      className="bg-ocean-400 h-2 rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(100, Math.round((scanProgress.scannedSoFar / scanProgress.totalInInbox) * 100))}%`,
-                      }}
-                    />
-                  </div>
-                  <p className="text-sm text-ocean-700">
-                    {t('{done} of {total} emails scanned', { done: scanProgress.scannedSoFar, total: scanProgress.totalInInbox })}
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-ocean-700">
-                  {t('Getting your inbox ready. Big inboxes can take a few minutes.')}
-                </p>
-              )}
-            </div>
-          )}
+          {scanning && <ScanProgressPanel scan={liveScan} retrying={scanRetrying} resuming={resumingScan} />}
 
           {simpleMode ? (
             <SimpleHome
