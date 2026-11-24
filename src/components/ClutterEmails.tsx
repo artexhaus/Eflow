@@ -5,6 +5,7 @@ import { useBilling } from '../contexts/BillingContext';
 import type { Email } from '../lib/types';
 import { ScamBadge } from './ProtectedEmailControls';
 import { t, plural, tKnown, timeAgo, useI18n } from '../lib/i18n';
+import SelectAllToggle from './SelectAllToggle';
 
 interface ClutterEmailsProps {
   emails: Email[];
@@ -35,13 +36,10 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
     setSelectedEmails(newSelected);
   };
 
-  const toggleAll = () => {
-    if (selectedEmails.size === visibleEmails.length) {
-      setSelectedEmails(new Set());
-    } else {
-      if (!requirePro(t('Select All'))) return;
-      setSelectedEmails(new Set(visibleEmails.map((e) => e.id)));
-    }
+  // "Select all" means every clutter email, including ones not shown yet.
+  const selectAll = () => {
+    if (!requirePro(t('Select All'))) return;
+    setSelectedEmails(new Set(emails.map((e) => e.id)));
   };
 
   const applyAction = async (action: 'delete' | 'archive') => {
@@ -130,19 +128,15 @@ export default function ClutterEmails({ emails, onBack, onRefresh }: ClutterEmai
         </div>
       ) : (
         <>
-          <div className="bg-berry-100 rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm border-2 border-ink/10">
+          <div className="bg-berry-100 rounded-2xl p-4 mb-4 flex flex-wrap items-center justify-between gap-3 shadow-sm border-2 border-ink/10">
             <div className="flex items-center space-x-4">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedEmails.size === visibleEmails.length && visibleEmails.length > 0}
-                  onChange={toggleAll}
-                  className="w-5 h-5 rounded border-gray-300 text-mint-600 focus:ring-mint-500"
-                />
-                <span className="font-medium text-ink/85">
-                  {selectedEmails.size > 0 ? t('{n} selected', { n: selectedEmails.size }) : t('Select All')}
-                </span>
-              </label>
+              <SelectAllToggle
+                total={emails.length}
+                selected={emails.filter((e) => selectedEmails.has(e.id)).length}
+                onSelectAll={selectAll}
+                onClear={() => setSelectedEmails(new Set())}
+                disabled={processing}
+              />
             </div>
             {selectedEmails.size > 0 && (
               <div className="flex items-center space-x-3">

@@ -5,6 +5,7 @@ import { useBilling } from '../contexts/BillingContext';
 import type { Email } from '../lib/types';
 import { ProtectedBadge, ScamBadge } from './ProtectedEmailControls';
 import RemoveConfirmDialog from './RemoveConfirmDialog';
+import SelectAllToggle from './SelectAllToggle';
 import { t, plural, tKnown, timeAgo, useI18n } from '../lib/i18n';
 
 interface UnreadEmailsProps {
@@ -18,9 +19,6 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   // Free plan: one email at a time; selecting several is a Pro feature.
   const { requirePro } = useBilling();
-  // True after "Select all N unread emails": the selection is every unread
-  // email, not just the ones rendered on the page.
-  const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [activeAction, setActiveAction] = useState<'selected' | 'all' | 'archive' | 'delete' | null>(null);
   const processing = activeAction !== null;
   const [error, setError] = useState('');
@@ -30,23 +28,18 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
 
   const visibleEmails = showAll ? emails : emails.slice(0, 50);
 
-  const selectedList = selectAllMatching ? emails : emails.filter((e) => selectedEmails.has(e.id));
+  const selectedList = emails.filter((e) => selectedEmails.has(e.id));
   const selectedCount = selectedList.length;
-  const allVisibleSelected =
-    selectAllMatching || (visibleEmails.length > 0 && visibleEmails.every((e) => selectedEmails.has(e.id)));
 
-  const clearSelection = () => {
-    setSelectedEmails(new Set());
-    setSelectAllMatching(false);
+  const clearSelection = () => setSelectedEmails(new Set());
+
+  // "Select all" means every unread email, including ones not shown yet.
+  const selectAll = () => {
+    if (!requirePro(t('Select All'))) return;
+    setSelectedEmails(new Set(emails.map((e) => e.id)));
   };
 
   const toggleEmail = (id: string) => {
-    if (selectAllMatching) {
-      // Unticking one email turns "everything" back into an explicit list.
-      setSelectAllMatching(false);
-      setSelectedEmails(new Set(emails.filter((e) => e.id !== id).map((e) => e.id)));
-      return;
-    }
     if (!selectedEmails.has(id) && selectedEmails.size >= 1 && !requirePro(t('Selecting several emails'))) return;
     const newSelected = new Set(selectedEmails);
     if (newSelected.has(id)) {
@@ -55,15 +48,6 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
       newSelected.add(id);
     }
     setSelectedEmails(newSelected);
-  };
-
-  const toggleAll = () => {
-    if (allVisibleSelected) {
-      clearSelection();
-    } else {
-      if (!requirePro(t('Select All'))) return;
-      setSelectedEmails(new Set(visibleEmails.map((e) => e.id)));
-    }
   };
 
   const markAsRead = async (emailIds: string[], scope: 'selected' | 'all') => {
@@ -192,18 +176,13 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
         <>
           <div className="bg-sunny-100 rounded-2xl p-4 mb-4 shadow-sm border-2 border-ink/10 sticky top-20 z-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={allVisibleSelected}
-                  onChange={toggleAll}
-                  disabled={processing}
-                  className="w-5 h-5 rounded border-gray-300 text-sunny-600 focus:ring-sunny-500"
-                />
-                <span className="font-medium text-ink/85">
-                  {selectedCount > 0 ? t('{n} selected', { n: selectedCount }) : t('Select All')}
-                </span>
-              </label>
+              <SelectAllToggle
+                total={emails.length}
+                selected={selectedCount}
+                onSelectAll={selectAll}
+                onClear={clearSelection}
+                disabled={processing}
+              />
               {selectedCount > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
                   <button
@@ -234,29 +213,6 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
               )}
             </div>
 
-            {/* Gmail-style: after ticking the page, offer to extend to every unread email. */}
-            {allVisibleSelected && emails.length > visibleEmails.length && (
-              <div className="mt-3 pt-3 border-t-2 border-ink/5 text-sm text-ink/80 text-center">
-                {selectAllMatching ? (
-                  <>
-                    {t('All {n} unread emails are selected.', { n: emails.length })}{' '}
-                    <button onClick={clearSelection} className="font-semibold text-ocean-700 hover:underline">
-                      {t('Clear selection')}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    {t('All {n} on this page are selected.', { n: visibleEmails.length })}{' '}
-                    <button
-                      onClick={() => setSelectAllMatching(true)}
-                      className="font-semibold text-ocean-700 hover:underline"
-                    >
-                      {t('Select all {n} unread emails', { n: emails.length })}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
           </div>
 
           <div className="space-y-3">
@@ -264,7 +220,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
               <div
                 key={email.id}
                 className={`bg-white rounded-2xl p-6 transition border-2 shadow-sm ${
-                  selectAllMatching || selectedEmails.has(email.id)
+                  selectedEmails.has(email.id)
                     ? 'border-sunny-500 shadow-md'
                     : 'border-sunny-200 hover:border-sunny-400'
                 }`}
@@ -272,7 +228,7 @@ export default function UnreadEmails({ emails, onBack, onRefresh }: UnreadEmails
                 <div className="flex items-start space-x-4">
                   <input
                     type="checkbox"
-                    checked={selectAllMatching || selectedEmails.has(email.id)}
+                    checked={selectedEmails.has(email.id)}
                     onChange={() => toggleEmail(email.id)}
                     className="w-5 h-5 rounded border-gray-300 text-sunny-600 focus:ring-sunny-500 mt-1"
                   />

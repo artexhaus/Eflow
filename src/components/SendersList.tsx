@@ -18,6 +18,7 @@ import type { Email } from '../lib/types';
 import UnsubscribeButton from './UnsubscribeButton';
 import { useSenderActions } from '../hooks/useSenderActions';
 import { t, plural, tKnown, timeAgo, useI18n } from '../lib/i18n';
+import SelectAllToggle from './SelectAllToggle';
 
 interface SendersListProps {
   emails: Email[];
@@ -94,10 +95,11 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
   };
 
   // Drop selections for senders that disappeared (e.g. after a clean-up).
-  const selectedGroups = useMemo(() => groups.filter((g) => selected.has(g.key)), [groups, selected]);
+  // Only senders in the current search/filter count as selected, so the number
+  // shown next to "Select all" is exactly what a bulk action acts on.
+  const selectedGroups = useMemo(() => filtered.filter((g) => selected.has(g.key)), [filtered, selected]);
   const selectedEmailCount = selectedGroups.reduce((sum, g) => sum + g.count, 0);
   const selectedProtectedCount = selectedGroups.reduce((sum, g) => sum + g.protectedCount, 0);
-  const allVisibleSelected = visible.length > 0 && visible.every((g) => selected.has(g.key));
 
   // Free plan: one sender at a time; selecting several is a Pro feature.
   const { requirePro } = useBilling();
@@ -112,16 +114,11 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
     });
   };
 
-  const toggleAllVisible = () => {
-    if (!allVisibleSelected && !requirePro(t('Select all senders'))) return;
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const g of visible) {
-        if (allVisibleSelected) next.delete(g.key);
-        else next.add(g.key);
-      }
-      return next;
-    });
+  // "Select all" means every sender in the current search/filter, including
+  // ones not shown yet.
+  const selectAll = () => {
+    if (!requirePro(t('Select all senders'))) return;
+    setSelected(new Set(filtered.map((g) => g.key)));
   };
 
   // Acts on every email from all checked senders in a single request, so the
@@ -264,17 +261,16 @@ export default function SendersList({ emails, simple = false, onBack, onRefresh 
             </div>
           )}
 
-          <div className="flex items-center justify-between mb-3 px-1">
-            <label className="flex items-center space-x-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={toggleAllVisible}
-                disabled={busy !== null}
-                className="w-5 h-5 rounded border-gray-300 text-berry-600 focus:ring-berry-500"
-              />
-              <span className="text-sm font-medium text-ink/85">{t('Select all shown')}</span>
-            </label>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3 px-1">
+            <SelectAllToggle
+              total={filtered.length}
+              selected={selectedGroups.length}
+              onSelectAll={selectAll}
+              onClear={() => setSelected(new Set())}
+              disabled={busy !== null}
+              noun="senders"
+              className="text-sm"
+            />
             <p className="text-sm text-ink/70">
               {plural(filtered.length, '{n} sender', '{n} senders')} ·{' '}
               {plural(filtered.reduce((sum, g) => sum + g.count, 0), '{n} email', '{n} emails')}

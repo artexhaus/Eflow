@@ -9,6 +9,7 @@ import { applyMailAction, describePartialFailure } from '../lib/mailActions';
 import RemoveConfirmDialog from './RemoveConfirmDialog';
 import { ScamBadge } from './ProtectedEmailControls';
 import { t, plural, tKnown, timeAgo, useI18n, type MessageKey } from '../lib/i18n';
+import SelectAllToggle from './SelectAllToggle';
 
 interface ImportantEmailsProps {
   emails: Email[];
@@ -144,7 +145,6 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
   const visibleEmails = showAll ? filtered : filtered.slice(0, 50);
 
   const selectedList = filtered.filter((e) => selected.has(e.id));
-  const allVisibleSelected = visibleEmails.length > 0 && visibleEmails.every((e) => selected.has(e.id));
   const processing = activeAction !== null;
 
   // Free plan: one email at a time; selecting several and exporting receipts
@@ -161,9 +161,11 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
     });
   };
 
-  const toggleAllVisible = () => {
-    if (!allVisibleSelected && !requirePro(t('Select All'))) return;
-    setSelected(allVisibleSelected ? new Set() : new Set(visibleEmails.map((e) => e.id)));
+  // "Select all" means every email in the current tab and filter, including
+  // ones not shown yet.
+  const selectAll = () => {
+    if (!requirePro(t('Select All'))) return;
+    setSelected(new Set(filtered.map((e) => e.id)));
   };
 
   // Receipts and invoices here are ones the user picked by hand; the
@@ -334,18 +336,13 @@ export default function ImportantEmails({ emails, verifiedEmails, initialTab = '
       ) : (
         <>
           <div className="bg-ocean-100 rounded-2xl p-4 mb-4 shadow-sm border-2 border-ink/10 sticky top-20 z-10 flex flex-wrap items-center justify-between gap-3">
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={toggleAllVisible}
-                disabled={processing}
-                className="w-5 h-5 rounded border-gray-300 text-mint-600 focus:ring-mint-500"
-              />
-              <span className="font-medium text-ink/85">
-                {selectedList.length > 0 ? t('{n} selected', { n: selectedList.length }) : t('Select All')}
-              </span>
-            </label>
+            <SelectAllToggle
+              total={filtered.length}
+              selected={selectedList.length}
+              onSelectAll={selectAll}
+              onClear={() => setSelected(new Set())}
+              disabled={processing}
+            />
             {selectedList.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <button

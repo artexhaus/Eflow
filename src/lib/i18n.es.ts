@@ -601,6 +601,13 @@ export const es = {
   'Receipts, invoices and personal emails are never touched, and nothing is deleted.': 'Nunca se tocan los recibos, las facturas ni los correos personales, y no se elimina nada.',
   'Saving...': 'Guardando...',
 
+  // Select all (every list)
+  'Select all ({n})': 'Seleccionar todo ({n})',
+  'All {n} emails selected': 'Los {n} correos seleccionados',
+  'All {n} senders selected': 'Los {n} remitentes seleccionados',
+  '{done} of {total} selected': '{done} de {total} seleccionados',
+  'Select all': 'Seleccionar todo',
+
   // Live scan progress
   'Your mail server is a little slow - still working...': 'Tu servidor de correo va un poco lento; seguimos trabajando...',
   'Connecting to your mailbox...': 'Conectando con tu buzón...',

@@ -174,24 +174,43 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
     try {
       // PostgREST returns at most 1000 rows per request, so page through the
       // table - otherwise every count on the dashboard silently caps at 1000.
+      // The first page also returns the total, and the remaining pages (and
+      // the bundles) are then fetched all at once instead of one by one.
       const PAGE = 1000;
-      const allEmails: Email[] = [];
-      for (let from = 0; ; from += PAGE) {
-        const { data, error } = await supabase
+      const page = (from: number, withCount = false) =>
+        supabase
           .from('emails')
-          .select('*')
+          .select('*', withCount ? { count: 'exact' } : undefined)
           .eq('user_id', user.id)
           .eq('is_deleted', false)
           .eq('is_archived', false)
           .order('timestamp', { ascending: false })
           .order('id')
           .range(from, from + PAGE - 1);
-        if (error) throw error;
-        allEmails.push(...(data ?? []));
-        if (!data || data.length < PAGE) break;
-      }
 
-      const bundlesRes = await supabase.from('bundles').select('*').eq('user_id', user.id);
+      const [first, bundlesRes] = await Promise.all([
+        page(0, true),
+        supabase.from('bundles').select('*').eq('user_id', user.id),
+      ]);
+      if (first.error) throw first.error;
+      const allEmails: Email[] = [...(first.data ?? [])];
+      const total = first.count ?? allEmails.length;
+      if (allEmails.length === PAGE && total > PAGE) {
+        const rest = await Promise.all(
+          Array.from({ length: Math.ceil(total / PAGE) - 1 }, (_, i) => page((i + 1) * PAGE))
+        );
+        for (const r of rest) {
+          if (r.error) throw r.error;
+          allEmails.push(...(r.data ?? []));
+        }
+        // Mail that arrived between the requests could push a row onto two
+        // pages; keep each email once.
+        const seen = new Set<string>();
+        for (let i = allEmails.length - 1; i >= 0; i--) {
+          if (seen.has(allEmails[i].id)) allEmails.splice(i, 1);
+          else seen.add(allEmails[i].id);
+        }
+      }
 
       setEmails(allEmails);
       if (bundlesRes.data) setBundles(bundlesRes.data);
@@ -226,6 +245,7 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
         // transient IMAP hiccup (timeouts, brief server errors) shouldn't abort
         // the whole scan - retry a few times with backoff before giving up.
         const MAX_CONSECUTIVE_FAILURES = 5;
+        const scanStartedAt = Date.now();
         let result: ScanChunkResponse | null = null;
         let done = false;
         let consecutiveFailures = 0;
@@ -294,7 +314,15 @@ export default function Dashboard({ onMailboxDisconnected }: DashboardProps) {
             bundle_groups: result.bundle_groups || 0,
           });
         }
-        track('inbox_scanned', { provider: userData.email_provider, emails: result?.scanned_so_far ?? 0 });
+        // How long real scans take (counts and timing only), to keep making
+        // them faster.
+        track('inbox_scanned', {
+          provider: userData.email_provider,
+          emails: result?.scanned_so_far ?? 0,
+          mode: result?.mode ?? 'full',
+          seconds: Math.round((Date.now() - scanStartedAt) / 1000),
+          calls: chunks,
+        });
       }
 
       await loadData();
